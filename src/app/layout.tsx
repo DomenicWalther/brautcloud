@@ -8,6 +8,7 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { Navigation } from "@/components/navigation";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,17 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className={inter.className}>
-          <header>
-            <SignedOut>
-              <SignInButton />
-            </SignedOut>
+      <html lang="en" className="h-full bg-gray-100">
+        <body className="h-full">
+          <Navigation />
 
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
           <main>{children}</main>
         </body>
       </html>
