@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import {SignedIn, SignedOut, SignInButton, UserButton} from "@clerk/nextjs";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { PlusSmallIcon } from "@heroicons/react/20/solid";
 import { BellIcon } from "@heroicons/react/24/outline";
@@ -31,6 +31,9 @@ export const Navigation = () => {
           <SignedIn>
             <UserButton />
           </SignedIn>
+          <SignedOut>
+              <SignInButton />
+            </SignedOut>
         </div>
       </div>
     </nav>
