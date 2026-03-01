@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
-import { RouterLink } from "@angular/router";
+import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../services/auth-service';
 
 @Component({
   selector: 'app-sign-in',
@@ -8,5 +9,9 @@ import { RouterLink } from "@angular/router";
   styles: ``,
 })
 export class SignIn {
+  private authService = inject(AuthService);
 
+  login() {
+    this.authService.login();
+  }
 }
