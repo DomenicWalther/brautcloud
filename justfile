@@ -6,3 +6,6 @@ frontend *args:
 
 dev:
   just backend dev & just frontend dev
+
+dev-front:
+  just backend dev-full & just frontend dev
