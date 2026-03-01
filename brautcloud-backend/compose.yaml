@@ -7,3 +7,14 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432:5432'
+  aistor:
+    image: quay.io/minio/aistor/minio:latest
+    command: minio server /mnt/data --license /minio.license
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - /${HOME}/minio/certs:/etc/minio/certs
+      - /${HOME}/minio/data:/mnt/data
+      - /${HOME}/minio/minio.license:/minio.license
+    tty: true
