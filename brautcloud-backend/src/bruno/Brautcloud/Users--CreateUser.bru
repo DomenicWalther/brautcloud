@@ -1,0 +1,28 @@
+meta {
+  name: Users::CreateUser
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8080/api/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lastName": "{{$randomLastName}}",
+    "firstNameCoupleOne": "{{$randomFirstName}}",
+    "firstNameCoupleTwo": "{{$randomFirstName}}",
+    "email": "{{$randomEmail}}",
+    "emailVerified": false,
+    "password": "{{$randomPassword}}"
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Events::CreateEvent
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:8080/api/events
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "userId": 3,
+    "eventName": "{{$randomFirstName}} & {{$randomFirstName}}",
+    "location": "{{$randomBsNoun}}",
+    "date": "{{$randomDateFuture}}",
+    "email": "{{$randomEmail}}",
+    "password": "{{$randomEmail}}",
+    "qr_code": "QR-CODE-PLACEHOLDER"
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

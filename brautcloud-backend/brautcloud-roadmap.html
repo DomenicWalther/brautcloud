@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brautcloud — Full-Stack MVP Roadmap</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #1A1015;
+  --bg2: #201318;
+  --cream: #F2EAD8;
+  --muted: rgba(242,234,216,0.45);
+  --faint: rgba(242,234,216,0.08);
+  --gold: #C9A84C;
+  --gold-faint: rgba(201,168,76,0.08);
+  --gold-border: rgba(201,168,76,0.2);
+  --rose: #C4736A;
+  --rose-faint: rgba(196,115,106,0.08);
+  --sage: #7DAF86;
+  --sage-faint: rgba(125,175,134,0.08);
+  --sky: #6A9EC4;
+  --sky-faint: rgba(106,158,196,0.08);
+  --border: rgba(255,255,255,0.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  background:var(--bg);
+  color:var(--cream);
+  font-family:'DM Sans', sans-serif;
+  font-weight:300;
+  line-height:1.65;
+  overflow-x:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:999; mix-blend-mode:overlay;
+}
+@keyframes fade-up {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes pulse-ring {
+  0%,100% { transform:translate(-50%,-50%) scale(1); opacity:.4; }
+  50%      { transform:translate(-50%,-50%) scale(1.04); opacity:.8; }
+}
+
+/* ── HERO ── */
+.hero {
+  min-height:100vh;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; padding:5rem 2rem;
+  background:radial-gradient(ellipse 65% 50% at 50% 45%, #3D1020 0%, var(--bg) 70%);
+  position:relative; overflow:hidden;
+}
+.hero::after {
+  content:''; position:absolute; bottom:0; left:0; right:0;
+  height:1px; background:linear-gradient(90deg,transparent,var(--gold-border),transparent);
+}
+.ring { position:absolute; top:50%; left:50%; border-radius:50%; border:1px solid; transform:translate(-50%,-50%); pointer-events:none; }
+.ring-1 { width:480px;height:480px; border-color:rgba(201,168,76,.07); animation:pulse-ring 5s ease-in-out infinite; }
+.ring-2 { width:700px;height:700px; border-color:rgba(201,168,76,.035); animation:pulse-ring 5s 1.8s ease-in-out infinite; }
+.ring-3 { width:320px;height:320px; border-color:rgba(201,168,76,.055); animation:pulse-ring 5s 3.2s ease-in-out infinite; }
+
+.hero-label {
+  font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.35em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:1.4rem;
+  position:relative; z-index:10;
+  opacity:0; animation:fade-up .7s .1s forwards;
+}
+.hero-title {
+  font-family:'Playfair Display',serif; font-size:clamp(3rem,8vw,5.5rem);
+  font-weight:900; line-height:.95; letter-spacing:-.02em;
+  position:relative; z-index:10;
+  opacity:0; animation:fade-up .7s .25s forwards;
+}
+.hero-title em {
+  display:block; font-style:italic; font-weight:400;
+  font-size:.62em; color:rgba(242,234,216,.45); margin-top:.45rem;
+}
+.hero-sub {
+  font-size:.92rem; color:var(--muted); max-width:440px;
+  margin:1.8rem auto 0; position:relative; z-index:10;
+  opacity:0; animation:fade-up .7s .4s forwards;
+}
+.hero-pills {
+  display:flex; gap:.65rem; justify-content:center; flex-wrap:wrap;
+  margin-top:2.2rem; position:relative; z-index:10;
+  opacity:0; animation:fade-up .7s .55s forwards;
+}
+.pill {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.18em;
+  text-transform:uppercase; padding:.28rem .85rem;
+  border:1px solid var(--gold-border); border-radius:999px;
+  color:var(--gold); background:var(--gold-faint);
+}
+.pill.sky { color:var(--sky); border-color:rgba(106,158,196,.25); background:var(--sky-faint); }
+.pill.ros { color:var(--rose); border-color:rgba(196,115,106,.25); background:var(--rose-faint); }
+
+/* ── NAV ── */
+.nav {
+  position:sticky; top:0; z-index:100;
+  background:rgba(26,16,21,.92); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:.7rem 2rem;
+  display:flex; gap:1.75rem; justify-content:center; align-items:center; flex-wrap:wrap;
+}
+.nav a {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--muted); text-decoration:none; transition:color .2s;
+}
+.nav a:hover { color:var(--cream); }
+
+/* ── LAYOUT ── */
+.wrap { max-width:1060px; margin:0 auto; padding:5rem 2rem; }
+.alt  { background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.sec-label {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.35em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:.55rem;
+}
+.sec-title {
+  font-family:'Playfair Display',serif; font-size:clamp(1.6rem,3.5vw,2.3rem);
+  font-weight:700; line-height:1.1; margin-bottom:.45rem;
+}
+.sec-desc { color:var(--muted); font-size:.88rem; max-width:520px; margin-bottom:2.5rem; }
+hr.rule { border:none; height:1px; background:linear-gradient(90deg,transparent,var(--gold-border),transparent); }
+
+/* ── STATUS GRID ── */
+.status-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.9rem; }
+.scard {
+  background:rgba(255,255,255,.022); border:1px solid var(--border);
+  border-radius:6px; padding:1.15rem;
+  transition:border-color .3s, transform .3s;
+}
+.scard:hover { border-color:var(--gold-border); transform:translateY(-2px); }
+.badge {
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.1em;
+  text-transform:uppercase; padding:.18rem .5rem; border-radius:2px; margin-bottom:.6rem;
+}
+.badge.done { background:var(--sage-faint); color:var(--sage); border:1px solid rgba(125,175,134,.22); }
+.badge.warn { background:var(--gold-faint); color:var(--gold); border:1px solid var(--gold-border); }
+.badge.miss { background:var(--rose-faint); color:var(--rose); border:1px solid rgba(196,115,106,.22); }
+.scard-title { font-family:'Playfair Display',serif; font-size:.92rem; margin-bottom:.2rem; }
+.scard-desc  { font-size:.78rem; color:var(--muted); line-height:1.5; }
+.layer-label {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.25em;
+  text-transform:uppercase; margin-bottom:.7rem; padding:.3rem .6rem;
+  border-radius:3px; display:inline-block;
+}
+.layer-label.be { color:var(--sky); background:var(--sky-faint); border:1px solid rgba(106,158,196,.2); }
+.layer-label.fe { color:var(--rose); background:var(--rose-faint); border:1px solid rgba(196,115,106,.2); }
+
+/* ── UNIFIED TIMELINE ── */
+.timeline { display:flex; flex-direction:column; gap:0; }
+
+/* Week block */
+.week-block {
+  display:grid;
+  grid-template-columns: 100px 1fr;
+  gap:0;
+  opacity:0; animation:fade-up .6s forwards;
+}
+.week-block:nth-child(1){animation-delay:.05s}
+.week-block:nth-child(2){animation-delay:.15s}
+.week-block:nth-child(3){animation-delay:.25s}
+.week-block:nth-child(4){animation-delay:.35s}
+.week-block:nth-child(5){animation-delay:.45s}
+
+/* Left spine column */
+.week-spine {
+  display:flex; flex-direction:column; align-items:center;
+  padding-top:.3rem; position:relative;
+}
+.week-dot {
+  width:44px; height:44px; border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  flex-shrink:0; z-index:2;
+  font-family:'DM Mono',monospace;
+  transition:all .25s;
+}
+.week-dot .wd-label { font-size:.45rem; letter-spacing:.2em; text-transform:uppercase; opacity:.7; }
+.week-dot .wd-num   { font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:900; line-height:1; }
+
+.week-block.wk1 .week-dot { border:2px solid rgba(106,158,196,.4); color:var(--sky); }
+.week-block.wk2 .week-dot { border:2px solid rgba(201,168,76,.4);  color:var(--gold); }
+.week-block.wk3 .week-dot { border:2px solid rgba(196,115,106,.4); color:var(--rose); }
+.week-block.wk4 .week-dot { border:2px solid rgba(125,175,134,.4); color:var(--sage); }
+.week-block.wk5 .week-dot { border:2px solid rgba(242,234,216,.15);color:rgba(242,234,216,.4); }
+
+.week-block:hover .week-dot { background:rgba(255,255,255,.04); }
+
+.week-vline {
+  width:1px; flex:1; min-height:24px; margin:6px 0;
+  background:linear-gradient(to bottom, rgba(255,255,255,.08), transparent);
+}
+.week-block:last-child .week-vline { display:none; }
+
+/* Right content column */
+.week-content {
+  padding:0 0 3.5rem 2rem;
+  border-left:1px solid var(--border);
+  margin-left:0;
+}
+
+.week-header {
+  padding-top:.3rem;
+  margin-bottom:1.4rem;
+}
+.week-title {
+  font-family:'Playfair Display',serif;
+  font-size:1.3rem; font-weight:700; margin-bottom:.2rem;
+}
+.week-subtitle { font-size:.85rem; color:var(--muted); }
+
+/* Phase cards inside a week */
+.phases-in-week { display:flex; flex-direction:column; gap:1rem; }
+
+.phase-card {
+  border-radius:6px; overflow:hidden;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.018);
+  transition:border-color .3s;
+}
+.phase-card:hover { border-color:rgba(255,255,255,.12); }
+
+.phase-card-header {
+  display:flex; align-items:center; gap:.85rem;
+  padding:.85rem 1.1rem;
+  border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.022);
+}
+.phase-num {
+  font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:900;
+  opacity:.35; flex-shrink:0; min-width:20px;
+}
+.phase-title-text {
+  font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; flex:1;
+}
+.ptag {
+  font-family:'DM Mono',monospace; font-size:.52rem; letter-spacing:.15em;
+  text-transform:uppercase; padding:.14rem .45rem; border-radius:2px; flex-shrink:0;
+}
+.ptag.hot  { color:var(--gold); border:1px solid var(--gold-border); background:var(--gold-faint); }
+.ptag.go   { color:var(--sage); border:1px solid rgba(125,175,134,.25); background:var(--sage-faint); }
+.ptag.fe   { color:var(--rose); border:1px solid rgba(196,115,106,.25); background:var(--rose-faint); }
+
+.phase-card-desc {
+  padding:.65rem 1.1rem;
+  font-size:.82rem; color:var(--muted);
+  border-bottom:1px solid var(--border);
+}
+
+.phase-split {
+  display:grid; grid-template-columns:1fr 1fr;
+}
+@media(max-width:600px){ .phase-split { grid-template-columns:1fr; } }
+
+.phase-col {
+  padding:.85rem 1.1rem;
+}
+.phase-col.be { border-right:1px solid var(--border); }
+@media(max-width:600px){ .phase-col.be { border-right:none; border-bottom:1px solid var(--border); } }
+
+.phase-col-label {
+  font-family:'DM Mono',monospace; font-size:.52rem; letter-spacing:.25em;
+  text-transform:uppercase; margin-bottom:.6rem; display:flex; align-items:center; gap:.4rem;
+}
+.phase-col.be .phase-col-label { color:var(--sky); }
+.phase-col.fe .phase-col-label { color:var(--rose); }
+.phase-col-dot { width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
+
+.steps { display:flex; flex-direction:column; gap:.38rem; }
+.step  { display:flex; gap:.55rem; font-size:.78rem; color:rgba(242,234,216,.68); align-items:flex-start; }
+.sn    { font-family:'DM Mono',monospace; font-size:.55rem; color:var(--gold); flex-shrink:0; margin-top:.18rem; width:14px; opacity:.7; }
+
+/* Decision banner */
+.decision {
+  padding:.7rem 1.1rem;
+  border-top:1px solid var(--border);
+  background:rgba(201,168,76,.04);
+  display:flex; gap:.75rem; align-items:flex-start;
+}
+.decision-lbl {
+  font-family:'DM Mono',monospace; font-size:.52rem; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); flex-shrink:0; margin-top:.1rem;
+}
+.decision p { font-size:.78rem; color:var(--muted); }
+
+/* Foundation card (no split) */
+.phase-card.foundation .phase-col {
+  border-right:none;
+}
+.foundation-tasks {
+  padding:.85rem 1.1rem;
+  display:grid; grid-template-columns:1fr 1fr; gap:.38rem .85rem;
+}
+@media(max-width:500px){ .foundation-tasks { grid-template-columns:1fr; } }
+.ft-item { display:flex; gap:.5rem; font-size:.78rem; color:rgba(242,234,216,.68); align-items:flex-start; }
+.ft-dot { width:4px; height:4px; border-radius:50%; background:var(--gold); flex-shrink:0; margin-top:.45rem; opacity:.6; }
+
+/* ── PARALLEL ── */
+.par-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+@media(max-width:680px){ .par-grid { grid-template-columns:1fr; } }
+.par-col { border-radius:6px; padding:1.2rem; border:1px solid var(--border); }
+.par-col.now { background:var(--sage-faint); border-color:rgba(125,175,134,.18); }
+.par-col.be  { background:var(--sky-faint);  border-color:rgba(106,158,196,.12); }
+.par-col.mid { background:var(--gold-faint); border-color:var(--gold-border); }
+.par-col-title { font-family:'Playfair Display',serif; font-size:.92rem; font-weight:700; margin-bottom:.7rem; }
+.par-col.now .par-col-title { color:var(--sage); }
+.par-col.be  .par-col-title { color:var(--sky); }
+.par-col.mid .par-col-title { color:var(--gold); }
+.par-item { font-size:.78rem; color:var(--muted); padding:.28rem 0; border-bottom:1px solid var(--faint); }
+.par-item:last-child { border-bottom:none; }
+
+/* ── API ── */
+.api-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:1rem; }
+.api-group { border-radius:6px; padding:1rem; border:1px solid var(--border); background:rgba(255,255,255,.018); }
+.api-group-title {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:.7rem;
+  padding-bottom:.45rem; border-bottom:1px solid var(--gold-border);
+}
+.api-item { display:flex; gap:.45rem; align-items:baseline; padding:.22rem 0; }
+.api-method { font-family:'DM Mono',monospace; font-size:.58rem; font-weight:500; min-width:38px; flex-shrink:0; color:var(--sky); }
+.api-path   { color:rgba(242,234,216,.6); flex:1; font-family:'DM Mono',monospace; font-size:.65rem; }
+.api-status { font-size:.62rem; flex-shrink:0; }
+.ok   { color:var(--sage); }
+.miss { color:var(--rose); }
+.fix  { color:var(--gold); }
+
+/* ── CHECKLIST ── */
+.checklist { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.6rem; }
+.cl-item {
+  display:flex; gap:.65rem; align-items:flex-start;
+  padding:.75rem 1rem; background:rgba(255,255,255,.018);
+  border:1px solid var(--border); border-radius:5px;
+  font-size:.8rem; color:rgba(242,234,216,.68);
+  cursor:pointer; transition:border-color .2s; user-select:none;
+}
+.cl-item:hover { border-color:rgba(125,175,134,.25); }
+.cl-item.done {
+  background:var(--sage-faint); border-color:rgba(125,175,134,.18);
+  color:rgba(242,234,216,.35); text-decoration:line-through;
+  text-decoration-color:rgba(125,175,134,.35);
+}
+.cb {
+  width:15px; height:15px; border:1px solid rgba(125,175,134,.3);
+  border-radius:2px; flex-shrink:0; margin-top:1px;
+  display:flex; align-items:center; justify-content:center; transition:background .2s;
+}
+.cl-item.done .cb { background:var(--sage); border-color:var(--sage); }
+.cb::after {
+  content:''; width:4px; height:7px;
+  border-right:1.5px solid white; border-bottom:1.5px solid white;
+  transform:rotate(45deg) translate(-1px,-1px); display:none;
+}
+.cl-item.done .cb::after { display:block; }
+
+/* ── PITFALLS ── */
+.pit-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.75rem; }
+.pit { padding:1rem; border-radius:5px; background:var(--rose-faint); border:1px solid rgba(196,115,106,.13); }
+.pit-x { color:var(--rose); margin-bottom:.35rem; }
+.pit-t { font-size:.8rem; font-weight:500; color:var(--cream); margin-bottom:.18rem; }
+.pit-s { font-size:.74rem; color:var(--muted); }
+
+/* ── FOOTER ── */
+.footer {
+  text-align:center; padding:4rem 2rem;
+  background:rgba(0,0,0,.4); border-top:1px solid var(--border);
+}
+.footer-q {
+  font-family:'Playfair Display',serif; font-style:italic;
+  font-size:clamp(1rem,2.5vw,1.5rem); color:rgba(242,234,216,.45);
+  max-width:520px; margin:0 auto .85rem; line-height:1.4;
+}
+.footer-s {
+  font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.2em;
+  text-transform:uppercase; color:rgba(242,234,216,.18);
+}
+code {
+  font-family:'DM Mono',monospace; font-size:.84em;
+  color:var(--gold); background:var(--gold-faint); padding:.04em .28em; border-radius:3px;
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="ring ring-1"></div>
+  <div class="ring ring-2"></div>
+  <div class="ring ring-3"></div>
+  <p class="hero-label">Full-Stack MVP Roadmap</p>
+  <h1 class="hero-title">
+    Brautcloud
+    <em>From placeholder to production</em>
+  </h1>
+  <p class="hero-sub">5 weeks. 6 phases. Backend and frontend moving together — here's exactly what to build and when.</p>
+  <div class="hero-pills">
+    <span class="pill">5 Weeks</span>
+    <span class="pill">6 Phases</span>
+    <span class="pill sky">Spring Boot</span>
+    <span class="pill ros">Angular 21</span>
+  </div>
+</section>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="#state">Current State</a>
+  <a href="#roadmap">The Roadmap</a>
+  <a href="#parallel">Parallel Work</a>
+  <a href="#api">API Contract</a>
+  <a href="#criteria">Done When</a>
+</nav>
+
+<!-- CURRENT STATE -->
+<div id="state" class="alt">
+<div class="wrap">
+  <p class="sec-label">Where Things Stand</p>
+  <h2 class="sec-title">Current State</h2>
+  <p class="sec-desc">Both layers have a foundation — but neither is wired up yet.</p>
+
+  <div style="margin-bottom:.8rem"><span class="layer-label be">Backend — Spring Boot</span></div>
+  <div class="status-grid" style="margin-bottom:2.2rem">
+    <div class="scard">
+      <div class="badge done">✓ done</div>
+      <div class="scard-title">JWT Authentication</div>
+      <div class="scard-desc">Register &amp; login working for couples.</div>
+    </div>
+    <div class="scard">
+      <div class="badge warn">⚡ partial</div>
+      <div class="scard-title">Event CRUD</div>
+      <div class="scard-desc">Create &amp; list work. Single GET and PATCH are missing.</div>
+    </div>
+    <div class="scard">
+      <div class="badge done">✓ done</div>
+      <div class="scard-title">Basic Image Upload</div>
+      <div class="scard-desc">Files go to S3. Metadata and event relations stored.</div>
+    </div>
+    <div class="scard">
+      <div class="badge done">✓ done</div>
+      <div class="scard-title">Database Schema</div>
+      <div class="scard-desc">PostgreSQL + JPA entities. Solid base.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">QR Code Generation</div>
+      <div class="scard-desc">No ZXing integration. Guests can't access events.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">Presigned S3 URLs</div>
+      <div class="scard-desc">Images upload but can't be viewed. Critical blocker.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">Guest Auth System</div>
+      <div class="scard-desc">No guest JWT, no public endpoints, no anonymous uploads.</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:.8rem"><span class="layer-label fe">Frontend — Angular 21</span></div>
+  <div class="status-grid">
+    <div class="scard">
+      <div class="badge done">✓ done</div>
+      <div class="scard-title">Landing Page UI</div>
+      <div class="scard-desc">Hero, features, CTA — complete.</div>
+    </div>
+    <div class="scard">
+      <div class="badge warn">⚡ UI only</div>
+      <div class="scard-title">Auth Forms</div>
+      <div class="scard-desc">Sign-in &amp; sign-up forms exist. Zero API wiring.</div>
+    </div>
+    <div class="scard">
+      <div class="badge warn">⚡ mock data</div>
+      <div class="scard-title">Home Dashboard</div>
+      <div class="scard-desc">Hardcoded stats. QR code is a placeholder image.</div>
+    </div>
+    <div class="scard">
+      <div class="badge warn">⚡ mock data</div>
+      <div class="scard-title">Image Gallery</div>
+      <div class="scard-desc">12 placeholder items. No real images or API calls.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">HTTP Client</div>
+      <div class="scard-desc"><code>provideHttpClient()</code> not configured. No API calls possible.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">Guest Routes</div>
+      <div class="scard-desc"><code>/event/:id</code>, password entry, guest upload &amp; gallery — all absent.</div>
+    </div>
+    <div class="scard">
+      <div class="badge miss">✗ missing</div>
+      <div class="scard-title">Services &amp; State</div>
+      <div class="scard-desc">No EventService, ImageService, AuthService, or state management.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<hr class="rule">
+
+<!-- THE UNIFIED ROADMAP -->
+<div id="roadmap" class="wrap">
+  <p class="sec-label">The Roadmap</p>
+  <h2 class="sec-title">5 Weeks · 6 Phases</h2>
+  <p class="sec-desc">Each week maps directly to the phases you're building that week — backend and frontend together.</p>
+
+  <div class="timeline">
+
+    <!-- ── WEEK 1 ── -->
+    <div class="week-block wk1">
+      <div class="week-spine">
+        <div class="week-dot">
+          <span class="wd-label">Week</span>
+          <span class="wd-num">1</span>
+        </div>
+        <div class="week-vline"></div>
+      </div>
+      <div class="week-content">
+        <div class="week-header">
+          <div class="week-title">Foundation</div>
+          <div class="week-subtitle">Wire up the HTTP layer &amp; core services — nothing else works without this.</div>
+        </div>
+        <div class="phases-in-week">
+
+          <!-- Foundation phase (FE only, no split needed) -->
+          <div class="phase-card foundation">
+            <div class="phase-card-header">
+              <div class="phase-num">—</div>
+              <div class="phase-title-text">Frontend Infrastructure Setup</div>
+              <span class="ptag fe">FE Only</span>
+            </div>
+            <div class="phase-card-desc">Before any API integration is possible, the Angular app needs its HTTP layer, services, and auth interceptor configured. This is the prerequisite for every other week.</div>
+            <div class="foundation-tasks">
+              <div class="ft-item"><div class="ft-dot"></div>Add <code>provideHttpClient(withInterceptors([authInterceptor]))</code> to app.config.ts</div>
+              <div class="ft-item"><div class="ft-dot"></div>Create <code>environment.ts</code> with <code>apiUrl</code> and <code>frontendUrl</code></div>
+              <div class="ft-item"><div class="ft-dot"></div>Build Auth Interceptor — auto-injects JWT from localStorage or sessionStorage</div>
+              <div class="ft-item"><div class="ft-dot"></div>Create <code>EventService</code>, <code>ImageService</code>, <code>AuthService</code> skeletons</div>
+              <div class="ft-item"><div class="ft-dot"></div>Set up Auth Store using Angular Signals (not NgRx — overkill for MVP)</div>
+              <div class="ft-item"><div class="ft-dot"></div>Build reusable components: Button, Input, Modal, Toast notification service</div>
+            </div>
+          </div>
+
+          <!-- Phase 1 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">01</div>
+              <div class="phase-title-text">QR Code Generation</div>
+              <span class="ptag go">Good First Win</span>
+            </div>
+            <div class="phase-card-desc">Couples get a scannable QR code when they create an event. Satisfying, visible progress that unblocks the entire guest flow.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Add ZXing core + javase to <code>pom.xml</code></div>
+                  <div class="step"><span class="sn">02</span>Create <code>QRCodeService.generateQRCodeImage(url)</code> → <code>byte[]</code>, 300×300, error correction M</div>
+                  <div class="step"><span class="sn">03</span>Endpoint: <code>GET /api/events/{id}/qrcode</code> → <code>image/png</code>, generated on-demand</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Add <code>getQRCode(id)</code> to <code>EventService</code></div>
+                  <div class="step"><span class="sn">02</span>Replace <code>placehold.co</code> image in Home dashboard with real API call</div>
+                  <div class="step"><span class="sn">03</span>Download button (canvas blob) + copy link button</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WEEK 2 ── -->
+    <div class="week-block wk2">
+      <div class="week-spine">
+        <div class="week-dot">
+          <span class="wd-label">Week</span>
+          <span class="wd-num">2</span>
+        </div>
+        <div class="week-vline"></div>
+      </div>
+      <div class="week-content">
+        <div class="week-header">
+          <div class="week-title">Auth &amp; Image Viewing</div>
+          <div class="week-subtitle">Wire up login for couples and unlock the ability to actually see photos.</div>
+        </div>
+        <div class="phases-in-week">
+
+          <!-- Auth wiring (FE only) -->
+          <div class="phase-card foundation">
+            <div class="phase-card-header">
+              <div class="phase-num">—</div>
+              <div class="phase-title-text">Connect Couple Authentication</div>
+              <span class="ptag fe">FE Only</span>
+            </div>
+            <div class="phase-card-desc">Backend auth endpoints already exist — this week is about wiring the Angular forms to them.</div>
+            <div class="foundation-tasks">
+              <div class="ft-item"><div class="ft-dot"></div>Wire sign-in form → <code>POST /api/auth/login</code>, store JWT in localStorage</div>
+              <div class="ft-item"><div class="ft-dot"></div>Wire sign-up form → <code>POST /api/auth/register</code></div>
+              <div class="ft-item"><div class="ft-dot"></div>Add route guards protecting all <code>/app/*</code> routes</div>
+              <div class="ft-item"><div class="ft-dot"></div>Handle token refresh + logout flow end-to-end</div>
+            </div>
+          </div>
+
+          <!-- Phase 4 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">04</div>
+              <div class="phase-title-text">Presigned URLs for Image Viewing</div>
+              <span class="ptag hot">Critical — Unblocks Everything</span>
+            </div>
+            <div class="phase-card-desc">Temporary S3 access links so images can be displayed without exposing the bucket. Nothing can be shown to guests or couples without this.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Add <code>getPresignedUrl(key, minutes)</code> to <code>S3Service</code> — expiry: 15 min</div>
+                  <div class="step"><span class="sn">02</span>Add <code>presignedUrl</code> + <code>urlExpiresAt</code> fields to <code>ImageResponse</code> DTO</div>
+                  <div class="step"><span class="sn">03</span>Endpoint: <code>GET /api/image/event/{id}/all</code> (couple token, all images)</div>
+                  <div class="step"><span class="sn">04</span>Endpoint: <code>GET /api/image/event/{id}/public</code> (guest token, visible only)</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Connect <code>ImageGallery</code> to real API — replace 12 placeholders</div>
+                  <div class="step"><span class="sn">02</span>Use <code>presignedUrl</code> directly in <code>&lt;img&gt;</code> src</div>
+                  <div class="step"><span class="sn">03</span>Auto-refresh image list every 10 min (URLs expire at 15)</div>
+                  <div class="step"><span class="sn">04</span>Handle 403s on expired URLs → refetch list automatically</div>
+                </div>
+              </div>
+            </div>
+            <div class="decision">
+              <span class="decision-lbl">Note</span>
+              <p>S3 bucket must be fully private. Generate URLs fresh per request — no server-side caching. Keep server clock NTP-synced or presigned URLs will fail.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WEEK 3 ── -->
+    <div class="week-block wk3">
+      <div class="week-spine">
+        <div class="week-dot">
+          <span class="wd-label">Week</span>
+          <span class="wd-num">3</span>
+        </div>
+        <div class="week-vline"></div>
+      </div>
+      <div class="week-content">
+        <div class="week-header">
+          <div class="week-title">Public Access &amp; Guest Auth</div>
+          <div class="week-subtitle">Guests can now reach the event page and authenticate with a password.</div>
+        </div>
+        <div class="phases-in-week">
+
+          <!-- Phase 2 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">02</div>
+              <div class="phase-title-text">Public Event Access &amp; Guest JWT</div>
+            </div>
+            <div class="phase-card-desc">Guests see basic event info without an account, enter the event password, and receive a short-lived guest JWT (4 hours). This enables the entire guest workflow.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Open <code>GET /events/{id}</code> + <code>POST /events/{id}/verify</code> in Spring Security (no auth required)</div>
+                  <div class="step"><span class="sn">02</span>Public GET returns: name, location, date — no password fields ever</div>
+                  <div class="step"><span class="sn">03</span>Verify returns guest JWT with claims: <code>type:guest</code>, <code>eventId</code>, 4hr expiry</div>
+                  <div class="step"><span class="sn">04</span>Extend <code>JwtAuthFilter</code> to handle both user and guest token types</div>
+                  <div class="step"><span class="sn">05</span>Rate-limit <code>/verify</code>: max 5 req/min/IP to prevent brute force</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend (new routes)</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Create <code>/event/:id</code> — EventAccessComponent fetches public event info</div>
+                  <div class="step"><span class="sn">02</span>Create <code>/event/:id/password</code> — PasswordEntryComponent with error handling</div>
+                  <div class="step"><span class="sn">03</span>On success: store guest JWT in <code>sessionStorage</code> (not localStorage)</div>
+                  <div class="step"><span class="sn">04</span>Add guest route guards — redirect to password page if no session token</div>
+                </div>
+              </div>
+            </div>
+            <div class="decision">
+              <span class="decision-lbl">Decision</span>
+              <p>Single JWT secret with <code>type=guest</code> claim to differentiate token types. Simpler than dual secrets for MVP — extend later if needed.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WEEK 4 ── -->
+    <div class="week-block wk4">
+      <div class="week-spine">
+        <div class="week-dot">
+          <span class="wd-label">Week</span>
+          <span class="wd-num">4</span>
+        </div>
+        <div class="week-vline"></div>
+      </div>
+      <div class="week-content">
+        <div class="week-header">
+          <div class="week-title">Guest Upload &amp; Deletion</div>
+          <div class="week-subtitle">The core guest experience — anonymous upload and session-based deletion.</div>
+        </div>
+        <div class="phases-in-week">
+
+          <!-- Phase 3 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">03</div>
+              <div class="phase-title-text">Anonymous Image Upload</div>
+            </div>
+            <div class="phase-card-desc">Guests upload photos without creating an account. Their identity lives entirely in the JWT — no database profile needed.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Add <code>guestToken</code> (String) + <code>isGuestUpload</code> (boolean) to <code>Image</code> entity</div>
+                  <div class="step"><span class="sn">02</span>Endpoint: <code>POST /api/image/guest-upload</code> — multipart, guest JWT required</div>
+                  <div class="step"><span class="sn">03</span>S3 key pattern: <code>{guest-uuid}/{filename}</code> — organises uploads by uploader</div>
+                  <div class="step"><span class="sn">04</span>Default <code>isVisible=false</code> — couple must approve before guests see it</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Create <code>/event/:id/upload</code> — drag-drop + file picker</div>
+                  <div class="step"><span class="sn">02</span>Client-side validation: JPEG/PNG/WebP only, max 10MB</div>
+                  <div class="step"><span class="sn">03</span>Show preview thumbnails before upload (FileReader API)</div>
+                  <div class="step"><span class="sn">04</span>Upload progress bar via XHR progress events</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 5 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">05</div>
+              <div class="phase-title-text">Guest Session-Based Deletion</div>
+              <span class="ptag fe">Frontend Heavy</span>
+            </div>
+            <div class="phase-card-desc">Guests can delete their own uploads while the tab is open. sessionStorage clears on close — that's intentional.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Endpoint: <code>DELETE /api/image/guest/{id}</code> → 204 No Content</div>
+                  <div class="step"><span class="sn">02</span>Verify <code>image.guestToken === JWT UUID claim</code> — else 403</div>
+                  <div class="step"><span class="sn">03</span>Delete S3 object first, then DB record (hard delete for MVP)</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Track <code>uploadedImageIds[]</code> in component state after each upload</div>
+                  <div class="step"><span class="sn">02</span>Show "Your Uploads" section with delete buttons (only for current session's images)</div>
+                  <div class="step"><span class="sn">03</span>Optimistic UI — remove immediately from view, rollback on error</div>
+                  <div class="step"><span class="sn">04</span>Confirmation dialog before deleting</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WEEK 5 ── -->
+    <div class="week-block wk5">
+      <div class="week-spine">
+        <div class="week-dot">
+          <span class="wd-label">Week</span>
+          <span class="wd-num">5</span>
+        </div>
+        <div class="week-vline"></div>
+      </div>
+      <div class="week-content">
+        <div class="week-header">
+          <div class="week-title">Couple Dashboard &amp; Polish</div>
+          <div class="week-subtitle">Full couple controls + the finishing touches that make it production-ready.</div>
+        </div>
+        <div class="phases-in-week">
+
+          <!-- Phase 6 -->
+          <div class="phase-card">
+            <div class="phase-card-header">
+              <div class="phase-num">06</div>
+              <div class="phase-title-text">Couple Dashboard Controls</div>
+            </div>
+            <div class="phase-card-desc">Couples manage their event fully — approve photos, hide content, delete anything, edit event settings.</div>
+            <div class="phase-split">
+              <div class="phase-col be">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Backend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Endpoint: <code>GET /api/events/{id}</code> — authenticated couple, full detail</div>
+                  <div class="step"><span class="sn">02</span>Endpoint: <code>PATCH /api/events/{id}</code> — update name, date, location, password</div>
+                  <div class="step"><span class="sn">03</span>Endpoint: <code>PATCH /api/image/{id}/visibility</code> — toggle <code>isVisible</code></div>
+                  <div class="step"><span class="sn">04</span>Endpoint: <code>DELETE /api/image/{id}</code> — couple deletes any image in their event</div>
+                </div>
+              </div>
+              <div class="phase-col fe">
+                <div class="phase-col-label"><div class="phase-col-dot"></div>Frontend</div>
+                <div class="steps">
+                  <div class="step"><span class="sn">01</span>Full gallery management — all images, greyed-out styling for hidden ones</div>
+                  <div class="step"><span class="sn">02</span>Visibility toggle switches + filter: All | Visible | Hidden | Pending</div>
+                  <div class="step"><span class="sn">03</span>Event settings page: edit name, date, password</div>
+                  <div class="step"><span class="sn">04</span>Replace mock stats (1,243 / 340 / 3.8k) with real API data</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Polish (no split) -->
+          <div class="phase-card foundation">
+            <div class="phase-card-header">
+              <div class="phase-num">—</div>
+              <div class="phase-title-text">Polish &amp; Production Readiness</div>
+            </div>
+            <div class="phase-card-desc">The details that turn a working app into a shippable one.</div>
+            <div class="foundation-tasks">
+              <div class="ft-item"><div class="ft-dot"></div>Toast notifications for all success and error states</div>
+              <div class="ft-item"><div class="ft-dot"></div>Skeleton loaders for async states (gallery, dashboard)</div>
+              <div class="ft-item"><div class="ft-dot"></div>Mobile responsiveness pass — camera upload on mobile</div>
+              <div class="ft-item"><div class="ft-dot"></div>Unit + integration tests (Vitest + Testcontainers)</div>
+              <div class="ft-item"><div class="ft-dot"></div>Audit all env vars — zero hardcoded secrets in both repos</div>
+              <div class="ft-item"><div class="ft-dot"></div>CORS locked to frontend domain, HTTPS in production</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /timeline -->
+</div>
+
+<hr class="rule">
+
+<!-- PARALLEL WORK -->
+<div id="parallel" class="alt">
+<div class="wrap">
+  <p class="sec-label">Work Strategy</p>
+  <h2 class="sec-title">What Can Run in Parallel</h2>
+  <p class="sec-desc">Frontend doesn't have to wait on every backend phase. Coordinate early on API shapes.</p>
+  <div class="par-grid">
+    <div class="par-col now">
+      <div class="par-col-title">✅ FE Can Build Now</div>
+      <div class="par-item">Component library: Button, Input, Modal</div>
+      <div class="par-item">Landing page polish</div>
+      <div class="par-item">Header, Footer, Navigation</div>
+      <div class="par-item">Reactive form validation</div>
+      <div class="par-item">Drag &amp; drop upload UI</div>
+      <div class="par-item">Image gallery grid + lightbox</div>
+      <div class="par-item">404 / error pages</div>
+      <div class="par-item">Toast notification service</div>
+    </div>
+    <div class="par-col be">
+      <div class="par-col-title">⏳ FE Needs BE First</div>
+      <div class="par-item">Auth forms → needs JWT endpoints</div>
+      <div class="par-item">Event management → needs CRUD endpoints</div>
+      <div class="par-item">Image display → needs presigned URLs</div>
+      <div class="par-item">Guest flow → needs guest auth system</div>
+      <div class="par-item">QR code → needs generation endpoint</div>
+    </div>
+    <div class="par-col mid">
+      <div class="par-col-title">🔀 Meet in the Middle</div>
+      <div class="par-item">BE builds guest auth + presigned URLs</div>
+      <div class="par-item">FE builds upload UI + gallery grid</div>
+      <div class="par-item">Agree on response shapes early</div>
+      <div class="par-item">FE uses mock services while BE builds</div>
+      <div class="par-item">Integration testing to wire together</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<hr class="rule">
+
+<!-- API CONTRACT -->
+<div id="api" class="wrap">
+  <p class="sec-label">API Contract</p>
+  <h2 class="sec-title">Full Endpoint Map</h2>
+  <p class="sec-desc"><span style="color:var(--sage)">Green</span> = exists &nbsp;·&nbsp; <span style="color:var(--rose)">Red</span> = needs building &nbsp;·&nbsp; <span style="color:var(--gold)">Gold</span> = exists but needs a fix</p>
+  <div class="api-grid">
+    <div class="api-group">
+      <div class="api-group-title">Auth</div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/register</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/login</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/refresh</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/auth/logout</span><span class="api-status ok">✓</span></div>
+    </div>
+    <div class="api-group">
+      <div class="api-group-title">Events (Couple)</div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/events</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/events</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/events/{id}</span><span class="api-status miss">build · wk5</span></div>
+      <div class="api-item"><span class="api-method">PATCH</span><span class="api-path">/events/{id}</span><span class="api-status miss">build · wk5</span></div>
+      <div class="api-item"><span class="api-method">DELETE</span><span class="api-path">/events/{id}</span><span class="api-status fix">fix path</span></div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/events/{id}/qrcode</span><span class="api-status miss">build · wk1</span></div>
+    </div>
+    <div class="api-group">
+      <div class="api-group-title">Events (Guest)</div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/events/{id}</span><span class="api-status miss">public · wk3</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/events/{id}/verify</span><span class="api-status miss">build · wk3</span></div>
+    </div>
+    <div class="api-group">
+      <div class="api-group-title">Images</div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/image</span><span class="api-status ok">✓ couple</span></div>
+      <div class="api-item"><span class="api-method">POST</span><span class="api-path">/image/guest-upload</span><span class="api-status miss">build · wk4</span></div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/image/event/{id}/public</span><span class="api-status miss">build · wk2</span></div>
+      <div class="api-item"><span class="api-method">GET</span><span class="api-path">/image/event/{id}/all</span><span class="api-status miss">build · wk2</span></div>
+      <div class="api-item"><span class="api-method">PATCH</span><span class="api-path">/image/{id}/visibility</span><span class="api-status miss">build · wk5</span></div>
+      <div class="api-item"><span class="api-method">DELETE</span><span class="api-path">/image/{id}</span><span class="api-status ok">✓</span></div>
+      <div class="api-item"><span class="api-method">DELETE</span><span class="api-path">/image/guest/{id}</span><span class="api-status miss">build · wk4</span></div>
+    </div>
+  </div>
+</div>
+
+<hr class="rule">
+
+<!-- SUCCESS CRITERIA -->
+<div id="criteria" class="alt">
+<div class="wrap">
+  <p class="sec-label">Definition of Done</p>
+  <h2 class="sec-title">MVP Success Criteria</h2>
+  <p class="sec-desc">Click to check off as you ship. MVP is done when all 8 are green.</p>
+  <div class="checklist">
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Couple creates event and downloads QR code</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Guest scans QR, enters password, views event info</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Guest uploads photos without an account</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Guest can delete their uploads within the session</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Couple can approve or hide photos from guests</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>All images display correctly via presigned S3 URLs</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Basic test suite passes (unit + integration)</span></div>
+    <div class="cl-item" onclick="this.classList.toggle('done')"><div class="cb"></div><span>Zero hardcoded secrets in source code (both repos)</span></div>
+  </div>
+</div>
+</div>
+
+<footer class="footer">
+  <p class="footer-q">"Understanding the why is more important than the how."</p>
+  <p class="footer-s">Brautcloud MVP · Spring Boot + Angular 21 · 5 weeks · You've got this 🚀</p>
+</footer>
+
+</body>
+</html>

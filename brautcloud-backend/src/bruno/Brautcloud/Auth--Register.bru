@@ -1,0 +1,23 @@
+meta {
+  name: Auth::Register
+  type: http
+  seq: 9
+}
+
+post {
+  url: http://localhost:8080/api/auth/register
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "test@mail.de",
+    "password": "mypassword"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

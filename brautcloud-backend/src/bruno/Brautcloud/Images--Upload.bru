@@ -1,0 +1,21 @@
+meta {
+  name: Images::Upload
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://localhost:8080/api/image
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  eventId: 1
+  file: @file(/Users/domenicwalther/9a749183a4fd2d596ce1876c98192025.webp)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

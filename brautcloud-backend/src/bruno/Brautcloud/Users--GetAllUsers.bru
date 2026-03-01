@@ -1,0 +1,16 @@
+meta {
+  name: Users::GetAllUsers
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:8080/api/users
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

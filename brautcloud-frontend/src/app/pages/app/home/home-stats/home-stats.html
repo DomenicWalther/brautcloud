@@ -1,0 +1,10 @@
+<section class="flex justify-center gap-10">
+  @for (stat of stats(); track stat.label){
+  <div
+    class="relative flex flex-col items-center after:absolute after:-right-5 after:top-[10%] after:h-[80%] after:w-px after:bg-mainrose/40 last:after:hidden"
+  >
+    <span class="font-display text-3xl">{{ stat.value }}</span>
+    <span class="font-body text-xs text-gray-400 uppercase">{{ stat.label }}</span>
+  </div>
+  }
+</section>

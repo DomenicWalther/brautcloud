@@ -1,0 +1,55 @@
+<main class="max-w-5/6 mx-auto flex flex-col gap-5">
+  <section class="mt-14 flex flex-col gap-4">
+    <h1 class="font-display text-5xl">
+      Welcome,<br />{{ firstNameCoupleOne }} & {{firstNameCoupleTwo }}
+    </h1>
+    <h2 class="uppercase font-body">
+      <span class="text-mainrose">{{ daysTillWedding }}</span> Days until your Wedding
+    </h2>
+  </section>
+  <section>
+    <img src="https://placehold.co/400x500" alt="" class="rounded-xl" />
+  </section>
+  <app-home-stats [statInput]="stats"></app-home-stats>
+  <section class="flex flex-col gap-5">
+    <div class="flex justify-between items-center">
+      <p class="font-display text-2xl">Live Gallery</p>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 aspect-square bg-mainrose rounded-full"></div>
+        <p class="font-body text-mainrose">LIVE NOW</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      @for (photo of photos; track photo.url) {
+      <div class="relative min-w-0 w-full aspect-square">
+        <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
+        @if (photo.extraCount) {
+        <div class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center">
+          <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
+        </div>
+        }
+      </div>
+      }
+    </div>
+    <button
+      class="w-full bg-mainrose text-white font-body py-4 flex justify-center items-center gap-4 text-lg"
+    >
+      <span class="material-symbols-outlined">cloud_download</span>DOWNLOAD ALL PHOTOS
+    </button>
+  </section>
+  <section
+    class="bg-mainblack rounded-4xl text-mainsilk flex items-center flex-col my-10 p-10 gap-5"
+  >
+    <div class="flex flex-col items-center">
+      <p class="text-4xl font-display">Event QR Code</p>
+      <p class="font-body text-gray-400 text-sm">Share this with your Guests</p>
+    </div>
+    <img src="https://placehold.co/200x200" alt="" class="rounded-2xl" />
+    <button
+      class="text-mainrose border border-mainrose rounded-full px-8 py-2 uppercase text-xs font-bold"
+    >
+      Download for Print
+    </button>
+    <button class="uppercase text-sm tracking-widest">Copy Gallery Link</button>
+  </section>
+</main>
