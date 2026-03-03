@@ -65,6 +65,17 @@ export class AuthService {
       .pipe(tap((res) => this._accessToken.set(res.accessToken)));
   }
 
+  register({ email, password }: { email: string; password: string }): Observable<any> {
+    return this.http.post(
+      `${this.BASE_URL}/register`,
+      {
+        email,
+        password,
+      },
+      { withCredentials: true },
+    );
+  }
+
   refreshToken(): Observable<string> {
     if (this._isRefreshing) {
       return this._refreshTokenSubject.pipe(
