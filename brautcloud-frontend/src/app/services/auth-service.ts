@@ -1,5 +1,7 @@
+import { LocationChangeListener } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
+import { Observable, tap } from 'rxjs';
 
 interface LoginResponse {
   accessToken: string;
@@ -30,19 +32,14 @@ export class AuthService {
       });
   }
 
-  refresh(onSuccess: (token: string) => void, onError: () => void): void {
-    this.http
+  refresh(): Observable<LoginResponse> {
+    return this.http
       .post<LoginResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
-      .subscribe({
-        next: (response) => {
+      .pipe(
+        tap((response) => {
           this.accessToken.set(response.accessToken);
-          onSuccess(response.accessToken);
-        },
-        error: () => {
-          this.logout();
-          onError();
-        },
-      });
+        }),
+      );
   }
 
   logout(): void {

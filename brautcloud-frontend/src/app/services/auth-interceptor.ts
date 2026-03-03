@@ -1,36 +1,29 @@
 import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core/primitives/di';
 import { AuthService } from './auth-service';
-import { Observable } from 'rxjs';
+import { catchError, Observable, switchMap, throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const authReq = addToken(req, authService.getAccessToken());
-  return new Observable((observer) => {
-    next(authReq).subscribe({
-      next: (event) => observer.next(event),
-      error: (err) => {
-        if (err instanceof HttpErrorResponse && err.status === 401) {
-          authService.refresh(
-            (newToken) => {
-              next(addToken(req, newToken)).subscribe({
-                next: (event) => observer.next(event),
-                error: (retryErr) => observer.error(retryErr),
-                complete: () => observer.complete(),
-              });
-            },
-            () => observer.error(err),
-          );
-        } else {
-          observer.error(err);
-        }
-      },
-      complete: () => observer.complete(),
-    });
-  });
-};
+  const auth = inject(AuthService);
+  const token = auth.getAccessToken();
 
-const addToken = (req: HttpRequest<any>, token: string | null): HttpRequest<any> => {
-  if (!token) return req;
-  return req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+  const authReq = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
+
+  return next(authReq).pipe(
+    catchError((err) => {
+      if (err.status === 401) {
+        return auth.refresh().pipe(
+          switchMap((res) => {
+            const retryReq = req.clone({
+              setHeaders: { Authorization: `Bearer ${res.accessToken}` },
+            });
+            return next(retryReq);
+          }),
+          catchError(() => throwError(() => err)),
+        );
+      }
+
+      return throwError(() => err);
+    }),
+  );
 };
