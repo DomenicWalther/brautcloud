@@ -52,13 +52,13 @@ export class AuthService {
     });
   }
 
-  login(): Observable<AuthResponse> {
+  login({ email, password }: { email: string; password: string }): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(
         `${this.BASE_URL}/login`,
         {
-          email: 'test@mail.de',
-          password: 'mypassword',
+          email,
+          password,
         },
         { withCredentials: true },
       )
