@@ -1,6 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { AuthService } from './services/auth-service';
 
 @Component({
   selector: 'app-root',
@@ -10,12 +9,4 @@ import { AuthService } from './services/auth-service';
 })
 export class App {
   protected readonly title = signal('brautcloud-frontend');
-  private authService = inject(AuthService);
-
-  ngOnInit() {
-    this.authService.refresh(
-      (token) => console.log('Session restored'),
-      () => console.log('Session expired'),
-    );
-  }
 }

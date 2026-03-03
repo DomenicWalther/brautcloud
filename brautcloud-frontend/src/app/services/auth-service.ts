@@ -1,7 +1,7 @@
 import { LocationChangeListener } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { Observable, tap, finalize } from 'rxjs';
 
 interface LoginResponse {
   accessToken: string;
@@ -13,6 +13,10 @@ interface LoginResponse {
 export class AuthService {
   private http = inject(HttpClient);
   private accessToken = signal<string | null>(null);
+  private initialized = signal(false);
+
+  readonly isLoggedIn = computed(() => !!this.accessToken());
+  readonly isInitialized = computed(() => this.initialized());
 
   private readonly BASE_URL = 'http://localhost:8080/api/auth';
 
@@ -39,6 +43,9 @@ export class AuthService {
         tap((response) => {
           this.accessToken.set(response.accessToken);
         }),
+        finalize(() => {
+          this.initialized.set(true);
+        }),
       );
   }
 
@@ -48,9 +55,5 @@ export class AuthService {
 
   getAccessToken(): string | null {
     return this.accessToken();
-  }
-
-  isLoggedIn(): boolean {
-    return this.accessToken() !== null;
   }
 }
