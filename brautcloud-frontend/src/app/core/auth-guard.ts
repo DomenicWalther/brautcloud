@@ -1,15 +1,21 @@
-import { CanActivateFn, Router } from '@angular/router';
-import { AuthService } from '../services/auth-service';
 import { inject } from '@angular/core';
-import { timer, switchMap, takeWhile, lastValueFrom, firstValueFrom } from 'rxjs';
+import { CanActivateFn, Router } from '@angular/router';
+import { filter, map, take } from 'rxjs';
+import { AuthService } from '../services/auth-service';
 
-export const authGuard: CanActivateFn = async (route, state) => {
+export const authGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  while (!auth.isInitialized()) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-
-  return auth.isLoggedIn() ? true : router.createUrlTree(['/auth/sign-in']);
+  return auth.initialized$.pipe(
+    filter((initialized) => initialized === true),
+    take(1),
+    map(() => {
+      return auth.isAuthenticated()
+        ? true
+        : router.createUrlTree(['/auth/sign-in'], {
+            queryParams: { returnUrl: state.url },
+          });
+    }),
+  );
 };

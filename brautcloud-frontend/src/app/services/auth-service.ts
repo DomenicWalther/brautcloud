@@ -1,9 +1,19 @@
 import { LocationChangeListener } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Observable, tap, finalize } from 'rxjs';
+import {
+  Observable,
+  tap,
+  finalize,
+  BehaviorSubject,
+  filter,
+  take,
+  switchMap,
+  catchError,
+  throwError,
+} from 'rxjs';
 
-interface LoginResponse {
+interface AuthResponse {
   accessToken: string;
 }
 
@@ -12,17 +22,39 @@ interface LoginResponse {
 })
 export class AuthService {
   private http = inject(HttpClient);
-  private accessToken = signal<string | null>(null);
-  private initialized = signal(false);
-
-  readonly isLoggedIn = computed(() => !!this.accessToken());
-  readonly isInitialized = computed(() => this.initialized());
-
   private readonly BASE_URL = 'http://localhost:8080/api/auth';
 
-  login(): void {
-    this.http
-      .post<LoginResponse>(
+  private _accessToken = signal<string | null>(null);
+  readonly isAuthenticated = computed(() => this._accessToken() !== null);
+
+  private _initialized = new BehaviorSubject<boolean>(false);
+  readonly initialized$ = this._initialized.asObservable();
+
+  private _isRefreshing = false;
+  private _refreshTokenSubject = new BehaviorSubject<string | null>(null);
+
+  initializeAuth(): Promise<void> {
+    return new Promise((resolve) => {
+      this.http
+        .post<AuthResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
+        .subscribe({
+          next: (res) => {
+            this._accessToken.set(res.accessToken);
+            this._initialized.next(true);
+            resolve();
+          },
+          error: () => {
+            this._accessToken.set(null);
+            this._initialized.next(true);
+            resolve();
+          },
+        });
+    });
+  }
+
+  login(): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(
         `${this.BASE_URL}/login`,
         {
           email: 'test@mail.de',
@@ -30,30 +62,42 @@ export class AuthService {
         },
         { withCredentials: true },
       )
-      .subscribe((response) => {
-        console.log(response);
-        this.accessToken.set(response.accessToken);
-      });
+      .pipe(tap((res) => this._accessToken.set(res.accessToken)));
   }
 
-  refresh(): Observable<LoginResponse> {
+  refreshToken(): Observable<string> {
+    if (this._isRefreshing) {
+      return this._refreshTokenSubject.pipe(
+        filter((token) => token !== null),
+        take(1),
+      ) as Observable<string>;
+    }
+
+    this._isRefreshing = true;
+    this._refreshTokenSubject.next(null);
+
     return this.http
-      .post<LoginResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
+      .post<AuthResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
       .pipe(
-        tap((response) => {
-          this.accessToken.set(response.accessToken);
+        tap((res) => {
+          this._isRefreshing = false;
+          this._accessToken.set(res.accessToken);
+          this._refreshTokenSubject.next(res.accessToken);
         }),
-        finalize(() => {
-          this.initialized.set(true);
+        switchMap((res) => [res.accessToken]),
+        catchError((err) => {
+          this._isRefreshing = false;
+          this._accessToken.set(null);
+          return throwError(() => err);
         }),
       );
   }
 
   logout(): void {
-    this.accessToken.set(null);
+    this._accessToken.set(null);
   }
 
   getAccessToken(): string | null {
-    return this.accessToken();
+    return this._accessToken();
   }
 }

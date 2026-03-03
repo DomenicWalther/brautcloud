@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
 import { EventService } from '../../../services/event-service';
 
@@ -12,9 +12,16 @@ import { EventService } from '../../../services/event-service';
 export class SignIn {
   private authService = inject(AuthService);
   private eventService = inject(EventService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   login() {
-    this.authService.login();
+    this.authService.login().subscribe({
+      next: () => {
+        const returlUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/app/home';
+        this.router.navigateByUrl(returlUrl);
+      },
+    });
   }
 
   getEvents() {

@@ -19,7 +19,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAppInitializer(() => {
       const auth = inject(AuthService);
-      return firstValueFrom(auth.refresh().pipe(catchError(() => of(null))));
+      return auth.initializeAuth();
     }),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
   ],

@@ -28,28 +28,24 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'app/onboarding',
-    loadComponent: () => {
-      return import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding);
-    },
-  },
-  {
-    path: 'app/home',
+    path: 'app',
     canActivate: [authGuard],
-    loadComponent: () => {
-      return import('./pages/app/home/home').then((m) => m.Home);
-    },
-  },
-  {
-    path: 'app/upload',
-    loadComponent: () => {
-      return import('./pages/app/image-upload/image-upload').then((m) => m.ImageUpload);
-    },
-  },
-  {
-    path: 'app/gallery',
-    loadComponent: () => {
-      return import('./pages/app/image-gallery/image-gallery').then((m) => m.ImageGallery);
-    },
+    children: [
+      { path: 'home', loadComponent: () => import('./pages/app/home/home').then((m) => m.Home) },
+      {
+        path: 'upload',
+        loadComponent: () =>
+          import('./pages/app/image-upload/image-upload').then((m) => m.ImageUpload),
+      },
+      {
+        path: 'gallery',
+        loadComponent: () =>
+          import('./pages/app/image-gallery/image-gallery').then((m) => m.ImageGallery),
+      },
+      {
+        path: 'onboarding',
+        loadComponent: () => import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding),
+      },
+    ],
   },
 ];
