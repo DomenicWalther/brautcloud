@@ -47,8 +47,4 @@ export class SignIn {
         },
       });
   }
-
-  getEvents() {
-    this.eventService.getEvents();
-  }
 }
