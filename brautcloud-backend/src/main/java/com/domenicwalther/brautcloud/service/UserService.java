@@ -20,4 +20,8 @@ public class UserService {
 		return userRepository.findAll().stream().map(UserResponse::fromUser).toList();
 	}
 
+	public User findByEmail(String email) {
+		return userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+	}
+
 }

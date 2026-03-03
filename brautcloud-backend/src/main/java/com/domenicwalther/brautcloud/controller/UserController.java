@@ -3,13 +3,12 @@ package com.domenicwalther.brautcloud.controller;
 import com.domenicwalther.brautcloud.dto.UserResponse;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.service.UserService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/user")
 public class UserController {
 
 	private final UserService userService;
@@ -19,8 +18,10 @@ public class UserController {
 	}
 
 	@GetMapping
-	public List<UserResponse> getUsers() {
-		return userService.allUsers();
+	public ResponseEntity<UserResponse> getUser() {
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		User user = userService.findByEmail(email);
+		return ResponseEntity.ok(UserResponse.fromUser(user));
 	}
 
 }

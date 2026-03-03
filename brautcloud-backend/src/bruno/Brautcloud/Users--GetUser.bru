@@ -1,0 +1,20 @@
+meta {
+  name: Users::GetUser
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:8080/api/user
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0ZXN0QG1haWwuZGUiLCJpYXQiOjE3NzI1NzQxNDQsImV4cCI6MTc3MjU3NDc0NH0.rr_8erXKHkVZRQjdI2Uyotd_slosWoFJEFzYEVCsMA8j18QJRNPrXC4jMlSzfP9TQiUyL1gPxp0Xil6_YAj9Gw
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
