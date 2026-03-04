@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, effect, inject, Signal } from '@angular/core';
 import { HomeStats } from './home-stats/home-stats';
 import { QrCodeComponent } from 'ng-qrcode';
 import { UserService } from '../../../services/user-service';
@@ -35,10 +35,28 @@ export class Home {
 
   private userService = inject(UserService);
 
-  user = toSignal(
+  user: Signal<UserResponse | undefined> = toSignal(
     this.userService.getUser(),
     { initialValue: undefined },
   )
+
+  constructor() {
+    effect(() => {
+      const u = this.user();
+      if (u) {
+        console.log(u);
+      }
+    })
+  }
+
+  daysTillWedding = computed(() => {
+    const user = this.user();
+    const date = new Date();
+    if (!user) return 0;
+
+    const weddingDate = new Date(user.events[0].date);
+    return Math.floor((weddingDate.getTime() - date.getTime()) / (1000 * 3600 * 24));
+  })
 
   eventUrl = 'https://www.domenicwalther.de';
 
@@ -54,7 +72,6 @@ export class Home {
       extraCount: '1.5k',
     },
   ];
-  daysTillWedding: number = 13;
 
   stats = {
     photos: '1,243',
