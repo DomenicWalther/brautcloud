@@ -1,0 +1,11 @@
+<div class="grid gap-4 grid-cols-2">
+  @for (img of images(); track img.id){
+  <img [src]="img.url" loading="lazy" class="object-cover" />
+  }
+</div>
+
+<div #sentinel class="h-32"></div>
+
+@if(loading()){
+  <p>Laoding...</p>
+}
