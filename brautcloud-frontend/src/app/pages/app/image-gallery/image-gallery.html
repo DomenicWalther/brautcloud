@@ -6,14 +6,23 @@
     <h1 class="text-3xl font-display">Sophie & Julian</h1>
   </section>
   <section class="grid grid-cols-2 gap-3 mt-10">
-    @for(i of times; track i){
-    <div class="relative min-w-0 w-full aspect-square">
-      <img
-        src="https://placehold.co/200x200"
-        alt=""
-        class="rounded-xl w-full h-full object-cover"
-      />
-    </div>
-    }
+    <!-- @for(i of times; track i){ -->
+    <!-- <div class="relative min-w-0 w-full aspect-square"> -->
+    <!--   <img -->
+    <!--     src="https://placehold.co/200x200" -->
+    <!--     alt="" -->
+    <!--     class="rounded-xl w-full h-full object-cover" -->
+    <!--   /> -->
+    <!-- </div> -->
+    <!-- } -->
+    @for(image of images().content; track image.id){
+        <div class="relative min-w-0 w-full aspect-square">
+          <img
+            src="{{image.url}}"
+            alt=""
+            class="rounded-xl w-full h-full object-cover"
+          />
+          </div>
+      }
   </section>
 </main>
