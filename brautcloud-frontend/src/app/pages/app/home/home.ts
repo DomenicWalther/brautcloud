@@ -1,13 +1,16 @@
 import { Component } from '@angular/core';
 import { HomeStats } from './home-stats/home-stats';
+import { QrCodeComponent } from 'ng-qrcode';
 
 @Component({
   selector: 'app-home',
-  imports: [HomeStats],
+  imports: [HomeStats, QrCodeComponent],
   templateUrl: './home.html',
   styles: ``,
 })
 export class Home {
+  eventUrl = 'https://www.domenicwalther.de';
+
   photos = [
     {
       url: 'https://placehold.co/200x200',

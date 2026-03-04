@@ -42,6 +42,7 @@ public class User {
 	@Column(nullable = false)
 	private String password;
 
+	@Builder.Default
 	private String role = "ROLE_USER";
 
 	@OneToMany(mappedBy = "user")

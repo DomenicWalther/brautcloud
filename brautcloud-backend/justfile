@@ -1,2 +1,6 @@
 dev:
    podman compose up 
+
+dev-full:
+    podman compose up -d
+    doppler run -- ./mvnw spring-boot:run

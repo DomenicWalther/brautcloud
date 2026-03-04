@@ -7,6 +7,7 @@ import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +28,7 @@ public class RefreshTokenService {
 	@Value("${jwt.token.refreshExpires}")
 	private Duration refreshExpiration;
 
+	@Transactional
 	public RefreshToken createRefreshToken(User user) {
 		refreshTokenRepository.deleteByUser(user);
 
