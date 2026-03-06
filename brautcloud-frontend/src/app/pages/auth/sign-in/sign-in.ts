@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
 import { EventService } from '../../../services/event-service';
-import { form, FormField, submit } from '@angular/forms/signals';
+import { form, FormField } from '@angular/forms/signals';
 
 interface LoginData {
   email: string;
@@ -17,7 +17,6 @@ interface LoginData {
 })
 export class SignIn {
   private authService = inject(AuthService);
-  private eventService = inject(EventService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
