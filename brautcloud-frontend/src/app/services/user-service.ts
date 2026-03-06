@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 
 
@@ -30,8 +31,9 @@ export class UserService {
   private http: HttpClient = inject(HttpClient);
   private readonly BASE_URL: string = 'http://localhost:8080/api/user';
 
+  readonly user = toSignal(this.getUser(), { initialValue: undefined });
 
-  getUser(): Observable<UserResponse> {
+  private getUser(): Observable<UserResponse> {
     return this.http.get<UserResponse>(this.BASE_URL, { withCredentials: true })
   }
 

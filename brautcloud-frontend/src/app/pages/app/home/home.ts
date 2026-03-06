@@ -35,10 +35,7 @@ export class Home {
 
   private userService = inject(UserService);
 
-  user: Signal<UserResponse | undefined> = toSignal(
-    this.userService.getUser(),
-    { initialValue: undefined },
-  )
+  user = this.userService.user;
 
   constructor() {
     effect(() => {

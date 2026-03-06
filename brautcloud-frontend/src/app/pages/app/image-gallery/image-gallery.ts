@@ -2,6 +2,7 @@ import { Component, effect, inject } from '@angular/core';
 import { ImageService } from '../../../services/image-service';
 
 import { Gallery } from './gallery/gallery';
+import { UserService } from '../../../services/user-service';
 
 @Component({
   selector: 'app-image-gallery',
@@ -12,5 +13,6 @@ import { Gallery } from './gallery/gallery';
 export class ImageGallery {
 
   imageService = inject(ImageService);
-  readonly times = Array.from({ length: 12 }, (_, i) => i);
+  private userService = inject(UserService);
+  user = this.userService.user;
 }
