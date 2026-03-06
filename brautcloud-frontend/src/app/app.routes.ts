@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth-guard';
+import { guestGuard } from './core/guest-guard';
 
 export const routes: Routes = [
   {
@@ -9,23 +10,29 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'auth/sign-in',
-    loadComponent: () => {
-      return import('./pages/auth/sign-in/sign-in').then((m) => m.SignIn);
-    },
-  },
+    path: 'auth',
+    canActivate: [guestGuard],
+    children: [
+      {
+        path: 'sign-in',
+        loadComponent: () => {
+          return import('./pages/auth/sign-in/sign-in').then((m) => m.SignIn);
+        },
+      },
 
-  {
-    path: 'auth/sign-up',
-    loadComponent: () => {
-      return import('./pages/auth/sign-up/sign-up').then((m) => m.SignUp);
-    },
-  },
-  {
-    path: 'auth/reset-password',
-    loadComponent: () => {
-      return import('./pages/auth/reset-password/reset-password').then((m) => m.ResetPassword);
-    },
+      {
+        path: 'sign-up',
+        loadComponent: () => {
+          return import('./pages/auth/sign-up/sign-up').then((m) => m.SignUp);
+        },
+      },
+      {
+        path: 'reset-password',
+        loadComponent: () => {
+          return import('./pages/auth/reset-password/reset-password').then((m) => m.ResetPassword);
+        },
+      },
+    ]
   },
   {
     path: 'app',
