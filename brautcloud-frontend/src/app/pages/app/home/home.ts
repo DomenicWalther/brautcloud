@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, Signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, Signal } from '@angular/core';
 import { HomeStats } from './home-stats/home-stats';
 import { QrCodeComponent } from 'ng-qrcode';
 import { UserService } from '../../../services/user-service';
