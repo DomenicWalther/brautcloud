@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { UserService } from '../../../services/user-service';
 
 @Component({
   selector: 'app-image-upload',
@@ -7,6 +8,12 @@ import { Component } from '@angular/core';
   styles: ``,
 })
 export class ImageUpload {
+
+  userService = inject(UserService);
+
+  user = this.userService.user;
+
+
   photos = [
     {
       url: 'https://placehold.co/200x200',
