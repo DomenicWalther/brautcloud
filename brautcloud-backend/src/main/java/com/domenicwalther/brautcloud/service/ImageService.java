@@ -56,10 +56,6 @@ public class ImageService {
 		return uploadFile(request.getFile());
 	}
 
-	public List<ImageResponse> getAllImagesByEventID(Long eventID) {
-		return imageRepository.findByEventId(eventID).stream().map(ImageResponse::fromImage).toList();
-	}
-
 	public ResponseEntity<String> deleteImageByImageID(Long imageID) {
 		Image image = imageRepository.findById(imageID).orElseThrow(() -> new RuntimeException("Event not found"));
 		imageRepository.deleteById(imageID);

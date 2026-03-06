@@ -1,11 +1,18 @@
-import { Component } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
+import { ImageService } from '../../../services/image-service';
+
+import { Gallery } from './gallery/gallery';
+import { UserService } from '../../../services/user-service';
 
 @Component({
   selector: 'app-image-gallery',
-  imports: [],
+  imports: [Gallery],
   templateUrl: './image-gallery.html',
   styles: ``,
 })
 export class ImageGallery {
-  readonly times = Array.from({ length: 12 }, (_, i) => i);
+
+  imageService = inject(ImageService);
+  private userService = inject(UserService);
+  user = this.userService.user;
 }

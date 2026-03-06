@@ -32,11 +32,6 @@ public class ImageController {
 
 	}
 
-	@GetMapping("{eventID}")
-	public List<ImageResponse> getAllImagesByEventID(@PathVariable Long eventID) {
-		return imageService.getAllImagesByEventID(eventID);
-	}
-
 	@DeleteMapping("{imageID}")
 	public ResponseEntity<String> deleteFile(@PathVariable Long imageID) {
 		return imageService.deleteImageByImageID(imageID);
