@@ -46,6 +46,13 @@ export const routes: Routes = [
         path: 'onboarding',
         loadComponent: () => import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding),
       },
+      {
+        path: '**', redirectTo: 'home'
+      },
     ],
+  },
+  {
+    path: '**',
+    redirectTo: '',
   },
 ];
