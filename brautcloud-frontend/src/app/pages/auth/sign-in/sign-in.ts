@@ -1,7 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
-import { EventService } from '../../../services/event-service';
 import { form, FormField } from '@angular/forms/signals';
 
 interface LoginData {
