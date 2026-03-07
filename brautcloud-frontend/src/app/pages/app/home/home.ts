@@ -15,6 +15,7 @@ export class Home {
 
   user = this.userService.user;
 
+
   daysTillWedding = computed(() => {
     const user = this.user();
     const date = new Date();

@@ -54,7 +54,7 @@ export class AuthService {
   login({ email, password }: { email: string; password: string }): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(
-        `${this.API_URL}/login`,
+        `${this.API_URL}/auth/login`,
         {
           email,
           password,
@@ -66,7 +66,7 @@ export class AuthService {
 
   register({ email, password }: { email: string; password: string }): Observable<any> {
     return this.http.post(
-      `${this.API_URL}/register`,
+      `${this.API_URL}/auth/register`,
       {
         email,
         password,
@@ -87,7 +87,7 @@ export class AuthService {
     this._refreshTokenSubject.next(null);
 
     return this.http
-      .post<AuthResponse>(`${this.API_URL}/refresh`, {}, { withCredentials: true })
+      .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
       .pipe(
         tap((res) => {
           this._isRefreshing = false;

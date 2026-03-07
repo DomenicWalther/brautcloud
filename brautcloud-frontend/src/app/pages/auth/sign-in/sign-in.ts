@@ -2,11 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
 import { form, FormField } from '@angular/forms/signals';
-
-interface LoginData {
-  email: string;
-  password: string;
-}
+import { AuthDTO } from '../../../core/models/auth-dto';
 
 @Component({
   selector: 'app-sign-in',
@@ -19,7 +15,7 @@ export class SignIn {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  loginModel = signal<LoginData>({
+  loginModel = signal<AuthDTO>({
     email: '',
     password: '',
   });
@@ -32,7 +28,7 @@ export class SignIn {
     this.login({ email, password });
   }
 
-  login({ email, password }: LoginData) {
+  login({ email, password }: AuthDTO) {
     this.authService
       .login({
         email,

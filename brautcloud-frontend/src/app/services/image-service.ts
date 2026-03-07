@@ -2,22 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../core/tokens';
-
-export interface Page<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
-}
-
-export interface EventImageDTO {
-  id: number;
-  url: string;
-}
+import { EventImageDTO } from '../core/models/event-image-dto';
+import { Page } from '../core/models/page';
 
 @Injectable({
   providedIn: 'root',

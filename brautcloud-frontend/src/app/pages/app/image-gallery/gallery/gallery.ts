@@ -1,10 +1,6 @@
 import { AfterViewInit, Component, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { ImageService } from '../../../../services/image-service';
-
-interface ImageDTO {
-  id: number;
-  url: string;
-}
+import { EventImageDTO } from '../../../../core/models/event-image-dto';
 
 @Component({
   selector: 'app-gallery',
@@ -19,7 +15,7 @@ export class Gallery implements OnInit, AfterViewInit {
 
   @ViewChild('sentinel') sentinel!: ElementRef;
 
-  private readonly allImages = signal<ImageDTO[]>([]);
+  private readonly allImages = signal<EventImageDTO[]>([]);
   private readonly currentPage = signal(0);
   private readonly eventId = 1;
 
