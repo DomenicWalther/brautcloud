@@ -13,31 +13,39 @@ interface ImageDTO {
 })
 export class Gallery implements OnInit, AfterViewInit {
 
-  private imageService = inject(ImageService);
+  private readonly imageService = inject(ImageService);
+  private observer?: IntersectionObserver;
 
-  private allImages = signal<ImageDTO[]>([]);
-  private eventId = 1;
-
-  private currentPage = signal(0);
-
-  hasMore = signal(true);
-  loading = signal(false);
-
-  images = this.allImages.asReadonly();
 
   @ViewChild('sentinel') sentinel!: ElementRef;
 
+  private readonly allImages = signal<ImageDTO[]>([]);
+  private readonly currentPage = signal(0);
+  private readonly eventId = 1;
+
+
+  readonly images = this.allImages.asReadonly();
+  readonly hasMore = signal(true);
+  readonly loading = signal(false);
+
   ngAfterViewInit() {
-    const observer = new IntersectionObserver(entries => {
+    this.observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) {
         this.loadMore();
       }
     });
-    observer.observe(this.sentinel.nativeElement);
+    this.observer.observe(this.sentinel.nativeElement);
+  }
+
+  ngOnInit() {
+    this.loadMore();
+  }
+
+  ngOnDestroy() {
+    this.observer?.disconnect();
   }
 
   loadMore() {
-    console.log('load more');
     if (this.loading() || !this.hasMore()) return;
 
     this.loading.set(true);
@@ -49,10 +57,5 @@ export class Gallery implements OnInit, AfterViewInit {
         this.currentPage.update(p => p + 1);
         this.loading.set(false);
       });
-  }
-
-
-  ngOnInit() {
-    this.loadMore();
   }
 }
