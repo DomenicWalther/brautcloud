@@ -10,6 +10,7 @@ import {
   catchError,
   throwError,
 } from 'rxjs';
+import { API_URL } from '../core/tokens';
 
 interface AuthResponse {
   accessToken: string;
@@ -20,7 +21,7 @@ interface AuthResponse {
 })
 export class AuthService {
   private http = inject(HttpClient);
-  private readonly BASE_URL = 'http://localhost:8080/api/auth';
+  private readonly API_URL = inject(API_URL);
 
   private _accessToken = signal<string | null>(null);
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
@@ -34,7 +35,7 @@ export class AuthService {
   initializeAuth(): Promise<void> {
     return new Promise((resolve) => {
       this.http
-        .post<AuthResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
+        .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
         .subscribe({
           next: (res) => {
             this._accessToken.set(res.accessToken);
@@ -53,7 +54,7 @@ export class AuthService {
   login({ email, password }: { email: string; password: string }): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(
-        `${this.BASE_URL}/login`,
+        `${this.API_URL}/auth/login`,
         {
           email,
           password,
@@ -65,7 +66,7 @@ export class AuthService {
 
   register({ email, password }: { email: string; password: string }): Observable<any> {
     return this.http.post(
-      `${this.BASE_URL}/register`,
+      `${this.API_URL}/auth/register`,
       {
         email,
         password,
@@ -86,7 +87,7 @@ export class AuthService {
     this._refreshTokenSubject.next(null);
 
     return this.http
-      .post<AuthResponse>(`${this.BASE_URL}/refresh`, {}, { withCredentials: true })
+      .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
       .pipe(
         tap((res) => {
           this._isRefreshing = false;

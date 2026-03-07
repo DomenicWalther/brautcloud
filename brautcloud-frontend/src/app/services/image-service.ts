@@ -1,6 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { API_URL } from '../core/tokens';
+import { EventImageDTO } from '../core/models/event-image-dto';
+import { Page } from '../core/models/page';
 
 @Injectable({
   providedIn: 'root',
@@ -8,11 +11,10 @@ import { Observable } from 'rxjs';
 export class ImageService {
 
   private http: HttpClient = inject(HttpClient);
-  private readonly BASE_URL: string = 'http://localhost:8080/api/events/';
+  private readonly API_URL = inject(API_URL);
 
-
-  getEventImages(eventId: number, page: number, size = 20): Observable<any> {
-    return this.http.get<any>(`${this.BASE_URL}${eventId}/images?page=${page}&size=${size}`, { withCredentials: true })
+  getEventImages(eventId: number, page: number, size = 20): Observable<Page<EventImageDTO>> {
+    return this.http.get<Page<EventImageDTO>>(`${this.API_URL}/events/${eventId}/images?page=${page}&size=${size}`, { withCredentials: true })
   }
 }
 

@@ -2,11 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
 import { form, FormField } from '@angular/forms/signals';
-
-interface RegisterData {
-  email: string;
-  password: string;
-}
+import { AuthDTO } from '../../../core/models/auth-dto';
 
 @Component({
   selector: 'app-sign-up',
@@ -17,7 +13,7 @@ interface RegisterData {
 export class SignUp {
   private authService = inject(AuthService);
 
-  registerModel = signal<RegisterData>({
+  registerModel = signal<AuthDTO>({
     email: '',
     password: '',
   });
@@ -27,10 +23,10 @@ export class SignUp {
   onSubmit(event: Event) {
     event.preventDefault();
     const { email, password } = this.registerModel();
-    this.login({ email, password });
+    this.register({ email, password });
   }
 
-  login({ email, password }: RegisterData) {
+  register({ email, password }: AuthDTO) {
     this.authService
       .register({
         email,
