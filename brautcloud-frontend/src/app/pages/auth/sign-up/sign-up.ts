@@ -27,10 +27,10 @@ export class SignUp {
   onSubmit(event: Event) {
     event.preventDefault();
     const { email, password } = this.registerModel();
-    this.login({ email, password });
+    this.register({ email, password });
   }
 
-  login({ email, password }: RegisterData) {
+  register({ email, password }: RegisterData) {
     this.authService
       .register({
         email,
