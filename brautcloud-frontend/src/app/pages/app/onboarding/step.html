@@ -1,0 +1,14 @@
+@if (active()) {
+  <ng-content></ng-content>
+
+  <div class="step-actions">
+    @if (!stepState.isFirst()) {
+      <button (click)="stepState.back()">Back</button>
+    }
+    @if (!stepState.isLast()) {
+      <button type="button" (click)="stepState.next(canProceed())" [disabled]="!canProceed()">
+        Next
+      </button>
+    }
+  </div>
+}

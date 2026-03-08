@@ -1,17 +1,36 @@
-<section class="flex flex-col items-center justify-between h-dvh pt-10">
-  <!-- <img src="https://placehold.co/200x100" />
-  <p>Step 1 of 3</p>
-  <h2>Basic Details</h2> -->
-  <!-- <p>Let's begin crafting your unique wedding galerie experience.</p> -->
-  <form class="flex flex-col items-center">
-    <!-- <input type="text" placeholder="Your First Name" />
-    <input type="text" placeholder="Your Partner's First Name" />
-    <input type="date" placeholder="Wedding Date" />
-    <input type="text" placeholder="Event Location" /> -->
-    <button type="submit">Submit</button>
-  </form>
-
-  <!-- <img src="https://placehold.co/600x400" />
-  <button>Next Step -></button>
-  <button>SAVE & EXIT</button> -->
-</section>
+<app-multi-step-form>
+  <app-step label="step1" [validate]="stepOneValid()()">
+    <p>Step 1 of 3</p>
+    <h2>Tell us about the couple.</h2>
+    <p>This is how your gallery will be named and how guests will recognise the event.</p>
+    <div>
+      <label>
+        <span> Your First Name</span>
+        <input type="text" placeholder="Sophie" [formField]="onboardingForm.firstName" />
+      </label>
+    </div>
+    <div>
+      <label>
+        <span>Your Partner's First Name</span>
+        <input type="text" placeholder="Marcus" [formField]="onboardingForm.partnerFirstName" />
+      </label>
+    </div>
+    <div>
+      <label>
+        <span>Family Name (shared or hyphenated)</span>
+        <input type="text" placeholder="Müller-Weber" [formField]="onboardingForm.familyName" />
+      </label>
+    </div>
+  </app-step>
+  <app-step label="step2" [validate]="stepTwoValid()()">
+    <p>Step 2 of 3</p>
+    <h2>Tell us about the couple.</h2>
+    <p>This is how your gallery will be named and how guests will recognise the event.</p>
+    <div>
+      <label>
+        <span>Venue Name</span>
+        <input type="text" placeholder="Eichenfürst" [formField]="onboardingForm.venue" />
+      </label>
+    </div>
+  </app-step>
+</app-multi-step-form>
