@@ -1,13 +1,32 @@
 @if (active()) {
   <ng-content></ng-content>
 
-  <div class="step-actions">
-    @if (!stepState.isFirst()) {
-      <button (click)="stepState.back()">Back</button>
-    }
+  <div class="w-full flex justify-between pt-8 border-t-gold-dim border-t mt-12">
+    <div>
+      @if (!stepState.isFirst()) {
+        <button
+          (click)="stepState.back()"
+          class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+        >
+          Back
+        </button>
+      }
+    </div>
     @if (!stepState.isLast()) {
-      <button type="button" (click)="stepState.next(canProceed())" [disabled]="!canProceed()">
-        Next
+      <button
+        type="button"
+        (click)="stepState.next(canProceed())"
+        [disabled]="!canProceed()"
+        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+      >
+        Continue
+      </button>
+    } @else {
+      <button
+        (click)="stepState.next(canProceed())"
+        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+      >
+        Create Gallery
       </button>
     }
   </div>

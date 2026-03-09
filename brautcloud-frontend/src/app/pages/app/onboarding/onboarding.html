@@ -1,36 +1,54 @@
-<app-multi-step-form>
-  <app-step label="step1" [validate]="stepOneValid()()">
-    <p>Step 1 of 3</p>
-    <h2>Tell us about the couple.</h2>
-    <p>This is how your gallery will be named and how guests will recognise the event.</p>
-    <div>
-      <label>
-        <span> Your First Name</span>
-        <input type="text" placeholder="Sophie" [formField]="onboardingForm.firstName" />
-      </label>
-    </div>
-    <div>
-      <label>
-        <span>Your Partner's First Name</span>
-        <input type="text" placeholder="Marcus" [formField]="onboardingForm.partnerFirstName" />
-      </label>
-    </div>
-    <div>
-      <label>
-        <span>Family Name (shared or hyphenated)</span>
-        <input type="text" placeholder="Müller-Weber" [formField]="onboardingForm.familyName" />
-      </label>
-    </div>
-  </app-step>
-  <app-step label="step2" [validate]="stepTwoValid()()">
-    <p>Step 2 of 3</p>
-    <h2>Tell us about the couple.</h2>
-    <p>This is how your gallery will be named and how guests will recognise the event.</p>
-    <div>
-      <label>
-        <span>Venue Name</span>
-        <input type="text" placeholder="Eichenfürst" [formField]="onboardingForm.venue" />
-      </label>
-    </div>
-  </app-step>
-</app-multi-step-form>
+<main class="bg-noir-soft h-dvh text-white flex justify-center items-start pt-32">
+  <app-multi-step-form class="h-full">
+    <app-step label="step1" [validate]="stepOneValid()()">
+      <div class="flex flex-col gap-4">
+        <p class="text-gold-light text-sm font-sc">Step 1 of 3</p>
+        <h2 class="font-serif text-6xl">
+          Tell us about<br />the <span class="text-gold-light italic">couple.</span>
+        </h2>
+        <p class="text-white/40">
+          This is how your gallery will be named and how guests will recognise the event.
+        </p>
+      </div>
+      <section class="flex flex-col gap-5">
+        <div class="mt-10 flex gap-5">
+          <app-form-label
+            placeholder="Sophie"
+            label="Your First Name"
+            [field]="onboardingForm.firstName"
+          ></app-form-label>
+          <app-form-label
+            placeholder="Marcus"
+            label="Your Partner's First Name"
+            [field]="onboardingForm.partnerFirstName"
+          ></app-form-label>
+        </div>
+        <div>
+          <app-form-label
+            placeholder="Müller-Weber"
+            label="Family Name (Shared or Hyphenated)"
+            [field]="onboardingForm.familyName"
+          ></app-form-label>
+        </div>
+      </section>
+    </app-step>
+    <app-step label="step2" [validate]="stepTwoValid()()">
+      <div class="flex flex-col gap-4">
+        <p class="text-gold-light text-sm font-sc">Step 2 of 3</p>
+        <h2 class="font-serif text-6xl">
+          Tell us about<br />the <span class="text-gold-light italic">couple.</span>
+        </h2>
+        <p class="text-white/40">
+          This is how your gallery will be named and how guests will recognise the event.
+        </p>
+      </div>
+      <div class="mt-10">
+        <app-form-label
+          placeholder="Eichenfürst"
+          label="Venue Name"
+          [field]="onboardingForm.venue"
+        />
+      </div>
+    </app-step>
+  </app-multi-step-form>
+</main>

@@ -8,29 +8,60 @@
   --color-mainblack: #1a1a1a;
   --font-display: 'Playfair Display', serif;
   --font-body: 'Inter', sans-serif;
+
+
+  --font-serif: 'Cormorant Garamond', Georgia;
+  --font-sc: 'Cormorant SC', Georgia, serif;
+
+
+  --color-gold: #C8A96E;
+  --color-gold-light: #E8D5A8;
+  --color-gold-dim: rgba(200, 169, 110, 0.12);
+
+  --color-ivory: #F8F5EF;
+  --color-ivory-dark: #EDE8DF;
+
+  --color-noir: #0D0D0D;
+  --color-noir-soft: #161412;
+
+  --color-charcoal: #1C1916;
+  --color-warm-grey: #6B6259;
 }
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 300;
+  src: url(https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2) format('woff2');
+}
+
+
+@font-face {
+  font-family: 'Cormorant SC';
+  font-style: normal;
+  font-weight: 300;
+  src: url(https://fonts.gstatic.com/s/cormorantsc/v19/0ybmGD4kxqXBmOVLG30OGwsmABIk-hfz.woff2) format('woff2');
+}
+
 @font-face {
   font-family: 'Playfair Display';
   font-style: normal;
   font-weight: 400;
-  src: url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgA.woff2)
-    format('woff2');
+  src: url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgA.woff2) format('woff2');
 }
 
 @font-face {
   font-family: 'Inter';
   font-style: normal;
   font-weight: 400;
-  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2)
-    format('woff2');
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2');
 }
 
 @font-face {
   font-family: 'Material Symbols Outlined';
   font-style: normal;
   font-weight: 400;
-  src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v316/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOej.woff2)
-    format('woff2');
+  src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v316/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOej.woff2) format('woff2');
 }
 
 .material-symbols-outlined {
