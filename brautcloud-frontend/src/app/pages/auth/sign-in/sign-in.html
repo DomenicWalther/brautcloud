@@ -4,19 +4,45 @@
     <h1 class="text-4xl">Sign In</h1>
   </div>
   <form class="flex flex-col gap-5 w-1/3" (submit)="onSubmit($event)">
-    <input
-      type="email"
-      placeholder="Email Address"
-      class="border-mainrose/50 border-2 px-4 py-2"
-      [formField]="loginForm.email"
-    />
-    <input
-      type="password"
-      [formField]="loginForm.password"
-      placeholder="Create password"
-      class="border-mainrose/50 border-2 px-4 py-2"
-    />
-    <button type="submit" class="bg-mainrose font-bold py-4 text-sm cursor-pointer">LOGIN</button>
+    <div>
+      <label class="flex flex-col">
+        <span class="font-bold">Email</span>
+        <input
+          type="email"
+          placeholder="Email Address"
+          class="border-mainrose/50 border-2 px-4 py-2"
+          [formField]="loginForm.email"
+        />
+      </label>
+      @if (loginForm.email().touched() && loginForm.email().invalid()) {
+        @for (error of loginForm.email().errors(); track error) {
+          <p>{{ error.message }}</p>
+        }
+      }
+    </div>
+    <div>
+      <label class="flex flex-col">
+        <span class="font-bold">Password</span>
+        <input
+          type="password"
+          [formField]="loginForm.password"
+          placeholder="Create password"
+          class="border-mainrose/50 border-2 px-4 py-2"
+        />
+      </label>
+      @if (loginForm.password().touched() && loginForm.password().invalid()) {
+        @for (error of loginForm.password().errors(); track error) {
+          <p>{{ error.message }}</p>
+        }
+      }
+    </div>
+    <button
+      type="submit"
+      class="bg-mainrose font-bold py-4 text-sm cursor-pointer"
+      [disabled]="loginForm().pending()"
+    >
+      LOGIN
+    </button>
   </form>
   <p class="font-light text-gray-400 text-sm cursor-pointer" routerLink="/auth/reset-password">
     FORGOT PASSWORD?

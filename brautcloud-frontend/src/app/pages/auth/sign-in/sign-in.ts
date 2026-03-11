@@ -1,8 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
-import { form, FormField } from '@angular/forms/signals';
+import { email, form, FormField, required, validate } from '@angular/forms/signals';
 import { AuthDTO } from '../../../core/models/auth-dto';
+import { HttpErrorResponse } from '@angular/common/http';
+import { authSchema } from '../schemas/auth.schema';
 
 @Component({
   selector: 'app-sign-in',
@@ -15,15 +17,20 @@ export class SignIn {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  loginModel = signal<AuthDTO>({
+  private serverError = signal<string | null>(null);
+
+  private loginModel = signal<AuthDTO>({
     email: '',
     password: '',
   });
 
-  loginForm = form(this.loginModel);
+  loginForm = form(this.loginModel, (schemaPath) => {
+    authSchema(schemaPath, this.serverError);
+  });
 
   onSubmit(event: Event) {
     event.preventDefault();
+    this.serverError.set(null);
     const { email, password } = this.loginModel();
     this.login({ email, password });
   }
@@ -38,6 +45,11 @@ export class SignIn {
         next: () => {
           const returlUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/app/home';
           this.router.navigateByUrl(returlUrl);
+        },
+        error: (error: HttpErrorResponse) => {
+          if (error.status === 403) {
+            this.serverError.set('Invalid email or password');
+          }
         },
       });
   }
