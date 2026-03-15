@@ -1,4 +1,13 @@
-import { Component, computed, inject, input, OnInit, signal, Signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  input,
+  OnInit,
+  signal,
+  Signal,
+  WritableSignal,
+} from '@angular/core';
 import { StepStateService } from './step-state-service';
 
 @Component({
@@ -11,7 +20,6 @@ export class StepComponent implements OnInit {
 
   stepState = inject(StepStateService);
   active = computed(() => this.stepState.currentStep() === this.label());
-  canProceed = computed(() => this.validate());
 
   ngOnInit() {
     this.stepState.register(this.label());

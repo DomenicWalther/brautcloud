@@ -1,6 +1,6 @@
 <main class="bg-noir-soft h-dvh text-white flex justify-center items-start pt-32">
   <app-multi-step-form class="h-full">
-    <app-step label="step1" [validate]="stepOneValid()()">
+    <app-step label="step1" [validate]="stepOneValid()">
       <div class="flex flex-col gap-4">
         <p class="text-gold-light text-sm font-sc">Step 1 of 3</p>
         <h2 class="font-serif text-6xl">
@@ -12,16 +12,33 @@
       </div>
       <section class="flex flex-col gap-5">
         <div class="mt-10 flex gap-5">
-          <app-form-label
-            placeholder="Sophie"
-            label="Your First Name"
-            [field]="onboardingForm.firstName"
-          ></app-form-label>
-          <app-form-label
-            placeholder="Marcus"
-            label="Your Partner's First Name"
-            [field]="onboardingForm.partnerFirstName"
-          ></app-form-label>
+          <div>
+            <app-form-label
+              placeholder="Sophie"
+              label="Your First Name"
+              [field]="onboardingForm.firstName"
+            ></app-form-label>
+            @if (onboardingForm.firstName().touched() && onboardingForm.firstName().invalid()) {
+              @for (error of onboardingForm.firstName().errors(); track error) {
+                <p class="mt-2 text-red-600/40 text-sm">{{ error.message }}</p>
+              }
+            }
+          </div>
+          <div>
+            <app-form-label
+              placeholder="Marcus"
+              label="Your Partner's First Name"
+              [field]="onboardingForm.partnerFirstName"
+            ></app-form-label>
+            @if (
+              onboardingForm.partnerFirstName().touched() &&
+              onboardingForm.partnerFirstName().invalid()
+            ) {
+              @for (error of onboardingForm.partnerFirstName().errors(); track error) {
+                <p class="mt-2 text-red-600/40 text-sm">{{ error.message }}</p>
+              }
+            }
+          </div>
         </div>
         <div>
           <app-form-label
@@ -29,10 +46,15 @@
             label="Family Name (Shared or Hyphenated)"
             [field]="onboardingForm.familyName"
           ></app-form-label>
+          @if (onboardingForm.familyName().touched() && onboardingForm.familyName().invalid()) {
+            @for (error of onboardingForm.familyName().errors(); track error) {
+              <p class="mt-2 text-red-600/40 text-sm">{{ error.message }}</p>
+            }
+          }
         </div>
       </section>
     </app-step>
-    <app-step label="step2" [validate]="stepTwoValid()()">
+    <app-step label="step2" [validate]="stepTwoValid()">
       <div class="flex flex-col gap-4">
         <p class="text-gold-light text-sm font-sc">Step 2 of 3</p>
         <h2 class="font-serif text-6xl">
@@ -48,6 +70,11 @@
           label="Venue Name"
           [field]="onboardingForm.venue"
         />
+        @if (onboardingForm.venue().touched() && onboardingForm.venue().invalid()) {
+          @for (error of onboardingForm.venue().errors(); track error) {
+            <p class="mt-2 text-red-600/40 text-sm">{{ error.message }}</p>
+          }
+        }
       </div>
     </app-step>
   </app-multi-step-form>
