@@ -27,18 +27,18 @@ export class Onboarding {
   });
 
   onboardingForm = form(this.model, (s) => {
-    required(s.firstName);
-    required(s.partnerFirstName);
-    required(s.familyName);
-    required(s.venue);
+    required(s.firstName, { message: 'Please enter your first name' });
+    required(s.partnerFirstName, { message: 'Please enter your partner first name' });
+    required(s.familyName, { message: 'Please enter your family name' });
+    required(s.venue, { message: 'Please enter your Venues name' });
   });
 
   stepOneValid = computed(
     () =>
-      this.onboardingForm.firstName().valid &&
-      this.onboardingForm.partnerFirstName().valid &&
-      this.onboardingForm.familyName().valid,
+      this.onboardingForm.firstName().valid() &&
+      this.onboardingForm.partnerFirstName().valid() &&
+      this.onboardingForm.familyName().valid(),
   );
 
-  stepTwoValid = computed(() => this.onboardingForm.venue().valid);
+  stepTwoValid = computed(() => this.onboardingForm.venue().valid());
 }

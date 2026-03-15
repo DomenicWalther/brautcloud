@@ -15,16 +15,18 @@
     @if (!stepState.isLast()) {
       <button
         type="button"
-        (click)="stepState.next(canProceed())"
-        [disabled]="!canProceed()"
-        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+        (click)="stepState.next(validate())"
+        [disabled]="!validate()"
+        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer disabled:bg-gold/20"
       >
+        {{ validate() }}
         Continue
       </button>
     } @else {
       <button
-        (click)="stepState.next(canProceed())"
-        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+        (click)="stepState.next(validate())"
+        [disabled]="!validate()"
+        class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer disabled:bg-gold/20"
       >
         Create Gallery
       </button>
