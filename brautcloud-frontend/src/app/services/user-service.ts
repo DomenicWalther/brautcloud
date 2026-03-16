@@ -3,27 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 import { API_URL } from '../core/tokens';
-
-
-interface Event {
-  coupleName: string;
-  date: string;
-  eventName: string;
-  id: number;
-  location: string;
-  userID: number;
-}
-
-interface UserResponse {
-  createdAt: string;
-  email: string;
-  emailVerified: boolean;
-  events: Event[];
-  firstNameCoupleOne: string;
-  firstNameCoupleTwo: string;
-  id: number;
-  lastName: string;
-}
+import { UserDto } from '../core/models/user.dto';
 
 @Injectable({
   providedIn: 'root',
@@ -34,9 +14,7 @@ export class UserService {
 
   readonly user = toSignal(this.getUser(), { initialValue: undefined });
 
-  private getUser(): Observable<UserResponse> {
-    return this.http.get<UserResponse>(`${this.API_URL}/user`, { withCredentials: true })
+  private getUser(): Observable<UserDto> {
+    return this.http.get<UserDto>(`${this.API_URL}/user`, { withCredentials: true });
   }
-
-
 }
