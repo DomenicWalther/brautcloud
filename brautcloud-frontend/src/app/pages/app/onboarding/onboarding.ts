@@ -5,13 +5,7 @@ import { StepComponent } from './step';
 import { form, required } from '@angular/forms/signals';
 import { FormLabel } from './onboarding-components/form-label/form-label';
 import { StepHeader } from './onboarding-components/step-header/step-header';
-
-interface OnboardingModel {
-  firstName: string;
-  partnerFirstName: string;
-  familyName: string;
-  venue: string;
-}
+import { OnboardingDto } from '../../../core/models/onboarding.dto';
 
 @Component({
   selector: 'app-onboarding',
@@ -20,7 +14,7 @@ interface OnboardingModel {
   styles: ``,
 })
 export class Onboarding {
-  model = signal<OnboardingModel>({
+  model = signal<OnboardingDto>({
     firstName: '',
     partnerFirstName: '',
     familyName: '',
