@@ -1,5 +1,5 @@
 import { email, required, SchemaPathTree, validate } from '@angular/forms/signals';
-import { AuthDTO } from '../../../core/models/auth-dto';
+import { AuthDTO } from '../../../core/models/auth.dto';
 import { Signal } from '@angular/core';
 
 export function authSchema<T extends AuthDTO>(
