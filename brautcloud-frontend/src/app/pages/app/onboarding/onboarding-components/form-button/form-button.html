@@ -1,0 +1,8 @@
+<button
+  type="button"
+  (click)="buttonClick()"
+  [disabled]="isDisabled()"
+  class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer disabled:bg-gold/20 disabled:cursor-auto"
+>
+  {{ buttonLabel() }}
+</button>

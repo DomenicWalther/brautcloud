@@ -1,5 +1,5 @@
-import { Component, input, Input } from '@angular/core';
-import { form, required, FormField, FieldTree } from '@angular/forms/signals';
+import { Component, computed, input } from '@angular/core';
+import { FieldTree, FormField } from '@angular/forms/signals';
 
 @Component({
   selector: 'app-form-label',
@@ -11,5 +11,7 @@ import { form, required, FormField, FieldTree } from '@angular/forms/signals';
 export class FormLabel {
   label = input.required<string>();
   placeholder = input.required<string>();
-  field = input.required<any>();
+  field = input.required<FieldTree<string, string>>();
+
+  protected fieldState = computed(() => this.field()());
 }

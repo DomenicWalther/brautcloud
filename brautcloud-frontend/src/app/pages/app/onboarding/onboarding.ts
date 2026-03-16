@@ -1,9 +1,10 @@
 import { Component, computed, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MultiStepForm } from './multi-step-form';
-import { StepComponent } from './step.components';
-import { form, required, FormField } from '@angular/forms/signals';
-import { FormLabel } from './form-label/form-label';
+import { StepComponent } from './step';
+import { form, required } from '@angular/forms/signals';
+import { FormLabel } from './onboarding-components/form-label/form-label';
+import { StepHeader } from './onboarding-components/step-header/step-header';
 
 interface OnboardingModel {
   firstName: string;
@@ -14,7 +15,7 @@ interface OnboardingModel {
 
 @Component({
   selector: 'app-onboarding',
-  imports: [ReactiveFormsModule, MultiStepForm, StepComponent, FormField, FormLabel],
+  imports: [ReactiveFormsModule, MultiStepForm, StepComponent, FormLabel, StepHeader],
   templateUrl: './onboarding.html',
   styles: ``,
 })
