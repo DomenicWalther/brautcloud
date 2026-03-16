@@ -1,6 +1,6 @@
 import { Component, contentChildren } from '@angular/core';
 import { StepStateService } from './step-state-service';
-import { StepComponent } from './step.components';
+import { StepComponent } from './step';
 
 @Component({
   selector: 'app-multi-step-form',
