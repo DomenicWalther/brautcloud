@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.util.List;
+import java.util.UUID;
 
 @RequestMapping("/api/image")
 @RestController
@@ -27,13 +28,13 @@ public class ImageController {
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<String> uploadFile(@RequestPart("file") MultipartFile file,
 			@RequestPart("eventId") String eventId) {
-		ImageRequest request = new ImageRequest(Long.parseLong(eventId), file);
+		ImageRequest request = new ImageRequest(UUID.fromString(eventId), file);
 		return imageService.createNewImage(request);
 
 	}
 
 	@DeleteMapping("{imageID}")
-	public ResponseEntity<String> deleteFile(@PathVariable Long imageID) {
+	public ResponseEntity<String> deleteFile(@PathVariable UUID imageID) {
 		return imageService.deleteImageByImageID(imageID);
 	}
 

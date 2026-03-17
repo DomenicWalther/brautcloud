@@ -1,6 +1,8 @@
 package com.domenicwalther.brautcloud.dto;
 
-public record EventImageDTO(long id, String url
+import java.util.UUID;
+
+public record EventImageDTO(UUID id, String url
 
 ) {
 }

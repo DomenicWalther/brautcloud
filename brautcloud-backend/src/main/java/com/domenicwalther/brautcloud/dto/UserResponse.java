@@ -5,11 +5,12 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class UserResponse {
 
-	private Long id;
+	private UUID id;
 
 	private LocalDateTime createdAt;
 

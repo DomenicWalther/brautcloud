@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class EventService {
@@ -41,6 +42,11 @@ public class EventService {
 		return eventRepository.findAll().stream().map(EventResponse::fromEvent).toList();
 	}
 
+	public List<EventResponse> getEventsByUserEmail(String email) {
+		User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+		return eventRepository.findByUser(user).stream().map(EventResponse::fromEvent).toList();
+	}
+
 	public void addEvent(EventRequest request) {
 		User user = userRepository.findById(request.getUserId())
 			.orElseThrow(() -> new RuntimeException("User not found"));
@@ -58,11 +64,11 @@ public class EventService {
 		eventRepository.save(event);
 	}
 
-	public void deleteEvent(Long eventID) {
+	public void deleteEvent(UUID eventID) {
 		eventRepository.deleteById(eventID);
 	}
 
-	public ResponseEntity<Page<EventImageDTO>> getEventImages(Long eventID, int page, int size) {
+	public ResponseEntity<Page<EventImageDTO>> getEventImages(UUID eventID, int page, int size) {
 		Page<Image> images = imageRepository.findByEventId(eventID, PageRequest.of(page, size));
 
 		Page<EventImageDTO> result = images.map(image -> {

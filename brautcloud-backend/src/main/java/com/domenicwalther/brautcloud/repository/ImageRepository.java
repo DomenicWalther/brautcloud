@@ -8,9 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.domenicwalther.brautcloud.model.Image;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface ImageRepository extends JpaRepository<Image, Long> {
+public interface ImageRepository extends JpaRepository<Image, UUID> {
 
-	Page<Image> findByEventId(Long eventId, Pageable pageable);
+	Page<Image> findByEventId(UUID eventId, Pageable pageable);
 
 }
