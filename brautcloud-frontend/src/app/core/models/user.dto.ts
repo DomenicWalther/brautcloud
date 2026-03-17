@@ -5,8 +5,6 @@ export interface UserDto {
   email: string;
   emailVerified: boolean;
   events: EventDto[];
-  firstNameCoupleOne: string;
-  firstNameCoupleTwo: string;
   id: number;
   lastName: string;
 }
