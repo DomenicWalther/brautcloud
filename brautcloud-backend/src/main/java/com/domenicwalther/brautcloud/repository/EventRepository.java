@@ -1,8 +1,14 @@
 package com.domenicwalther.brautcloud.repository;
 
 import com.domenicwalther.brautcloud.model.Event;
+import com.domenicwalther.brautcloud.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface EventRepository extends JpaRepository<Event, Long> {
+import java.util.List;
+import java.util.UUID;
+
+public interface EventRepository extends JpaRepository<Event, UUID> {
+
+	List<Event> findByUser(User user);
 
 }

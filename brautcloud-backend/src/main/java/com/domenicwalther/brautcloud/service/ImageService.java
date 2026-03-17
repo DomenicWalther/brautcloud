@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ImageService {
@@ -56,7 +57,7 @@ public class ImageService {
 		return uploadFile(request.getFile());
 	}
 
-	public ResponseEntity<String> deleteImageByImageID(Long imageID) {
+	public ResponseEntity<String> deleteImageByImageID(UUID imageID) {
 		Image image = imageRepository.findById(imageID).orElseThrow(() -> new RuntimeException("Event not found"));
 		imageRepository.deleteById(imageID);
 		String imageKey = image.getImageKey();

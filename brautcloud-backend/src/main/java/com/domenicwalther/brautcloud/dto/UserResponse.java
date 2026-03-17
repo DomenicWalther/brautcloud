@@ -5,17 +5,12 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class UserResponse {
 
-	private Long id;
-
-	private String lastName;
-
-	private String firstNameCoupleOne;
-
-	private String firstNameCoupleTwo;
+	private UUID id;
 
 	private LocalDateTime createdAt;
 
@@ -28,9 +23,6 @@ public class UserResponse {
 	public static UserResponse fromUser(User user) {
 		UserResponse response = new UserResponse();
 		response.setId(user.getId());
-		response.setLastName(user.getLastName());
-		response.setFirstNameCoupleOne(user.getFirstNameCoupleOne());
-		response.setFirstNameCoupleTwo(user.getFirstNameCoupleTwo());
 		response.setCreatedAt(user.getCreatedAt());
 		response.setEmail(user.getEmail());
 		response.setEmailVerified(user.isEmailVerified());

@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class EventService {
@@ -41,24 +42,33 @@ public class EventService {
 		return eventRepository.findAll().stream().map(EventResponse::fromEvent).toList();
 	}
 
+	public List<EventResponse> getEventsByUserEmail(String email) {
+		User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+		return eventRepository.findByUser(user).stream().map(EventResponse::fromEvent).toList();
+	}
+
 	public void addEvent(EventRequest request) {
 		User user = userRepository.findById(request.getUserId())
 			.orElseThrow(() -> new RuntimeException("User not found"));
-		Event event = new Event();
-		event.setEventName(request.getEventName());
-		event.setLocation(request.getLocation());
-		event.setDate(request.getDate());
-		event.setPassword(request.getPassword());
-		event.setQrCode(request.getQrCode());
-		event.setUser(user);
+		Event event = Event.builder()
+			.eventName(request.getEventName())
+			.lastName(request.getLastName())
+			.firstNameCoupleOne(request.getFirstNameCoupleOne())
+			.firstNameCoupleTwo(request.getFirstNameCoupleTwo())
+			.location(request.getLocation())
+			.date(request.getDate())
+			.password(request.getPassword())
+			.qrCode(request.getQrCode())
+			.user(user)
+			.build();
 		eventRepository.save(event);
 	}
 
-	public void deleteEvent(Long eventID) {
+	public void deleteEvent(UUID eventID) {
 		eventRepository.deleteById(eventID);
 	}
 
-	public ResponseEntity<Page<EventImageDTO>> getEventImages(Long eventID, int page, int size) {
+	public ResponseEntity<Page<EventImageDTO>> getEventImages(UUID eventID, int page, int size) {
 		Page<Image> images = imageRepository.findByEventId(eventID, PageRequest.of(page, size));
 
 		Page<EventImageDTO> result = images.map(image -> {

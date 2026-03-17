@@ -58,25 +58,11 @@ public class UserControllerTest {
 	@Test
 	void shouldGetAllUsers() {
 		List<User> users = List.of(
-				User.builder()
-					.lastName("LastName")
-					.firstNameCoupleOne("FirstNameOne")
-					.firstNameCoupleTwo("FirstNameTwo")
-					.email("info@test.com")
-					.emailVerified(false)
-					.password("password")
-					.build(),
-				User.builder()
-					.lastName("LastName3")
-					.firstNameCoupleOne("FirstNameOne2")
-					.firstNameCoupleTwo("FirstNameTwo2")
-					.email("domenic@test.com")
-					.emailVerified(false)
-					.password("password2")
-					.build());
+				User.builder().email("info@test.com").emailVerified(false).password("password").build(),
+				User.builder().email("domenic@test.com").emailVerified(false).password("password2").build());
 		userRepository.saveAll(users);
 
-		given().contentType(ContentType.JSON).when().get("/users").then().statusCode(200).body(".", hasSize(2));
+		given().contentType(ContentType.JSON).when().get("/api/user").then().statusCode(200).body(".", hasSize(2));
 	}
 
 }

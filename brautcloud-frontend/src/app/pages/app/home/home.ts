@@ -3,6 +3,8 @@ import { QrCodeComponent } from 'ng-qrcode';
 import { UserService } from '../../../services/user-service';
 import { HomeStats } from './home-stats/home-stats';
 
+import { APP_URL } from '../../../core/tokens';
+
 @Component({
   selector: 'app-home',
   imports: [HomeStats, QrCodeComponent],
@@ -10,11 +12,11 @@ import { HomeStats } from './home-stats/home-stats';
   styles: ``,
 })
 export class Home {
-
   private userService = inject(UserService);
 
-  user = this.userService.user;
-
+  private readonly user = this.userService.user;
+  readonly event = computed(() => this.user()?.events?.[0]);
+  readonly APP_URL = inject(APP_URL);
 
   daysTillWedding = computed(() => {
     const user = this.user();
@@ -23,9 +25,9 @@ export class Home {
 
     const weddingDate = new Date(user.events[0].date);
     return Math.floor((weddingDate.getTime() - date.getTime()) / (1000 * 3600 * 24));
-  })
+  });
 
-  eventUrl = 'https://www.domenicwalther.de';
+  eventUrl = computed(() => `${this.APP_URL}/event/${this.event()?.id}`);
 
   photos = [
     {

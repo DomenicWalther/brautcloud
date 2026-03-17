@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth-service';
 import { email, form, FormField, required, validate } from '@angular/forms/signals';
-import { AuthDTO } from '../../../core/models/auth-dto';
+import { AuthDTO } from '../../../core/models/auth.dto';
 import { HttpErrorResponse } from '@angular/common/http';
 import { authSchema } from '../schemas/auth.schema';
 

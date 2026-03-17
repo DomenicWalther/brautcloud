@@ -5,17 +5,19 @@ import com.domenicwalther.brautcloud.model.Image;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.util.UUID;
+
 @AllArgsConstructor
 @Data
 public class ImageResponse {
 
-	private Long id;
+	private UUID id;
 
 	private String imageKey;
 
 	private boolean isVisible;
 
-	private Long eventId;
+	private UUID eventId;
 
 	public static ImageResponse fromImage(Image image) {
 		return new ImageResponse(image.getId(), image.getImageKey(), image.isVisible(), image.getEvent().getId());

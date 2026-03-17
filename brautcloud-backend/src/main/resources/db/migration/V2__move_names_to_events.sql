@@ -1,0 +1,7 @@
+ALTER TABLE events ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS first_name_couple_one VARCHAR(255);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS first_name_couple_two VARCHAR(255);
+
+ALTER TABLE users DROP COLUMN IF EXISTS last_name;
+ALTER TABLE users DROP COLUMN IF EXISTS first_name_couple_one;
+ALTER TABLE users DROP COLUMN IF EXISTS first_name_couple_two;

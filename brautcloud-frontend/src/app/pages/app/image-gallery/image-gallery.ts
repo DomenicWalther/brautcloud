@@ -1,7 +1,7 @@
-import {Component, inject} from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 
-import {Gallery} from './gallery/gallery';
-import {UserService} from '../../../services/user-service';
+import { Gallery } from './gallery/gallery';
+import { UserService } from '../../../services/user-service';
 
 @Component({
   selector: 'app-image-gallery',
@@ -10,5 +10,5 @@ import {UserService} from '../../../services/user-service';
 })
 export class ImageGallery {
   private userService = inject(UserService);
-  user = this.userService.user;
+  event = computed(() => this.userService.user()?.events?.[0]);
 }

@@ -5,12 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @AllArgsConstructor
 @Data
 public class EventResponse {
 
-	private Long id;
+	private UUID id;
 
 	private String eventName;
 
@@ -18,14 +19,15 @@ public class EventResponse {
 
 	private LocalDateTime date;
 
-	private Long userId;
+	private UUID userId;
 
-	private String coupleName;
+	private String firstNameCoupleOne;
+
+	private String firstNameCoupleTwo;
 
 	public static EventResponse fromEvent(Event event) {
 		return new EventResponse(event.getId(), event.getEventName(), event.getLocation(), event.getDate(),
-				event.getUser().getId(),
-				event.getUser().getFirstNameCoupleOne() + " & " + event.getUser().getFirstNameCoupleTwo());
+				event.getUser().getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo());
 	}
 
 }
