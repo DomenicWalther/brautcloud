@@ -1,4 +1,4 @@
 export interface EventImageDto {
-  id: number;
+  id: string;
   url: string;
 }
