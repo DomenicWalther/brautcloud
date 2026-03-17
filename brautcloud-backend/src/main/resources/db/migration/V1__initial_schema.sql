@@ -1,4 +1,3 @@
--- Create users table
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   last_name VARCHAR(255),
@@ -10,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) DEFAULT 'ROLE_USER' NOT NULL
 );
--- Create events table
+
 CREATE TABLE IF NOT EXISTS events (
   id SERIAL PRIMARY KEY,
   event_name VARCHAR(255) NOT NULL,
@@ -23,7 +22,6 @@ CREATE TABLE IF NOT EXISTS events (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create images table
 CREATE TABLE IF NOT EXISTS images (
   id SERIAL PRIMARY KEY,
   image_key TEXT NOT NULL,
@@ -38,6 +36,5 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     user_id BIGINT NOT NULL UNIQUE,
     token VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
-
     CONSTRAINT fk_refresh_tokens_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

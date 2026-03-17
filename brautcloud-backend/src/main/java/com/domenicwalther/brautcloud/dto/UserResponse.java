@@ -11,12 +11,6 @@ public class UserResponse {
 
 	private Long id;
 
-	private String lastName;
-
-	private String firstNameCoupleOne;
-
-	private String firstNameCoupleTwo;
-
 	private LocalDateTime createdAt;
 
 	private String email;
@@ -28,9 +22,6 @@ public class UserResponse {
 	public static UserResponse fromUser(User user) {
 		UserResponse response = new UserResponse();
 		response.setId(user.getId());
-		response.setLastName(user.getLastName());
-		response.setFirstNameCoupleOne(user.getFirstNameCoupleOne());
-		response.setFirstNameCoupleTwo(user.getFirstNameCoupleTwo());
 		response.setCreatedAt(user.getCreatedAt());
 		response.setEmail(user.getEmail());
 		response.setEmailVerified(user.isEmailVerified());

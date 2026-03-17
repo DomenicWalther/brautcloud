@@ -20,12 +20,13 @@ public class EventResponse {
 
 	private Long userId;
 
-	private String coupleName;
+	private String firstNameCoupleOne;
+
+	private String firstNameCoupleTwo;
 
 	public static EventResponse fromEvent(Event event) {
 		return new EventResponse(event.getId(), event.getEventName(), event.getLocation(), event.getDate(),
-				event.getUser().getId(),
-				event.getUser().getFirstNameCoupleOne() + " & " + event.getUser().getFirstNameCoupleTwo());
+				event.getUser().getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo());
 	}
 
 }

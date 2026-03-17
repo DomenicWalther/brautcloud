@@ -1,13 +1,19 @@
 package com.domenicwalther.brautcloud.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "events")
 public class Event {
 
@@ -20,6 +26,12 @@ public class Event {
 	private User user;
 
 	private String eventName;
+
+	private String lastName;
+
+	private String firstNameCoupleOne;
+
+	private String firstNameCoupleTwo;
 
 	private String location;
 

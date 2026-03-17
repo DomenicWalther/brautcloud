@@ -12,6 +12,12 @@ public class EventRequest {
 
 	private String eventName;
 
+	private String lastName;
+
+	private String firstNameCoupleOne;
+
+	private String firstNameCoupleTwo;
+
 	private String location;
 
 	private LocalDateTime date;

@@ -23,12 +23,6 @@ public class User {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private String lastName;
-
-	private String firstNameCoupleOne;
-
-	private String firstNameCoupleTwo;
-
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 

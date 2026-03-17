@@ -44,13 +44,17 @@ public class EventService {
 	public void addEvent(EventRequest request) {
 		User user = userRepository.findById(request.getUserId())
 			.orElseThrow(() -> new RuntimeException("User not found"));
-		Event event = new Event();
-		event.setEventName(request.getEventName());
-		event.setLocation(request.getLocation());
-		event.setDate(request.getDate());
-		event.setPassword(request.getPassword());
-		event.setQrCode(request.getQrCode());
-		event.setUser(user);
+		Event event = Event.builder()
+			.eventName(request.getEventName())
+			.lastName(request.getLastName())
+			.firstNameCoupleOne(request.getFirstNameCoupleOne())
+			.firstNameCoupleTwo(request.getFirstNameCoupleTwo())
+			.location(request.getLocation())
+			.date(request.getDate())
+			.password(request.getPassword())
+			.qrCode(request.getQrCode())
+			.user(user)
+			.build();
 		eventRepository.save(event);
 	}
 
