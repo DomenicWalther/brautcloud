@@ -39,7 +39,7 @@ public class EventController {
 		eventService.addEvent(request);
 	}
 
-	@DeleteMapping("/events/{eventID}")
+	@DeleteMapping("{eventID}")
 	public void deleteEvent(@PathVariable UUID eventID) {
 		eventService.deleteEvent(eventID);
 	}
