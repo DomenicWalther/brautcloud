@@ -1,7 +1,9 @@
-import { Component, computed, effect, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { QrCodeComponent } from 'ng-qrcode';
 import { UserService } from '../../../services/user-service';
 import { HomeStats } from './home-stats/home-stats';
+
+import { APP_URL } from '../../../core/tokens';
 
 @Component({
   selector: 'app-home',
@@ -14,6 +16,7 @@ export class Home {
 
   private readonly user = this.userService.user;
   readonly event = computed(() => this.user()?.events?.[0]);
+  readonly APP_URL = inject(APP_URL);
 
   daysTillWedding = computed(() => {
     const user = this.user();
@@ -24,7 +27,7 @@ export class Home {
     return Math.floor((weddingDate.getTime() - date.getTime()) / (1000 * 3600 * 24));
   });
 
-  eventUrl = computed(() => `http://localhost:4200/event/${this.event()?.id}`);
+  eventUrl = computed(() => `${this.APP_URL}/event/${this.event()?.id}`);
 
   photos = [
     {
