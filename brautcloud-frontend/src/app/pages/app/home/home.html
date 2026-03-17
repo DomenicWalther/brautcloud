@@ -1,7 +1,7 @@
 <main class="max-w-5/6 mx-auto flex flex-col gap-5">
   <section class="mt-14 flex flex-col gap-4">
     <h1 class="font-display text-5xl">
-      Welcome,<br />{{ user()?.firstNameCoupleOne }} & {{ user()?.firstNameCoupleTwo }}
+      Welcome,<br />{{ event()?.firstNameCoupleOne }} & {{ event()?.firstNameCoupleTwo }}
     </h1>
     <h2 class="uppercase font-body">
       <span class="text-mainrose">{{ daysTillWedding() }}</span> Days until your Wedding
@@ -21,14 +21,14 @@
     </div>
     <div class="flex gap-2">
       @for (photo of photos; track photo.url) {
-      <div class="relative min-w-0 w-full aspect-square">
-        <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
-        @if (photo.extraCount) {
-        <div class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center">
-          <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
+        <div class="relative min-w-0 w-full aspect-square">
+          <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
+          @if (photo.extraCount) {
+            <div class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center">
+              <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
+            </div>
+          }
         </div>
-        }
-      </div>
       }
     </div>
     <button
@@ -44,12 +44,17 @@
       <p class="text-4xl font-display">Event QR Code</p>
       <p class="font-body text-gray-400 text-sm">Share this with your Guests</p>
     </div>
-    <qr-code value="{{ eventUrl }}" size="300" errorCorrectionLevel="M" styleClass="rounded-4xl" />
+    <qr-code
+      value="{{ eventUrl() }}"
+      size="300"
+      errorCorrectionLevel="M"
+      styleClass="rounded-4xl"
+    />
     <button
       class="text-mainrose border border-mainrose rounded-full px-8 py-2 uppercase text-xs font-bold"
     >
       Download for Print
     </button>
-    <button class="uppercase text-sm tracking-widest">Copy Gallery Link</button>
+    <button class="uppercase cursor-pointer text-sm tracking-widest">Copy Gallery Link</button>
   </section>
 </main>
