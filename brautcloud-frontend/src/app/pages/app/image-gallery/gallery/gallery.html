@@ -1,11 +1,11 @@
-<div class="grid gap-4 grid-cols-2">
-  @for (img of images(); track img.id){
-  <img [src]="img.url" loading="lazy" class="object-cover" />
+@if (loading()) {
+  <p class="text-center py-8">Loading gallery...</p>
+}
+
+<div class="columns-1 sm:columns-2 md:columns-3 gap-4 mt-10">
+  @for (img of images(); track img.id) {
+    <div class="mb-4 break-inside-avoid">
+      <img [src]="img.url" loading="lazy" class="w-full rounded-lg" />
+    </div>
   }
 </div>
-
-<div #sentinel class="h-32"></div>
-
-@if(loading()){
-  <p>Loading...</p>
-}

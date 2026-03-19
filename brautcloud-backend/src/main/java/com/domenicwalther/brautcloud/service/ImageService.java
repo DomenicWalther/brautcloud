@@ -1,21 +1,20 @@
 package com.domenicwalther.brautcloud.service;
 
-import com.domenicwalther.brautcloud.dto.ImageRequest;
-import com.domenicwalther.brautcloud.dto.ImageResponse;
+import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
+import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
+import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
-import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ImageService {
@@ -32,37 +31,42 @@ public class ImageService {
 		this.eventRepository = eventRepository;
 	}
 
-	private ResponseEntity<String> uploadFile(MultipartFile file) {
-		try {
-			File tempFile = File.createTempFile("upload-", file.getOriginalFilename());
-			file.transferTo(tempFile);
-
-			s3Service.uploadFile(file.getOriginalFilename(), tempFile);
-
-			return ResponseEntity.ok("File uploaded successfully");
-		}
-		catch (Exception e) {
-			return ResponseEntity.status(500).body("Uploaded failed: " + e.getMessage());
-		}
-	}
-
-	public ResponseEntity<String> createNewImage(ImageRequest request) {
+	public List<ImageUploadResponse> generatePresignedUploadUrls(ImageUploadRequest request) {
 		Event event = eventRepository.findById(request.getEventId())
-			.orElseThrow(() -> new RuntimeException("Event not found"));
-		Image image = new Image();
-		image.setVisible(true);
-		image.setImageKey(request.getFile().getOriginalFilename());
-		image.setEvent(event);
-		imageRepository.save(image);
-		return uploadFile(request.getFile());
+			.orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+
+		return request.getFileNames().stream().map(fileName -> {
+			String key = UUID.randomUUID() + "-" + fileName;
+			Image image = new Image();
+			image.setEvent(event);
+			image.setImageKey(key);
+			image.setVisible(true);
+			image.setUploaded(false);
+			imageRepository.save(image);
+
+			String uploadUrl = s3Service.getPresignedPutUrl(key);
+			return new ImageUploadResponse(image.getId(), uploadUrl);
+		}).collect(Collectors.toList());
 	}
 
-	public ResponseEntity<String> deleteImageByImageID(UUID imageID) {
-		Image image = imageRepository.findById(imageID).orElseThrow(() -> new RuntimeException("Event not found"));
+	public void markImagesAsUploaded(List<UUID> imageIds) {
+		List<Image> images = imageRepository.findAllById(imageIds);
+		images.forEach(image -> image.setUploaded(true));
+		imageRepository.saveAll(images);
+	}
+
+	public void deleteImageByImageID(UUID imageID) {
+		Image image = imageRepository.findById(imageID)
+			.orElseThrow(() -> new ResourceNotFoundException("Image not found"));
 		imageRepository.deleteById(imageID);
 		String imageKey = image.getImageKey();
 		s3Service.deleteFile(imageKey);
-		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@Scheduled(cron = "0 0 * * * *") // Every hour
+	public void cleanupUnuploadedImages() {
+		LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo).forEach(imageRepository::delete);
 	}
 
 }

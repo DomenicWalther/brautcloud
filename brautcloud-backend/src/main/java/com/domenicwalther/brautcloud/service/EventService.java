@@ -3,7 +3,7 @@ package com.domenicwalther.brautcloud.service;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
-import com.domenicwalther.brautcloud.dto.ImageResponse;
+import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
@@ -13,7 +13,6 @@ import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -43,13 +42,14 @@ public class EventService {
 	}
 
 	public List<EventResponse> getEventsByUserEmail(String email) {
-		User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepository.findByEmail(email)
+			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		return eventRepository.findByUser(user).stream().map(EventResponse::fromEvent).toList();
 	}
 
 	public void addEvent(EventRequest request) {
 		User user = userRepository.findById(request.getUserId())
-			.orElseThrow(() -> new RuntimeException("User not found"));
+			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		Event event = Event.builder()
 			.eventName(request.getEventName())
 			.lastName(request.getLastName())
@@ -68,16 +68,13 @@ public class EventService {
 		eventRepository.deleteById(eventID);
 	}
 
-	public ResponseEntity<Page<EventImageDTO>> getEventImages(UUID eventID, int page, int size) {
-		Page<Image> images = imageRepository.findByEventId(eventID, PageRequest.of(page, size));
+	public List<EventImageDTO> getEventImages(UUID eventID) {
+		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
-		Page<EventImageDTO> result = images.map(image -> {
+		return images.stream().map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			return new EventImageDTO(image.getId(), url);
-		});
-
-		return ResponseEntity.ok(result);
-
+		}).toList();
 	}
 
 }
