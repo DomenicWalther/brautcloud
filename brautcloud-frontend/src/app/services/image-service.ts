@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, forkJoin, switchMap } from 'rxjs';
+import { Observable, forkJoin, switchMap, of, map } from 'rxjs';
 import { API_URL } from '../core/tokens';
 import { EventImageDto } from '../core/models/event-image.dto';
 
@@ -55,7 +55,7 @@ export class ImageService {
           const uploads = presignedUrls.map((presigned, index) => {
             const selectedFile = files[index];
             if (!selectedFile) {
-              return [{ imageId: presigned.imageId, success: false, error: 'File not found' }];
+              return of({ imageId: presigned.imageId, success: false, error: 'File not found' });
             }
             return this.uploadToS3(presigned.uploadUrl, selectedFile.file).pipe(
               switchMap(() => this.notifyBackend(presigned.imageId)),
@@ -91,8 +91,8 @@ export class ImageService {
 
   private notifyBackend(imageId: string): Observable<UploadResult> {
     return this.http
-      .post<UploadResult>(`${this.API_URL}/image/uploaded`, [imageId], { withCredentials: true })
-      .pipe(switchMap(() => [{ imageId, success: true }]));
+      .post<void>(`${this.API_URL}/image/uploaded`, [imageId], { withCredentials: true })
+      .pipe(map(() => ({ imageId, success: true })));
   }
 
   deleteImage(imageId: string): Observable<void> {

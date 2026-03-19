@@ -80,11 +80,13 @@ export class ImageUpload {
 
     this.imageService.uploadImages(eventId, files).subscribe({
       next: (results) => {
-        const successful = results.filter((r) => r.success);
-        successful.forEach((r) => {
+        results.forEach((r, i) => {
+          if (!r.success) return;
+          const file = files[i]?.file;
+          if (!file) return;
           this.uploadedImages.update((images) => [
             ...images,
-            { id: r.imageId, url: URL.createObjectURL(files[results.indexOf(r)].file) },
+            { id: r.imageId, url: URL.createObjectURL(file) },
           ]);
         });
 
