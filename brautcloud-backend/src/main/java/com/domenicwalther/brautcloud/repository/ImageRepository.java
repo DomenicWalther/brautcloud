@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public interface ImageRepository extends JpaRepository<Image, UUID> {
 
-	Page<Image> findByEventIdAndIsUploadedTrue(UUID eventId, Pageable pageable);
+	List<Image> findByEventIdAndIsUploadedTrue(UUID eventId);
 
 	List<Image> findByIsUploadedFalseAndCreatedAtBefore(LocalDateTime dateTime);
 

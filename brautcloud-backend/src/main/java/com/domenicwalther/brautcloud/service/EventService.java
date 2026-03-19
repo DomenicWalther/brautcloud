@@ -68,13 +68,13 @@ public class EventService {
 		eventRepository.deleteById(eventID);
 	}
 
-	public Page<EventImageDTO> getEventImages(UUID eventID, int page, int size) {
-		Page<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID, PageRequest.of(page, size));
+	public List<EventImageDTO> getEventImages(UUID eventID) {
+		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
-		return images.map(image -> {
+		return images.stream().map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			return new EventImageDTO(image.getId(), url);
-		});
+		}).toList();
 	}
 
 }

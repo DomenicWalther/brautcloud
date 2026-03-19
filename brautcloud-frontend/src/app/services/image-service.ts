@@ -3,7 +3,6 @@ import { inject, Injectable } from '@angular/core';
 import { Observable, forkJoin, switchMap } from 'rxjs';
 import { API_URL } from '../core/tokens';
 import { EventImageDto } from '../core/models/event-image.dto';
-import { Page } from '../core/models/page';
 
 interface PresignedUrlRequest {
   eventId: string;
@@ -33,11 +32,10 @@ export class ImageService {
   private http: HttpClient = inject(HttpClient);
   private readonly API_URL = inject(API_URL);
 
-  getEventImages(eventId: string, page: number, size = 20): Observable<Page<EventImageDto>> {
-    return this.http.get<Page<EventImageDto>>(
-      `${this.API_URL}/events/${eventId}/images?page=${page}&size=${size}`,
-      { withCredentials: true },
-    );
+  getEventImages(eventId: string): Observable<EventImageDto[]> {
+    return this.http.get<EventImageDto[]>(`${this.API_URL}/events/${eventId}/images`, {
+      withCredentials: true,
+    });
   }
 
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {
