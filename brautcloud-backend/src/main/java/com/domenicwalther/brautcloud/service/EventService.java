@@ -3,7 +3,6 @@ package com.domenicwalther.brautcloud.service;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
-import com.domenicwalther.brautcloud.dto.ImageResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
@@ -70,7 +69,7 @@ public class EventService {
 	}
 
 	public Page<EventImageDTO> getEventImages(UUID eventID, int page, int size) {
-		Page<Image> images = imageRepository.findByEventId(eventID, PageRequest.of(page, size));
+		Page<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID, PageRequest.of(page, size));
 
 		return images.map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());

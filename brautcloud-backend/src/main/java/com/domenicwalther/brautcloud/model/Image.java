@@ -21,6 +21,8 @@ public class Image {
 
 	private String imageKey;
 
+	private boolean isUploaded;
+
 	private boolean isVisible;
 
 	@Column(insertable = false, updatable = false)
