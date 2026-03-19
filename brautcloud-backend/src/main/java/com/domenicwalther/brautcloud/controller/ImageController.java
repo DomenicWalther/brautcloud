@@ -4,15 +4,12 @@ import com.domenicwalther.brautcloud.dto.ImageRequest;
 import com.domenicwalther.brautcloud.dto.ImageResponse;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.service.ImageService;
-import com.domenicwalther.brautcloud.service.S3Service;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.util.List;
 import java.util.UUID;
 
 @RequestMapping("/api/image")
@@ -26,16 +23,17 @@ public class ImageController {
 	}
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<String> uploadFile(@RequestPart("file") MultipartFile file,
-			@RequestPart("eventId") String eventId) {
-		ImageRequest request = new ImageRequest(UUID.fromString(eventId), file);
-		return imageService.createNewImage(request);
-
+	public ResponseEntity<Void> uploadFile(@RequestPart("file") MultipartFile file,
+			@RequestParam("eventId") UUID eventId) {
+		ImageRequest request = new ImageRequest(eventId, file);
+		imageService.createNewImage(request);
+		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 
 	@DeleteMapping("{imageID}")
-	public ResponseEntity<String> deleteFile(@PathVariable UUID imageID) {
-		return imageService.deleteImageByImageID(imageID);
+	public ResponseEntity<Void> deleteFile(@PathVariable UUID imageID) {
+		imageService.deleteImageByImageID(imageID);
+		return ResponseEntity.noContent().build();
 	}
 
 }

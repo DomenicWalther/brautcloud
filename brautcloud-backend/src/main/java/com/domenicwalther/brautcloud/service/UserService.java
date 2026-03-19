@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.dto.UserResponse;
+import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,8 @@ public class UserService {
 	}
 
 	public User findByEmail(String email) {
-		return userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+		return userRepository.findByEmail(email)
+			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 	}
 
 }

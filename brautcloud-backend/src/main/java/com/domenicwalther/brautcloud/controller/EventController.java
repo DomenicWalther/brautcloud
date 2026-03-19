@@ -29,8 +29,8 @@ public class EventController {
 	}
 
 	@GetMapping("/{eventID}/images")
-	public ResponseEntity<Page<EventImageDTO>> getEventImages(@PathVariable UUID eventID,
-			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+	public Page<EventImageDTO> getEventImages(@PathVariable UUID eventID, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
 		return eventService.getEventImages(eventID, page, size);
 	}
 
