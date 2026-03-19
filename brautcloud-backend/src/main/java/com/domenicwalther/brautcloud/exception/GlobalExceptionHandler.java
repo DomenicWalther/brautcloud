@@ -62,4 +62,5 @@ public class GlobalExceptionHandler {
 		error.put("message", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(error);
 	}
+
 }
