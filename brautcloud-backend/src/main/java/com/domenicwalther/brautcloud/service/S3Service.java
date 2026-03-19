@@ -1,6 +1,5 @@
 package com.domenicwalther.brautcloud.service;
 
-import org.hibernate.event.spi.DeleteContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -9,6 +8,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.File;
 import java.time.Duration;
@@ -44,6 +44,15 @@ public class S3Service {
 			.build();
 
 		return presigner.presignGetObject(presignRequest).url().toString();
+	}
+
+	public String getPresignedPutUrl(String key) {
+		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+			.signatureDuration(Duration.ofMinutes(15))
+			.putObjectRequest(r -> r.bucket(bucketName).key(key))
+			.build();
+
+		return presigner.presignPutObject(presignRequest).url().toString();
 	}
 
 }

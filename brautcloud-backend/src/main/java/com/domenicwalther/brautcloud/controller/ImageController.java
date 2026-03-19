@@ -1,15 +1,12 @@
 package com.domenicwalther.brautcloud.controller;
 
-import com.domenicwalther.brautcloud.dto.ImageRequest;
-import com.domenicwalther.brautcloud.dto.ImageResponse;
-import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
+import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.ImageService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequestMapping("/api/image")
@@ -22,12 +19,15 @@ public class ImageController {
 		this.imageService = imageService;
 	}
 
-	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<Void> uploadFile(@RequestPart("file") MultipartFile file,
-			@RequestParam("eventId") UUID eventId) {
-		ImageRequest request = new ImageRequest(eventId, file);
-		imageService.createNewImage(request);
-		return ResponseEntity.status(HttpStatus.CREATED).build();
+	@PostMapping("/presigned-url")
+	public ResponseEntity<List<ImageUploadResponse>> getPresignedUrls(@RequestBody ImageUploadRequest request) {
+		return ResponseEntity.ok(imageService.generatePresignedUploadUrls(request));
+	}
+
+	@PostMapping("/uploaded")
+	public ResponseEntity<Void> markAsUploaded(@RequestBody List<UUID> imageIds) {
+		imageService.markImagesAsUploaded(imageIds);
+		return ResponseEntity.noContent().build();
 	}
 
 	@DeleteMapping("{imageID}")
