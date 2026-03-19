@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { UserService } from '../../../services/user-service';
 
 @Component({
@@ -8,11 +8,10 @@ import { UserService } from '../../../services/user-service';
   styles: ``,
 })
 export class ImageUpload {
-
   userService = inject(UserService);
 
   user = this.userService.user;
-
+  readonly event = computed(() => this.user()?.events?.[0]);
 
   photos = [
     {
