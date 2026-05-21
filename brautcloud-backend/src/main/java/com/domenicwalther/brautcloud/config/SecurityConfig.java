@@ -18,6 +18,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.http.HttpMethod;
+
 import java.util.List;
 
 @Configuration
@@ -41,6 +43,12 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**")
 				.permitAll()
 				.requestMatchers("/error")
+				.permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/events/*/guest")
+				.permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/image/presigned-url")
+				.permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/image/uploaded")
 				.permitAll()
 				.anyRequest()
 				.authenticated())

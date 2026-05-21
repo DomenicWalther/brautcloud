@@ -3,8 +3,8 @@ package com.domenicwalther.brautcloud.controller;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.GuestEventResponse;
 import com.domenicwalther.brautcloud.service.EventService;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +26,11 @@ public class EventController {
 	public List<EventResponse> getEvents() {
 		String email = SecurityContextHolder.getContext().getAuthentication().getName();
 		return eventService.getEventsByUserEmail(email);
+	}
+
+	@GetMapping("/{eventId}/guest")
+	public ResponseEntity<GuestEventResponse> getGuestEvent(@PathVariable UUID eventId) {
+		return ResponseEntity.ok(eventService.getGuestEventInfo(eventId));
 	}
 
 	@GetMapping("/{eventID}/images")

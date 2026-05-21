@@ -3,6 +3,7 @@ package com.domenicwalther.brautcloud.service;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.GuestEventResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
@@ -62,6 +63,13 @@ public class EventService {
 			.user(user)
 			.build();
 		eventRepository.save(event);
+	}
+
+	public GuestEventResponse getGuestEventInfo(UUID eventId) {
+		Event event = eventRepository.findById(eventId)
+			.orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+		return new GuestEventResponse(event.getEventName(), event.getFirstNameCoupleOne(),
+				event.getFirstNameCoupleTwo());
 	}
 
 	public void deleteEvent(UUID eventID) {
