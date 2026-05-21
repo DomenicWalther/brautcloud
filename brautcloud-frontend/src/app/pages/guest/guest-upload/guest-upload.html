@@ -1,0 +1,90 @@
+<main class="max-w-5/6 mx-auto flex flex-col gap-5 items-center pt-10 min-h-screen">
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center pt-20">
+      <span class="material-symbols-outlined animate-spin text-mainrose text-4xl">progress_activity</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="flex flex-col items-center gap-4 pt-20 text-center">
+      <span class="material-symbols-outlined text-mainrose text-5xl">broken_image</span>
+      <p class="font-body text-neutral-400">{{ error() }}</p>
+    </div>
+  }
+
+  @if (!isLoading() && !error()) {
+    <h2>BrautCloud</h2>
+    <h1 class="font-display text-3xl text-center">
+      {{ eventInfo()?.firstNameCoupleOne }} & {{ eventInfo()?.firstNameCoupleTwo }}'s Celebration
+    </h1>
+    <p class="font-body text-sm text-neutral-400 italic">
+      Capture the love and share it with the couple.
+    </p>
+
+    @if (uploadCount() > 0) {
+      <div class="flex items-center gap-2 text-mainrose font-body text-sm">
+        <span class="material-symbols-outlined">check_circle</span>
+        {{ uploadCount() }} photo{{ uploadCount() === 1 ? '' : 's' }} shared — thank you!
+      </div>
+    }
+
+    <input
+      type="file"
+      id="file-input"
+      accept="image/*"
+      multiple
+      class="hidden"
+      (change)="onFilesSelected($event)"
+    />
+
+    <section class="text-center font-body w-full flex flex-col items-center">
+      <label
+        for="file-input"
+        class="text-center border-2 border-mainrose/30 rounded-full aspect-square p-20 flex flex-col items-center justify-center hover:border-mainrose transition-colors cursor-pointer"
+      >
+        <div class="material-symbols-outlined text-mainrose text-6xl!">photo_camera</div>
+        <p class="uppercase tracking-widest text-xs">Upload Photo</p>
+      </label>
+      @if (selectedFiles().length > 0) {
+        <p class="text-neutral-400 text-xs mt-2">
+          {{ selectedFiles().length }} / {{ MAX_FILES }} selected
+        </p>
+      }
+    </section>
+
+    @if (selectedFiles().length > 0) {
+      <section class="flex flex-col gap-5 w-full">
+        <div class="flex justify-between items-center">
+          <p class="font-display text-2xl">Selected</p>
+          <button (click)="clearAll()" class="text-mainrose text-sm underline">Clear All</button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          @for (file of selectedFiles(); track file.preview; let i = $index) {
+            <div class="relative aspect-square">
+              <img [src]="file.preview" alt="" class="rounded-lg w-full h-full object-cover" />
+              <button
+                (click)="removeSelectedFile(i)"
+                class="absolute -top-2 -right-2 rounded-full w-6 h-6 bg-neutral-800 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+              >
+                <span class="material-symbols-outlined text-[0.4rem]">close</span>
+              </button>
+            </div>
+          }
+        </div>
+        <button
+          (click)="upload()"
+          [disabled]="isUploading()"
+          class="flex items-center gap-2 bg-mainrose text-white uppercase tracking-widest w-full py-6 justify-center text-sm hover:bg-mainrose/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          @if (isUploading()) {
+            <span class="material-symbols-outlined animate-spin">progress_activity</span>Uploading...
+          } @else {
+            <span class="material-symbols-outlined">cloud_upload</span>Share {{ selectedFiles().length }} Photo{{ selectedFiles().length === 1 ? '' : 's' }}
+          }
+        </button>
+      </section>
+    }
+  }
+
+</main>

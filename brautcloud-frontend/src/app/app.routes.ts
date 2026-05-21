@@ -59,6 +59,10 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'event/:id',
+    loadComponent: () => import('./pages/guest/guest-upload/guest-upload').then((m) => m.GuestUpload),
+  },
+  {
     path: '**',
     redirectTo: '',
   },
