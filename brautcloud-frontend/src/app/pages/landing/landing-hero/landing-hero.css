@@ -323,7 +323,6 @@ figcaption strong {
     bottom: 1.75rem;
     width: min(13rem, 70%);
   }
-
   .hero-vertical,
   .hero-monogram {
     display: none;

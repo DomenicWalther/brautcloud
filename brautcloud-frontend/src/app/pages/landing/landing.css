@@ -8,7 +8,6 @@
 main {
   display: block;
 }
-
 .skip-link {
   position: fixed;
   top: 0.75rem;
@@ -398,7 +397,6 @@ main {
     0 1.5rem 3rem rgb(0 0 0 / 28%),
     inset 0 1px 0 rgb(255 248 232 / 45%);
 }
-
 .footer-inner,
 .footer-bottom {
   width: min(76rem, 100%);
@@ -492,7 +490,6 @@ main {
   .site-footer {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0));
   }
-
   .site-header {
     min-height: 4.5rem;
     padding-inline: 1rem;
@@ -571,7 +568,6 @@ main {
   .mobile-signup-cta {
     display: flex;
   }
-
   .footer-inner,
   .footer-nav,
   .footer-bottom {
