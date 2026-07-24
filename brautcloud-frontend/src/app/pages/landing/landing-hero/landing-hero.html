@@ -1,21 +1,40 @@
-<section
-  class="h-[clamp(600px,80vh,700px)] overflow-hidden flex items-center justify-center w-full relative"
->
-  <div class="absolute inset-0">
-    <img ngSrc="/images/main-hero-image.jpg" height="3000" width="2000" priority class=""/>
-    <div class="absolute inset-0 bg-black/50"></div>
-  </div>
-  <div class="relative z-10 text-center flex flex-col items-center text-white gap-10">
-    <div>
-      <h1 class="text-xl">Elegance in every Detail</h1>
-      <h2 class="text-4xl">Preserve Every<br/><span>Treasured Moment</span></h2>
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <p class="eyebrow"><span aria-hidden="true"></span>Elegance in every Detail</p>
+      <h1 id="hero-title">Preserve Every<br /><em>Treasured Moment</em></h1>
+      <p class="hero-intro">
+        A private wedding gallery where every photograph, every perspective, and every fleeting
+        moment comes together beautifully.
+      </p>
+      <div class="hero-actions">
+        <a class="primary-action" routerLink="/auth/sign-up">Create event</a>
+        <a class="secondary-action" href="#experience">Discover the experience</a>
+      </div>
+      <div class="hero-notes" aria-label="Key benefits">
+        <div><strong>One scan</strong><span>Instant guest access</span></div>
+        <i aria-hidden="true"></i>
+        <div><strong>Every image</strong><span>Kept in full resolution</span></div>
+      </div>
     </div>
-    <button
-      type="button"
-      class="border-2 border-mainrose bg-black/20 backdrop-blur-[2px] py-5 px-16 cursor-pointer hover:scale-105 transform-all duration-300"
-      routerLink="/auth/sign-up"
-    >
-      CREATE EVENT
-    </button>
+
+    <figure class="hero-visual">
+      <div class="hero-frame">
+        <img
+          ngSrc="/images/main-hero-image.jpg"
+          width="2000"
+          height="3000"
+          priority
+          alt="A newlywed couple embracing beside a lake"
+        />
+      </div>
+      <figcaption>
+        <span>Private wedding gallery</span>
+        <strong>Every point of view,<br />gathered with care.</strong>
+      </figcaption>
+      <div class="hero-monogram" aria-hidden="true"><span>BC</span><small>Est. 2026</small></div>
+      <span class="hero-vertical" aria-hidden="true">Moments worth keeping</span>
+    </figure>
   </div>
 </section>

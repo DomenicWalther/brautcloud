@@ -1,13 +1,120 @@
-<main class="mb-48">
-  <app-landing-hero></app-landing-hero>
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="#top" aria-label="BrautCloud home">
+    <span class="brand-mark" aria-hidden="true"><span></span></span>
+    <span>BrautCloud</span>
+  </a>
+
+  <nav class="primary-nav" aria-label="Primary navigation">
+    <a href="#experience">The experience</a>
+    <a href="#gallery">The gallery</a>
+    <a href="#begin">Begin your story</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="sign-in" routerLink="/auth/sign-in">Sign in</a>
+    <a class="header-cta" routerLink="/auth/sign-up">Reserve your gallery</a>
+  </div>
+</header>
+
+<main id="main-content">
+  <app-landing-hero id="top"></app-landing-hero>
+
+  <aside class="assurance-bar" aria-label="BrautCloud benefits">
+    <span>No app required</span>
+    <span class="diamond" aria-hidden="true">◆</span>
+    <span>No guest accounts</span>
+    <span class="diamond" aria-hidden="true">◆</span>
+    <span>Original quality</span>
+  </aside>
+
   <app-landing-experience-section></app-landing-experience-section>
-  <app-landing-cta-section></app-landing-cta-section>
-  <section class="flex flex-col left-0 right-0 fixed pb-6 bottom-0 items-center ">
-    <button
-      class="uppercase bg-gray-900 font-bold text-white w-1/2 rounded-full py-4  cursor-pointer hover:scale-105 transition-all duration-300"
-      routerLink="/auth/sign-up"
-    >
-      Reserve your gallery
-    </button>
+
+  <section class="gallery-story" id="gallery" aria-labelledby="gallery-heading">
+    <div class="gallery-story__inner">
+      <div class="gallery-story__copy">
+        <p class="eyebrow">A living archive</p>
+        <h2 id="gallery-heading">Every perspective,<br /><em>one beautiful story.</em></h2>
+        <p class="gallery-story__intro">
+          From the quiet preparations to the final dance, BrautCloud brings every guest’s view
+          together in one considered, private space.
+        </p>
+        <ul class="gallery-details">
+          <li>
+            <span aria-hidden="true">I</span>
+            <div>
+              <strong>Effortless for guests</strong>
+              <p>One scan opens the gallery. Sharing begins in moments.</p>
+            </div>
+          </li>
+          <li>
+            <span aria-hidden="true">II</span>
+            <div>
+              <strong>Curated by everyone</strong>
+              <p>Every angle and in-between moment finds its place.</p>
+            </div>
+          </li>
+          <li>
+            <span aria-hidden="true">III</span>
+            <div>
+              <strong>Yours to keep</strong>
+              <p>Preserve the complete collection in its original quality.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="gallery-preview" aria-label="Example private wedding gallery">
+        <div class="gallery-preview__header">
+          <div>
+            <span class="gallery-preview__name">Amelia &amp; James</span>
+            <span class="gallery-preview__date">21 September · Private gallery</span>
+          </div>
+          <span class="gallery-preview__count">248 moments</span>
+        </div>
+        <div class="gallery-preview__grid" aria-hidden="true">
+          <div class="gallery-tile gallery-tile--one"></div>
+          <div class="gallery-tile gallery-tile--two"></div>
+          <div class="gallery-tile gallery-tile--three"></div>
+          <div class="gallery-tile gallery-tile--four"></div>
+          <div class="gallery-tile gallery-tile--five"></div>
+        </div>
+        <div class="gallery-preview__seal" aria-hidden="true">
+          <span>BC</span>
+          <small>Private</small>
+        </div>
+      </div>
+    </div>
   </section>
+
+  <app-landing-cta-section></app-landing-cta-section>
 </main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a class="brand" href="#top" aria-label="BrautCloud home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>BrautCloud</span>
+      </a>
+      <p>A sophisticated home for every perspective of your wedding day.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <div>
+        <span>Explore</span>
+        <a href="#experience">The experience</a>
+        <a href="#gallery">The gallery</a>
+      </div>
+      <div>
+        <span>Your gallery</span>
+        <a routerLink="/auth/sign-in">Sign in</a>
+        <a routerLink="/auth/sign-up">Create event</a>
+      </div>
+    </nav>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 BrautCloud</span>
+    <span>Every moment, beautifully kept.</span>
+  </div>
+</footer>
