@@ -490,6 +490,10 @@ main {
     padding-bottom: 6rem;
   }
 
+  .site-footer {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0));
+  }
+
   .site-header {
     min-height: 4.5rem;
     padding-inline: 1rem;
