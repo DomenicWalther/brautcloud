@@ -12,16 +12,19 @@ export class App {
 
   constructor() {
     afterNextRender(() => {
+      if (typeof ResizeObserver === 'undefined') {
+        return;
+      }
+
       import('lenis').then(({ default: Lenis }) => {
         const lenis = new Lenis({ duration: 1.2 });
 
         const raf = (time: number) => {
           lenis.raf(time);
           requestAnimationFrame(raf);
-        }
+        };
         requestAnimationFrame(raf);
-      })
-    })
+      });
+    });
   }
-
 }

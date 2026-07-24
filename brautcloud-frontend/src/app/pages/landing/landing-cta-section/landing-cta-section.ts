@@ -5,8 +5,7 @@ import { RouterLink } from '@angular/router';
   selector: 'app-landing-cta-section',
   imports: [RouterLink],
   templateUrl: './landing-cta-section.html',
+  styleUrl: './landing-cta-section.css',
   standalone: true,
 })
-export class LandingCtaSection {
-
-}
+export class LandingCtaSection {}
