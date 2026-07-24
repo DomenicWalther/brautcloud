@@ -373,7 +373,8 @@ main {
   justify-content: center;
   padding: 0.95rem 1.5rem;
   color: var(--noir);
-  background: linear-gradient(135deg, rgb(235 207 154), rgb(201 168 105) 52%, rgb(235 207 154));
+  background:
+    linear-gradient(135deg, rgb(235 207 154), rgb(201 168 105) 52%, rgb(235 207 154));
   border: 1px solid rgb(201 168 105 / 78%);
   border-radius: 999px;
   box-shadow:
