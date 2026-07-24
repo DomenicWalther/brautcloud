@@ -5,6 +5,10 @@
   overflow: clip;
 }
 
+main {
+  display: block;
+}
+
 .skip-link {
   position: fixed;
   top: 0.75rem;
@@ -350,6 +354,52 @@
   background: #0b0a09;
 }
 
+.mobile-signup-cta {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  display: none;
+  justify-content: center;
+  padding: 0 1rem calc(1rem + env(safe-area-inset-bottom, 0));
+  pointer-events: none;
+}
+
+.mobile-signup-cta__button {
+  display: inline-flex;
+  width: min(100%, 24rem);
+  min-height: 3.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.95rem 1.5rem;
+  color: var(--noir);
+  background:
+    linear-gradient(135deg, rgb(235 207 154), rgb(201 168 105) 52%, rgb(235 207 154));
+  border: 1px solid rgb(201 168 105 / 78%);
+  border-radius: 999px;
+  box-shadow:
+    0 1.25rem 2.75rem rgb(0 0 0 / 24%),
+    inset 0 1px 0 rgb(255 248 232 / 45%);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  pointer-events: auto;
+  text-transform: uppercase;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.mobile-signup-cta__button:hover,
+.mobile-signup-cta__button:focus-visible {
+  color: var(--noir);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1.5rem 3rem rgb(0 0 0 / 28%),
+    inset 0 1px 0 rgb(255 248 232 / 45%);
+}
+
 .footer-inner,
 .footer-bottom {
   width: min(76rem, 100%);
@@ -436,6 +486,10 @@
 }
 
 @media (max-width: 42rem) {
+  main {
+    padding-bottom: 6rem;
+  }
+
   .site-header {
     min-height: 4.5rem;
     padding-inline: 1rem;
@@ -511,6 +565,10 @@
     height: 5rem;
   }
 
+  .mobile-signup-cta {
+    display: flex;
+  }
+
   .footer-inner,
   .footer-nav,
   .footer-bottom {
@@ -533,6 +591,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .header-cta,
+  .mobile-signup-cta__button,
   .skip-link {
     transition: none;
   }

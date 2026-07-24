@@ -35,7 +35,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(25rem, 1fr) minmax(25rem, 0.82fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
   align-items: center;
   gap: clamp(3rem, 7vw, 8rem);
   width: min(88rem, 100%);
@@ -45,6 +45,7 @@
 }
 
 .hero-copy {
+  min-width: 0;
   padding-bottom: 1.5rem;
 }
 
@@ -177,6 +178,7 @@ h1 em {
 
 .hero-visual {
   position: relative;
+  min-width: 0;
   width: min(28rem, 100%);
   margin: 0 auto;
   padding: 1rem 1rem 1rem 0;
@@ -307,13 +309,28 @@ figcaption strong {
     gap: 3rem;
   }
 
+  .hero-visual {
+    width: min(24rem, 100%);
+    padding-right: 0;
+  }
+
+  .hero-visual::after {
+    left: -0.5rem;
+  }
+
+  figcaption {
+    right: 0.5rem;
+    bottom: 1.75rem;
+    width: min(13rem, 70%);
+  }
+
   .hero-vertical,
   .hero-monogram {
     display: none;
   }
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 56rem) {
   .hero {
     min-height: auto;
   }
@@ -342,7 +359,7 @@ figcaption strong {
   }
 
   .hero-visual {
-    width: min(30rem, calc(100% - 1.25rem));
+    width: min(30rem, calc(100% - 0.5rem));
     margin-top: 0.75rem;
   }
 }
