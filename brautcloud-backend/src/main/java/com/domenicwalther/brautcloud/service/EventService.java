@@ -11,8 +11,6 @@ import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -47,8 +45,8 @@ public class EventService {
 		return eventRepository.findByUser(user).stream().map(EventResponse::fromEvent).toList();
 	}
 
-	public void addEvent(EventRequest request) {
-		User user = userRepository.findById(request.getUserId())
+	public void addEvent(String email, EventRequest request) {
+		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		Event event = Event.builder()
 			.eventName(request.getEventName())

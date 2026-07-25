@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,8 +63,8 @@ class EventControllerWebMvcTest {
 	}
 
 	@Test
-	@WithMockUser
-	void createEventDeserializesRequestAtControllerBoundary() throws Exception {
+	@WithMockUser(username = "owner@example.com")
+	void createEventUsesAuthenticatedIdentityInsteadOfPayloadOwner() throws Exception {
 		UUID userId = UUID.randomUUID();
 
 		mockMvc.perform(post("/api/events").contentType(MediaType.APPLICATION_JSON).content("""
@@ -75,8 +76,9 @@ class EventControllerWebMvcTest {
 				}
 				""".formatted(userId))).andExpect(status().isOk());
 
-		verify(eventService).addEvent(argThat(
-				(EventRequest request) -> request.getUserId().equals(userId) && request.getEventName().equals("Wedding")
+		verify(eventService).addEvent(eq("owner@example.com"),
+				argThat((EventRequest request) -> request.getUserId().equals(userId)
+						&& request.getEventName().equals("Wedding")
 						&& request.getDate().equals(LocalDateTime.of(2030, 6, 15, 14, 0))));
 	}
 

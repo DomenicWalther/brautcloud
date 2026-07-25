@@ -2,6 +2,7 @@ package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.dto.AuthRequest;
 import com.domenicwalther.brautcloud.dto.AuthResponse;
+import com.domenicwalther.brautcloud.dto.RegisterRequest;
 import com.domenicwalther.brautcloud.model.RefreshToken;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
@@ -47,7 +48,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<String> register(@Valid @RequestBody AuthRequest request) {
+	public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
 		if (userRepository.findByEmail(request.email()).isPresent()) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already used!");
 		}

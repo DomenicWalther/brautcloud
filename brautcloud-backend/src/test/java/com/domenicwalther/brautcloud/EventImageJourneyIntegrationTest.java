@@ -145,6 +145,26 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void eventCreationIgnoresForgedPayloadOwnerAndUsesAuthenticatedUser() throws Exception {
+		User owner = persistUser("owner@example.com");
+		User victim = persistUser("victim@example.com");
+		String token = jwtService.generateToken(owner.getEmail());
+
+		mockMvc
+			.perform(post("/api/events").header("Authorization", bearer(token))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(eventRequest(victim.getId())))
+			.andExpect(status().isOk());
+
+		assertThat(eventRepository.findByUser(owner)).hasSize(1);
+		assertThat(eventRepository.findByUser(victim)).isEmpty();
+		assertThat(eventRepository.findAll()).singleElement().satisfies(event -> {
+			assertThat(event.getUser().getId()).isEqualTo(owner.getId());
+			assertThat(event.getUser().getId()).isNotEqualTo(victim.getId());
+		});
+	}
+
+	@Test
 	void unknownResourcesAndMalformedIdentifiersReturnClientErrorsWithoutCallingS3() throws Exception {
 		User owner = persistUser("owner@example.com");
 		String token = jwtService.generateToken(owner.getEmail());

@@ -73,21 +73,22 @@ class EventServiceTest {
 	@Test
 	void unknownUserCannotCreateEvent() {
 		EventRequest request = request(UUID.randomUUID());
-		when(userRepository.findById(request.getUserId())).thenReturn(Optional.empty());
+		when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> eventService.addEvent(request)).isInstanceOf(ResourceNotFoundException.class)
+		assertThatThrownBy(() -> eventService.addEvent("missing@example.com", request))
+			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("User not found");
 		verify(eventRepository, never()).save(org.mockito.ArgumentMatchers.any());
 	}
 
 	@Test
-	void eventRequestIsPersistedWithItsOwner() {
+	void eventRequestIsPersistedWithAuthenticatedOwner() {
 		User user = TestFixtures.user("owner@example.com");
 		user.setId(UUID.randomUUID());
-		EventRequest request = request(user.getId());
-		when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+		EventRequest request = request(UUID.randomUUID());
+		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
-		eventService.addEvent(request);
+		eventService.addEvent(user.getEmail(), request);
 
 		ArgumentCaptor<Event> event = ArgumentCaptor.forClass(Event.class);
 		verify(eventRepository).save(event.capture());

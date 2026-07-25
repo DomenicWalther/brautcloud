@@ -123,6 +123,20 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void loginAllowsExistingShortPasswordAccounts() throws Exception {
+		User legacyUser = new User();
+		legacyUser.setEmail("legacy@example.com");
+		legacyUser.setPassword(passwordEncoder.encode("short"));
+		userRepository.save(legacyUser);
+
+		mockMvc
+			.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"legacy@example.com\",\"password\":\"short\"}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.accessToken").isNotEmpty());
+	}
+
+	@Test
 	void refreshRotatesSingleUseSessionAndLogoutRevokesIt() throws Exception {
 		register();
 		MvcResult login = login();
