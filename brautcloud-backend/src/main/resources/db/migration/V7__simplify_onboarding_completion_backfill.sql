@@ -1,8 +1,9 @@
-UPDATE users
-SET onboarding_completed_at = (
-    SELECT MIN(e.created_at)
-    FROM events e
-    WHERE e.user_id = users.id
-)
-WHERE users.onboarding_completed_at IS NULL
-  AND EXISTS (SELECT 1 FROM events e WHERE e.user_id = users.id);
+UPDATE users u
+SET onboarding_completed_at = agg.earliest_event_created_at
+FROM (
+    SELECT user_id, MIN(created_at) AS earliest_event_created_at
+    FROM events
+    GROUP BY user_id
+) AS agg
+WHERE u.id = agg.user_id
+  AND u.onboarding_completed_at IS NULL;
