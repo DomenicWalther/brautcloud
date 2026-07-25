@@ -6,6 +6,64 @@ import { API_URL } from '../core/tokens';
 import { authInterceptor } from './auth-interceptor';
 import { AuthService } from './auth-service';
 
+describe('AuthService onboarding session state', () => {
+  let auth: AuthService;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_URL, useValue: 'http://api.test/api' },
+      ],
+    });
+    auth = TestBed.inject(AuthService);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('stores the structured registration session', () => {
+    auth.register({ email: 'new@example.com', password: 'Password123!' }).subscribe();
+
+    const request = http.expectOne('http://api.test/api/auth/register');
+    expect(request.request.withCredentials).toBe(true);
+    request.flush({ accessToken: 'registration-token', onboardingComplete: false });
+
+    expect(auth.getAccessToken()).toBe('registration-token');
+    expect(auth.isAuthenticated()).toBe(true);
+    expect(auth.isOnboardingComplete()).toBe(false);
+  });
+
+  it('restores incomplete and completed state from refresh responses', async () => {
+    const incompleteInitialization = auth.initializeAuth();
+    http
+      .expectOne('http://api.test/api/auth/refresh')
+      .flush({ accessToken: 'incomplete-token', onboardingComplete: false });
+    await incompleteInitialization;
+    expect(auth.isOnboardingComplete()).toBe(false);
+
+    auth.refreshToken().subscribe();
+    http
+      .expectOne('http://api.test/api/auth/refresh')
+      .flush({ accessToken: 'completed-token', onboardingComplete: true });
+    expect(auth.getAccessToken()).toBe('completed-token');
+    expect(auth.isOnboardingComplete()).toBe(true);
+  });
+
+  it('clears all session state when startup restoration fails', async () => {
+    const initialization = auth.initializeAuth();
+    http
+      .expectOne('http://api.test/api/auth/refresh')
+      .flush({ message: 'No refresh token' }, { status: 400, statusText: 'Bad Request' });
+    await initialization;
+
+    expect(auth.isAuthenticated()).toBe(false);
+    expect(auth.isOnboardingComplete()).toBe(false);
+  });
+});
+
 describe('AuthService logout', () => {
   const apiUrl = 'https://api.example.test/api';
   let localStorageState: Record<string, string>;
@@ -150,7 +208,7 @@ describe('AuthService logout', () => {
     const initializePromise = auth.initializeAuth();
     const refresh = http.expectOne(`${apiUrl}/auth/refresh`);
     expect(refresh.request.withCredentials).toBe(true);
-    refresh.flush({ accessToken: 'restored-token' });
+    refresh.flush({ accessToken: 'restored-token', onboardingComplete: false });
     await initializePromise;
 
     expect(auth.getAccessToken()).toBe('restored-token');
@@ -160,7 +218,7 @@ describe('AuthService logout', () => {
     auth.login({ email: 'couple@example.test', password: 'secret' }).subscribe();
     const request = http.expectOne(`${apiUrl}/auth/login`);
     expect(request.request.withCredentials).toBe(true);
-    request.flush({ accessToken });
+    request.flush({ accessToken, onboardingComplete: false });
     expect(auth.getAccessToken()).toBe(accessToken);
   }
 

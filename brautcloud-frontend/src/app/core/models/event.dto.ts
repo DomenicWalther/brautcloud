@@ -1,9 +1,9 @@
 export interface EventDto {
-  date: string;
+  date: string | null;
   eventName: string;
   firstNameCoupleOne: string;
   firstNameCoupleTwo: string;
   id: string;
   location: string;
-  userID: string;
+  userId: string;
 }

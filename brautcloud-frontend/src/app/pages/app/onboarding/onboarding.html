@@ -27,7 +27,12 @@
         ></app-form-label>
       </section>
     </app-step>
-    <app-step stepRegisterLabel="step2" [isStepInputValid]="stepTwoValid()">
+    <app-step
+      stepRegisterLabel="step2"
+      [isStepInputValid]="stepTwoValid()"
+      [isSubmitting]="submitting()"
+      (complete)="submit()"
+    >
       <app-step-header
         stepCount="2"
         description="This is how your gallery will be named and how guests will recognise the event."
@@ -40,6 +45,11 @@
           label="Venue Name"
           [field]="onboardingForm.venue"
         />
+        @if (submissionError()) {
+          <p role="alert" aria-live="assertive" class="mt-4 text-red-300">
+            {{ submissionError() }}
+          </p>
+        }
       </div>
     </app-step>
   </app-multi-step-form>

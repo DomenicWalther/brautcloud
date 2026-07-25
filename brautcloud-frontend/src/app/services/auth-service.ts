@@ -12,14 +12,12 @@ import {
   timeout,
   throwError,
 } from 'rxjs';
+import { AuthDTO, AuthResponse } from '../core/models/auth.dto';
 import { API_URL } from '../core/tokens';
-
-interface AuthResponse {
-  accessToken: string;
-}
 
 const EXPLICIT_LOGOUT_STORAGE_KEY = 'brautcloud.explicit-logout';
 const LOGOUT_REQUEST_TIMEOUT_MS = 1000;
+
 
 @Injectable({
   providedIn: 'root',
@@ -30,7 +28,12 @@ export class AuthService {
   private readonly API_URL = inject(API_URL);
 
   private readonly _accessToken = signal<string | null>(null);
+  private readonly _onboardingComplete = signal(false);
+
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
+  readonly isOnboardingComplete = computed(
+    () => this.isAuthenticated() && this._onboardingComplete(),
+  );
 
   private readonly _initialized = new BehaviorSubject<boolean>(false);
   readonly initialized$ = this._initialized.asObservable();
@@ -46,7 +49,7 @@ export class AuthService {
 
   initializeAuth(): Promise<void> {
     if (this.refreshBlocked) {
-      this._accessToken.set(null);
+      this.clearSession();
       return new Promise((resolve) => this.finishInitialization(resolve));
     }
 
@@ -56,15 +59,15 @@ export class AuthService {
       this.http
         .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
         .subscribe({
-          next: (res) => {
+          next: (response) => {
             if (generation === this.sessionGeneration && !this._isLoggingOut()) {
-              this._accessToken.set(res.accessToken);
+              this.applySession(response);
             }
             this.finishInitialization(resolve);
           },
           error: () => {
             if (generation === this.sessionGeneration) {
-              this._accessToken.set(null);
+              this.clearSession();
             }
             this.finishInitialization(resolve);
           },
@@ -72,34 +75,12 @@ export class AuthService {
     });
   }
 
-  login({ email, password }: { email: string; password: string }): Observable<AuthResponse> {
-    return this.http
-      .post<AuthResponse>(
-        `${this.API_URL}/auth/login`,
-        {
-          email,
-          password,
-        },
-        { withCredentials: true },
-      )
-      .pipe(
-        tap((res) => {
-          this.clearExplicitLogoutTombstone();
-          this.sessionGeneration += 1;
-          this._accessToken.set(res.accessToken);
-        }),
-      );
+  login(credentials: AuthDTO): Observable<AuthResponse> {
+    return this.createSession(`${this.API_URL}/auth/login`, credentials);
   }
 
-  register({ email, password }: { email: string; password: string }): Observable<unknown> {
-    return this.http.post(
-      `${this.API_URL}/auth/register`,
-      {
-        email,
-        password,
-      },
-      { withCredentials: true },
-    );
+  register(credentials: AuthDTO): Observable<AuthResponse> {
+    return this.createSession(`${this.API_URL}/auth/register`, credentials);
   }
 
   refreshToken(): Observable<string> {
@@ -131,14 +112,14 @@ export class AuthService {
             return;
           }
 
-          this._accessToken.set(res.accessToken);
+          this.applySession(res);
           response$.next(res.accessToken);
           response$.complete();
           this.clearRefreshRequest(request$);
         },
         error: (err) => {
           if (generation === this.sessionGeneration) {
-            this._accessToken.set(null);
+            this.clearSession();
           }
           response$.error(err);
           this.clearRefreshRequest(request$);
@@ -146,6 +127,12 @@ export class AuthService {
       });
 
     return request$;
+  }
+
+  markOnboardingComplete(): void {
+    if (this.isAuthenticated()) {
+      this._onboardingComplete.set(true);
+    }
   }
 
   logout(): void {
@@ -156,7 +143,7 @@ export class AuthService {
     this._isLoggingOut.set(true);
     this.sessionGeneration += 1;
     this.setExplicitLogoutTombstone();
-    this._accessToken.set(null);
+    this.clearSession();
     this.cancelRefreshRequest();
 
     this.http
@@ -174,7 +161,6 @@ export class AuthService {
       )
       .subscribe({
         complete: () => {
-          this._accessToken.set(null);
           this._isLoggingOut.set(false);
           this._initialized.next(true);
           void this.router.navigateByUrl('/auth/sign-in', { replaceUrl: true });
@@ -193,6 +179,28 @@ export class AuthService {
 
   getAccessToken(): string | null {
     return this._accessToken();
+  }
+
+  private createSession(url: string, credentials: AuthDTO): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(url, credentials, { withCredentials: true })
+      .pipe(
+        tap((response) => {
+          this.clearExplicitLogoutTombstone();
+          this.sessionGeneration += 1;
+          this.applySession(response);
+        }),
+      );
+  }
+
+  private applySession(response: AuthResponse): void {
+    this._accessToken.set(response.accessToken);
+    this._onboardingComplete.set(response.onboardingComplete);
+  }
+
+  private clearSession(): void {
+    this._accessToken.set(null);
+    this._onboardingComplete.set(false);
   }
 
   private finishInitialization(resolve: () => void): void {

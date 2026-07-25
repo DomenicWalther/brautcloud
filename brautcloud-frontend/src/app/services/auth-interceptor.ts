@@ -2,10 +2,12 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
+import { AuthRoutingService } from './auth-routing-service';
 import { AuthService } from './auth-service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
+  const authRouting = inject(AuthRoutingService);
   const router = inject(Router);
 
   const token = auth.getAccessToken();
@@ -20,9 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } }));
           }),
           catchError((refreshErr) => {
-            if (!auth.isLoggingOut()) {
-              void router.navigateByUrl('/auth/sign-in', { replaceUrl: true });
-            }
+            void router.navigateByUrl(authRouting.signInDestination(router.url));
             return throwError(() => refreshErr);
           }),
         );

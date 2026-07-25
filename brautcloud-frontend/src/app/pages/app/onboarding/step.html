@@ -20,9 +20,9 @@
       />
     } @else {
       <app-form-button
-        [isDisabled]="!isStepInputValid()"
-        buttonLabel="Create Gallery"
-        (buttonEvent)="stepStateService.next(isStepInputValid())"
+        [isDisabled]="!isStepInputValid() || isSubmitting()"
+        [buttonLabel]="isSubmitting() ? 'Creating Gallery…' : 'Create Gallery'"
+        (buttonEvent)="submit()"
       />
     }
   </div>

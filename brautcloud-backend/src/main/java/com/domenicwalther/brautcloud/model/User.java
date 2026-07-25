@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +34,8 @@ public class User {
 
 	private boolean emailVerified;
 
+	private LocalDateTime onboardingCompletedAt;
+
 	@Size(min = 8, message = "Password must be at least 8 characters long")
 	@Column(nullable = false)
 	private String password;
@@ -41,6 +44,7 @@ public class User {
 	private String role = "ROLE_USER";
 
 	@OneToMany(mappedBy = "user")
-	private List<Event> events;
+	@Builder.Default
+	private List<Event> events = new ArrayList<>();
 
 }

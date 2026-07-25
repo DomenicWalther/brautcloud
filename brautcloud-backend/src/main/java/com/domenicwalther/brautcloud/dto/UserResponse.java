@@ -18,6 +18,8 @@ public class UserResponse {
 
 	private boolean emailVerified;
 
+	private boolean onboardingComplete;
+
 	private List<EventResponse> events;
 
 	public static UserResponse fromUser(User user) {
@@ -26,6 +28,7 @@ public class UserResponse {
 		response.setCreatedAt(user.getCreatedAt());
 		response.setEmail(user.getEmail());
 		response.setEmailVerified(user.isEmailVerified());
+		response.setOnboardingComplete(user.getOnboardingCompletedAt() != null);
 
 		List<EventResponse> eventResponses = user.getEvents().stream().map(EventResponse::fromEvent).toList();
 		response.setEvents(eventResponses);

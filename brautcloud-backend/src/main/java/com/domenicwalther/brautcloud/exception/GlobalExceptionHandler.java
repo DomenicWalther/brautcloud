@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -20,6 +21,14 @@ public class GlobalExceptionHandler {
 		error.put("error", "Invalid parameter type");
 		error.put("parameter", ex.getName());
 		error.put("message", "Expected type " + ex.getRequiredType().getSimpleName());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+	}
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Validation failed");
+		error.put("message", ex.getBindingResult().getAllErrors().getFirst().getDefaultMessage());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
 	}
 
