@@ -10,6 +10,7 @@ import { routes } from './app.routes';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './services/auth-interceptor';
 import { AuthService } from './services/auth-service';
+import { UserService } from './services/user-service';
 import { environment } from '../environments/environment';
 import { API_URL, APP_URL } from './core/tokens';
 
@@ -19,7 +20,12 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAppInitializer(() => {
       const auth = inject(AuthService);
-      return auth.initializeAuth();
+      const userService = inject(UserService);
+      return auth.initializeAuth().then(() => {
+        if (auth.isAuthenticated()) {
+          userService.reload();
+        }
+      });
     }),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     {

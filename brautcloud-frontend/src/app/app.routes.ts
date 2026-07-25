@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth-guard';
 import { guestGuard } from './core/guest-guard';
+import { onboardingPageGuard, onboardingRequiredGuard } from './core/onboarding-guards';
 
 export const routes: Routes = [
   {
@@ -42,19 +43,26 @@ export const routes: Routes = [
         (m) => m.AuthenticatedLayout,
       ),
     children: [
-      { path: 'home', loadComponent: () => import('./pages/app/home/home').then((m) => m.Home) },
+      {
+        path: 'home',
+        canActivate: [onboardingRequiredGuard],
+        loadComponent: () => import('./pages/app/home/home').then((m) => m.Home),
+      },
       {
         path: 'upload',
+        canActivate: [onboardingRequiredGuard],
         loadComponent: () =>
           import('./pages/app/image-upload/image-upload').then((m) => m.ImageUpload),
       },
       {
         path: 'gallery',
+        canActivate: [onboardingRequiredGuard],
         loadComponent: () =>
           import('./pages/app/image-gallery/image-gallery').then((m) => m.ImageGallery),
       },
       {
         path: 'onboarding',
+        canActivate: [onboardingPageGuard],
         loadComponent: () => import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding),
       },
       {

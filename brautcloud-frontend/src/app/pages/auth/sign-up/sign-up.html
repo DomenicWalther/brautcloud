@@ -53,11 +53,15 @@
         }
       }
     </div>
+    @if (serverError()) {
+      <p role="alert" class="text-red-300">{{ serverError() }}</p>
+    }
     <button
       type="submit"
-      class="bg-mainrose font-bold py-4 text-sm cursor-pointer hover:scale-105 translate-all duration-300"
+      class="bg-mainrose font-bold py-4 text-sm cursor-pointer hover:scale-105 translate-all duration-300 disabled:opacity-50"
+      [disabled]="registerForm().invalid() || submitting()"
     >
-      CREATE ACCOUNT
+      {{ submitting() ? 'CREATING ACCOUNT…' : 'CREATE ACCOUNT' }}
     </button>
   </form>
   <p>
@@ -70,6 +74,7 @@
     <span
       class="text-mainrose font-bold cursor-pointer hover:text-mainrose/80 translate-all duration-300"
       routerLink="/auth/sign-in"
+      [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
       >Log In</span
     >
   </p>

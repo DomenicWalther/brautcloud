@@ -1,9 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 import { QrCodeComponent } from 'ng-qrcode';
+import { APP_URL } from '../../../core/tokens';
 import { UserService } from '../../../services/user-service';
 import { HomeStats } from './home-stats/home-stats';
-
-import { APP_URL } from '../../../core/tokens';
 
 @Component({
   selector: 'app-home',
@@ -12,24 +11,34 @@ import { APP_URL } from '../../../core/tokens';
   styles: ``,
 })
 export class Home {
-  private userService = inject(UserService);
+  private readonly userService = inject(UserService);
+  private readonly APP_URL = inject(APP_URL);
 
-  private readonly user = this.userService.user;
-  readonly event = computed(() => this.user()?.events?.[0]);
-  readonly APP_URL = inject(APP_URL);
+  readonly user = this.userService.user;
+  readonly loading = this.userService.loading;
+  readonly loadError = this.userService.error;
+  readonly event = computed(() => this.user()?.events?.[0] ?? null);
 
-  daysTillWedding = computed(() => {
-    const user = this.user();
-    const date = new Date();
-    if (!user?.events?.length) return 0;
+  readonly daysTillWedding = computed<number | null>(() => {
+    const weddingDateValue = this.event()?.date;
+    if (!weddingDateValue) {
+      return null;
+    }
 
-    const weddingDate = new Date(user.events[0].date);
-    return Math.floor((weddingDate.getTime() - date.getTime()) / (1000 * 3600 * 24));
+    const weddingDate = new Date(weddingDateValue);
+    if (Number.isNaN(weddingDate.getTime())) {
+      return null;
+    }
+
+    return Math.ceil((weddingDate.getTime() - Date.now()) / (1000 * 3600 * 24));
   });
 
-  eventUrl = computed(() => `${this.APP_URL}/event/${this.event()?.id}`);
+  readonly eventUrl = computed(() => {
+    const eventId = this.event()?.id;
+    return eventId ? `${this.APP_URL}/event/${eventId}` : null;
+  });
 
-  photos = [
+  readonly photos = [
     {
       url: 'https://placehold.co/200x200',
     },
@@ -42,7 +51,7 @@ export class Home {
     },
   ];
 
-  stats = {
+  readonly stats = {
     photos: '1,243',
     guests: '340',
     views: '3.8k',

@@ -1,7 +1,7 @@
 package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.repository.UserRepository;
-import com.domenicwalther.brautcloud.service.JwtService;
+import com.domenicwalther.brautcloud.service.AuthSessionService;
 import com.domenicwalther.brautcloud.service.RefreshTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -19,9 +19,13 @@ class AuthControllerTest {
 
 	@Test
 	void logoutDeletesRefreshTokenAndExpiresMatchingCookie() {
+		UserRepository userRepository = mock(UserRepository.class);
+		PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+		AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
 		RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
-		AuthController controller = new AuthController(mock(UserRepository.class), mock(PasswordEncoder.class),
-				mock(AuthenticationManager.class), mock(JwtService.class), refreshTokenService);
+		AuthSessionService authSessionService = mock(AuthSessionService.class);
+		AuthController controller = new AuthController(userRepository, passwordEncoder, authenticationManager,
+				refreshTokenService, authSessionService);
 		MockHttpServletResponse servletResponse = new MockHttpServletResponse();
 
 		var response = controller.logout("stored-refresh-token", servletResponse);

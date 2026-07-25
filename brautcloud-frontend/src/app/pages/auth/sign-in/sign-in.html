@@ -36,12 +36,15 @@
         }
       }
     </div>
+    @if (serverError()) {
+      <p role="alert" class="text-red-300">{{ serverError() }}</p>
+    }
     <button
       type="submit"
-      class="bg-mainrose font-bold py-4 text-sm cursor-pointer"
-      [disabled]="loginForm().pending()"
+      class="bg-mainrose font-bold py-4 text-sm cursor-pointer disabled:opacity-50"
+      [disabled]="loginForm().invalid() || submitting()"
     >
-      LOGIN
+      {{ submitting() ? 'SIGNING IN…' : 'LOGIN' }}
     </button>
   </form>
   <p class="font-light text-gray-400 text-sm cursor-pointer" routerLink="/auth/reset-password">
@@ -49,6 +52,11 @@
   </p>
   <p>
     Don't have an account?
-    <span class="text-mainrose font-bold cursor-pointer" routerLink="/auth/sign-up">Sign Up</span>
+    <span
+      class="text-mainrose font-bold cursor-pointer"
+      routerLink="/auth/sign-up"
+      [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
+      >Sign Up</span
+    >
   </p>
 </main>
