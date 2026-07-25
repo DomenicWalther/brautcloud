@@ -28,7 +28,8 @@ public class EventController {
 
 	@GetMapping("/{eventID}/images")
 	public List<EventImageDTO> getEventImages(@PathVariable UUID eventID) {
-		return eventService.getEventImages(eventID);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		return eventService.getEventImages(email, eventID);
 	}
 
 	@PostMapping
@@ -39,7 +40,8 @@ public class EventController {
 
 	@DeleteMapping("{eventID}")
 	public void deleteEvent(@PathVariable UUID eventID) {
-		eventService.deleteEvent(eventID);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		eventService.deleteEvent(email, eventID);
 	}
 
 }

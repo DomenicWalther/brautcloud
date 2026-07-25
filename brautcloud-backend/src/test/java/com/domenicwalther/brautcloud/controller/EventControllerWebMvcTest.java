@@ -96,7 +96,7 @@ class EventControllerWebMvcTest {
 	@WithMockUser
 	void serviceNotFoundFailureIsMappedToHttp404() throws Exception {
 		UUID eventId = UUID.randomUUID();
-		when(eventService.getEventImages(eventId)).thenThrow(new ResourceNotFoundException("Event not found"));
+		when(eventService.getEventImages("user", eventId)).thenThrow(new ResourceNotFoundException("Event not found"));
 
 		mockMvc.perform(get("/api/events/{eventId}/images", eventId))
 			.andExpect(status().isNotFound())
@@ -109,13 +109,26 @@ class EventControllerWebMvcTest {
 	void imageResponsePreservesIdAndPresignedUrl() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		UUID imageId = UUID.randomUUID();
-		when(eventService.getEventImages(eventId))
+		when(eventService.getEventImages("user", eventId))
 			.thenReturn(List.of(new EventImageDTO(imageId, "https://files.test/photo")));
 
 		mockMvc.perform(get("/api/events/{eventId}/images", eventId))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(imageId.toString()))
 			.andExpect(jsonPath("$[0].url").value("https://files.test/photo"));
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void deleteEventUsesAuthenticatedIdentity() throws Exception {
+		UUID eventId = UUID.randomUUID();
+
+		mockMvc
+			.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/events/{eventId}",
+					eventId))
+			.andExpect(status().isOk());
+
+		verify(eventService).deleteEvent("owner@example.com", eventId);
 	}
 
 }

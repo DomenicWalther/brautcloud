@@ -46,8 +46,7 @@ public class EventService {
 	}
 
 	public void addEvent(String email, EventRequest request) {
-		User user = userRepository.findByEmail(email)
-			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		User user = findUserByEmail(email);
 		Event event = Event.builder()
 			.eventName(request.getEventName())
 			.lastName(request.getLastName())
@@ -62,17 +61,32 @@ public class EventService {
 		eventRepository.save(event);
 	}
 
-	public void deleteEvent(UUID eventID) {
-		eventRepository.deleteById(eventID);
+	public void deleteEvent(String email, UUID eventID) {
+		Event event = findOwnedEvent(email, eventID);
+		eventRepository.deleteById(event.getId());
 	}
 
-	public List<EventImageDTO> getEventImages(UUID eventID) {
+	public List<EventImageDTO> getEventImages(String email, UUID eventID) {
+		findOwnedEvent(email, eventID);
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
 		return images.stream().map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			return new EventImageDTO(image.getId(), url);
 		}).toList();
+	}
+
+	private User findUserByEmail(String email) {
+		return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	}
+
+	private Event findOwnedEvent(String email, UUID eventID) {
+		Event event = eventRepository.findById(eventID)
+			.orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+		if (!event.getUser().getEmail().equals(email)) {
+			throw new ResourceNotFoundException("Event not found");
+		}
+		return event;
 	}
 
 }

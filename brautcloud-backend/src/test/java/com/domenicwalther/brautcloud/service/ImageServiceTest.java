@@ -5,8 +5,10 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
+import com.domenicwalther.brautcloud.support.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +52,8 @@ class ImageServiceTest {
 	@Test
 	void uploadUrlsCreatePendingImageRecordsForEachFile() {
 		UUID eventId = UUID.randomUUID();
-		Event event = new Event();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
 		event.setId(eventId);
 		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("ceremony.jpg", "party.jpg"));
 		AtomicInteger sequence = new AtomicInteger();
@@ -63,7 +66,7 @@ class ImageServiceTest {
 		when(s3Service.getPresignedPutUrl(any(String.class)))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
-		List<ImageUploadResponse> responses = imageService.generatePresignedUploadUrls(request);
+		List<ImageUploadResponse> responses = imageService.generatePresignedUploadUrls(owner.getEmail(), request);
 
 		assertThat(responses).hasSize(2).allSatisfy(response -> {
 			assertThat(response.getImageId()).isNotNull();
@@ -87,7 +90,7 @@ class ImageServiceTest {
 		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("photo.jpg"));
 		when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls(request))
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls("owner@example.com", request))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Event not found");
 		verify(imageRepository, never()).save(any());
@@ -95,16 +98,20 @@ class ImageServiceTest {
 	}
 
 	@Test
-	void markingUploadedOnlyUpdatesImagesFoundByRepository() {
+	void markingUploadedOnlyUpdatesOwnedImagesFoundByRepository() {
 		UUID firstId = UUID.randomUUID();
 		UUID secondId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
 		Image first = new Image();
 		first.setId(firstId);
+		first.setEvent(event);
 		Image second = new Image();
 		second.setId(secondId);
+		second.setEvent(event);
 		when(imageRepository.findAllById(List.of(firstId, secondId))).thenReturn(List.of(first, second));
 
-		imageService.markImagesAsUploaded(List.of(firstId, secondId));
+		imageService.markImagesAsUploaded(owner.getEmail(), List.of(firstId, secondId));
 
 		assertThat(first.isUploaded()).isTrue();
 		assertThat(second.isUploaded()).isTrue();
@@ -114,12 +121,15 @@ class ImageServiceTest {
 	@Test
 	void deletingImageRemovesMetadataAndObject() {
 		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
 		Image image = new Image();
 		image.setId(imageId);
+		image.setEvent(event);
 		image.setImageKey("event/photo.jpg");
 		when(imageRepository.findById(imageId)).thenReturn(Optional.of(image));
 
-		imageService.deleteImageByImageID(imageId);
+		imageService.deleteImageByImageID(owner.getEmail(), imageId);
 
 		verify(imageRepository).deleteById(imageId);
 		verify(s3Service).deleteFile("event/photo.jpg");
@@ -130,10 +140,42 @@ class ImageServiceTest {
 		UUID imageId = UUID.randomUUID();
 		when(imageRepository.findById(imageId)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> imageService.deleteImageByImageID(imageId))
+		assertThatThrownBy(() -> imageService.deleteImageByImageID("owner@example.com", imageId))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Image not found");
 		verify(imageRepository, never()).deleteById(any());
+		verify(s3Service, never()).deleteFile(any());
+	}
+
+	@Test
+	void foreignUserCannotMutateAnotherUsersImages() {
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		UUID imageId = UUID.randomUUID();
+		Image image = new Image();
+		image.setId(imageId);
+		image.setEvent(event);
+		image.setImageKey("event/photo.jpg");
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("photo.jpg"));
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+		when(imageRepository.findById(imageId)).thenReturn(Optional.of(image));
+
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls("other@example.com", request))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded("other@example.com", List.of(imageId)))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Image not found");
+		assertThatThrownBy(() -> imageService.deleteImageByImageID("other@example.com", imageId))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Image not found");
+		verify(imageRepository, never()).save(any());
+		verify(imageRepository, never()).saveAll(any());
+		verify(imageRepository, never()).deleteById(any());
+		verify(s3Service, never()).getPresignedPutUrl(any());
 		verify(s3Service, never()).deleteFile(any());
 	}
 

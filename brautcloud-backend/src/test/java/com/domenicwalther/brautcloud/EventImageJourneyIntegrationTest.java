@@ -165,6 +165,57 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void foreignUserCannotReadOrMutateAnotherUsersEventsOrImages() throws Exception {
+		User owner = persistUser("owner@example.com");
+		User intruder = persistUser("intruder@example.com");
+		String ownerToken = jwtService.generateToken(owner.getEmail());
+		String intruderToken = jwtService.generateToken(intruder.getEmail());
+
+		mockMvc
+			.perform(post("/api/events").header("Authorization", bearer(ownerToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(eventRequest(owner.getId())))
+			.andExpect(status().isOk());
+		Event event = eventRepository.findByUser(owner).getFirst();
+
+		when(s3Service.getPresignedPutUrl(anyString()))
+			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
+		mockMvc
+			.perform(post("/api/image/presigned-url").header("Authorization", bearer(ownerToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"eventId\":\"%s\",\"fileNames\":[\"ceremony.jpg\"]}".formatted(event.getId())))
+			.andExpect(status().isOk());
+		Image image = imageRepository.findAll().getFirst();
+
+		mockMvc.perform(get("/api/events/{id}/images", event.getId()).header("Authorization", bearer(intruderToken)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Event not found"));
+		mockMvc.perform(delete("/api/events/{id}", event.getId()).header("Authorization", bearer(intruderToken)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Event not found"));
+		mockMvc
+			.perform(post("/api/image/presigned-url").header("Authorization", bearer(intruderToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"eventId\":\"%s\",\"fileNames\":[\"stolen.jpg\"]}".formatted(event.getId())))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Event not found"));
+		mockMvc
+			.perform(post("/api/image/uploaded").header("Authorization", bearer(intruderToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(image.getId())))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Image not found"));
+		mockMvc.perform(delete("/api/image/{id}", image.getId()).header("Authorization", bearer(intruderToken)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Image not found"));
+
+		assertThat(eventRepository.findById(event.getId())).isPresent();
+		assertThat(imageRepository.findById(image.getId())).isPresent();
+		assertThat(imageRepository.findAll()).hasSize(1);
+		verify(s3Service, never()).deleteFile(image.getImageKey());
+	}
+
+	@Test
 	void unknownResourcesAndMalformedIdentifiersReturnClientErrorsWithoutCallingS3() throws Exception {
 		User owner = persistUser("owner@example.com");
 		String token = jwtService.generateToken(owner.getEmail());

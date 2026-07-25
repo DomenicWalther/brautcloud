@@ -103,20 +103,42 @@ class EventServiceTest {
 
 	@Test
 	void uploadedImagesAreMappedToPresignedDownloadUrls() {
+		User user = TestFixtures.user("owner@example.com");
+		user.setId(UUID.randomUUID());
 		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
 		Image first = new Image();
 		first.setId(UUID.randomUUID());
 		first.setImageKey("first.jpg");
 		Image second = new Image();
 		second.setId(UUID.randomUUID());
 		second.setImageKey("second.jpg");
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of(first, second));
 		when(s3Service.getPresignedUrl("first.jpg")).thenReturn("https://files.test/first");
 		when(s3Service.getPresignedUrl("second.jpg")).thenReturn("https://files.test/second");
 
-		assertThat(eventService.getEventImages(eventId)).extracting("id", "url")
+		assertThat(eventService.getEventImages(user.getEmail(), eventId)).extracting("id", "url")
 			.containsExactly(tuple(first.getId(), "https://files.test/first"),
 					tuple(second.getId(), "https://files.test/second"));
+	}
+
+	@Test
+	void foreignUserCannotReadOrDeleteAnotherUsersEvent() {
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+		assertThatThrownBy(() -> eventService.getEventImages("other@example.com", eventId))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		assertThatThrownBy(() -> eventService.deleteEvent("other@example.com", eventId))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		verify(eventRepository, never()).deleteById(eventId);
 	}
 
 	private static EventRequest request(UUID userId) {
