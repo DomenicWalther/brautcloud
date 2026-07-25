@@ -59,7 +59,8 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 	void registrationLoginAndBearerAuthenticationWorkEndToEnd() throws Exception {
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials()))
 			.andExpect(status().isOk())
-			.andExpect(content().string("User registered successfully"));
+			.andExpect(jsonPath("$.accessToken").isNotEmpty())
+			.andExpect(jsonPath("$.onboardingComplete").value(false));
 
 		User storedUser = userRepository.findByEmail("owner@example.com").orElseThrow();
 		assertThat(storedUser.getPassword()).isNotEqualTo("correct-password");
@@ -90,8 +91,9 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 		register();
 
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials()))
-			.andExpect(status().isConflict())
-			.andExpect(content().string("Email already used!"));
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("Bad Request"))
+			.andExpect(jsonPath("$.message").value("Email already used!"));
 
 		mockMvc
 			.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)

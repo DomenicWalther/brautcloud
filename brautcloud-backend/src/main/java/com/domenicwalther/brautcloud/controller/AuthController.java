@@ -58,6 +58,9 @@ public class AuthController {
 	@Transactional
 	public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request,
 			HttpServletResponse response) {
+		if (request.password().length() < 8) {
+			throw new BadRequestException("Password must be at least 8 characters long");
+		}
 		String submittedEmail = sanitizeEmail(request.email());
 		if (userRepository.existsByEmailCaseInsensitive(submittedEmail)) {
 			throw new BadRequestException("Email already used!");
