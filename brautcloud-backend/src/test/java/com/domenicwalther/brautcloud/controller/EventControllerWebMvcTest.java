@@ -55,13 +55,15 @@ class EventControllerWebMvcTest {
 		UUID eventId = UUID.randomUUID();
 		UUID userId = UUID.randomUUID();
 		when(eventService.getEventsByUserEmail("owner@example.com")).thenReturn(List.of(new EventResponse(eventId,
-				"Wedding", "Berlin", LocalDateTime.of(2030, 6, 15, 14, 0), userId, "Alex", "Sam")));
+				"Wedding", "Berlin", LocalDateTime.of(2030, 6, 15, 14, 0), userId, "Alex", "Sam", 5L, 2L)));
 
 		mockMvc.perform(get("/api/events"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(eventId.toString()))
 			.andExpect(jsonPath("$[0].eventName").value("Wedding"))
-			.andExpect(jsonPath("$[0].userId").value(userId.toString()));
+			.andExpect(jsonPath("$[0].userId").value(userId.toString()))
+			.andExpect(jsonPath("$[0].viewCount").value(5))
+			.andExpect(jsonPath("$[0].guestCount").value(2));
 	}
 
 	@Test
@@ -153,6 +155,31 @@ class EventControllerWebMvcTest {
 			.andExpect(status().isOk());
 
 		verify(eventService).deleteEvent("owner@example.com", eventId);
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void registerViewUsesAuthenticatedIdentityAndVisitorIdFromPayload() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID visitorId = UUID.randomUUID();
+
+		mockMvc
+			.perform(post("/api/events/{eventId}/view", eventId).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"visitorId\":\"%s\"}".formatted(visitorId)))
+			.andExpect(status().isOk());
+
+		verify(eventService).registerView("owner@example.com", eventId, visitorId);
+	}
+
+	@Test
+	@WithMockUser
+	void registerViewWithoutVisitorIdReturnsStructuredBadRequest() throws Exception {
+		UUID eventId = UUID.randomUUID();
+
+		mockMvc
+			.perform(post("/api/events/{eventId}/view", eventId).contentType(MediaType.APPLICATION_JSON).content("{}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("Validation failed"));
 	}
 
 }

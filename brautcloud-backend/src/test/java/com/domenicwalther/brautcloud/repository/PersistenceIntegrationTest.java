@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.repository;
 
 import com.domenicwalther.brautcloud.model.Event;
+import com.domenicwalther.brautcloud.model.EventGuestVisit;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.RefreshToken;
 import com.domenicwalther.brautcloud.model.User;
@@ -39,6 +40,9 @@ class PersistenceIntegrationTest extends PostgresIntegrationTest {
 
 	@Autowired
 	private RefreshTokenRepository refreshTokenRepository;
+
+	@Autowired
+	private EventGuestVisitRepository eventGuestVisitRepository;
 
 	@Autowired
 	private EntityManager entityManager;
@@ -132,6 +136,30 @@ class PersistenceIntegrationTest extends PostgresIntegrationTest {
 
 	private int rowCount(String table) {
 		return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
+	}
+
+	@Test
+	void postgresUniqueConstraintRejectsDuplicateEventVisitorPair() {
+		User user = userRepository.saveAndFlush(TestFixtures.user("owner@example.com"));
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(user, "Wedding"));
+		UUID visitorId = UUID.randomUUID();
+		eventGuestVisitRepository.saveAndFlush(EventGuestVisit.builder().event(event).visitorId(visitorId).build());
+
+		assertThatThrownBy(() -> eventGuestVisitRepository
+			.saveAndFlush(EventGuestVisit.builder().event(event).visitorId(visitorId).build()))
+			.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void countByEventIdReturnsNumberOfDistinctVisitors() {
+		User user = userRepository.saveAndFlush(TestFixtures.user("owner@example.com"));
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(user, "Wedding"));
+		UUID firstVisitor = UUID.randomUUID();
+		UUID secondVisitor = UUID.randomUUID();
+		eventGuestVisitRepository.saveAndFlush(EventGuestVisit.builder().event(event).visitorId(firstVisitor).build());
+		eventGuestVisitRepository.saveAndFlush(EventGuestVisit.builder().event(event).visitorId(secondVisitor).build());
+
+		assertThat(eventGuestVisitRepository.countByEventId(event.getId())).isEqualTo(2);
 	}
 
 }

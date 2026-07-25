@@ -3,7 +3,9 @@ package com.domenicwalther.brautcloud.controller;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.EventViewRequest;
 import com.domenicwalther.brautcloud.service.EventService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +60,12 @@ public class EventController {
 	@DeleteMapping("{eventID}")
 	public void deleteEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @PathVariable UUID eventID) {
 		eventService.deleteEvent(authenticatedUser.getUsername(), eventID);
+	}
+
+	@PostMapping("/{eventID}/view")
+	public void registerView(@AuthenticationPrincipal UserDetails authenticatedUser, @PathVariable UUID eventID,
+			@Valid @RequestBody EventViewRequest request) {
+		eventService.registerView(authenticatedUser.getUsername(), eventID, request.visitorId());
 	}
 
 }

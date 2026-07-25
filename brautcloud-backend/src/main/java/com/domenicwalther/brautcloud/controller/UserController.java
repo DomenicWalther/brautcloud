@@ -1,7 +1,6 @@
 package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.dto.UserResponse;
-import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,8 +19,7 @@ public class UserController {
 
 	@GetMapping
 	public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal UserDetails authenticatedUser) {
-		User user = userService.findByEmail(authenticatedUser.getUsername());
-		return ResponseEntity.ok(UserResponse.fromUser(user));
+		return ResponseEntity.ok(userService.getUserResponse(authenticatedUser.getUsername()));
 	}
 
 }

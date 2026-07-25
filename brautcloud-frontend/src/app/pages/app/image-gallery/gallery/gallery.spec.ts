@@ -85,6 +85,8 @@ const event: EventDto = {
   firstNameCoupleTwo: 'Marcus',
   location: 'Eichenfürst',
   userId: 'user-1',
+  viewCount: 0,
+  guestCount: 0,
 };
 
 const image: EventImageDto = {

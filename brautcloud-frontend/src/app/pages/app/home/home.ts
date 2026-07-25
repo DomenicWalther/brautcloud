@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { QrCodeComponent } from 'ng-qrcode';
 import { catchError, of, switchMap, tap } from 'rxjs';
@@ -10,6 +10,7 @@ import { UserService } from '../../../services/user-service';
 import { HomeStats } from './home-stats/home-stats';
 
 const GALLERY_PREVIEW_SLOTS = 3;
+const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
 
 @Component({
   selector: 'app-home',
@@ -51,6 +52,21 @@ export class Home {
         this.allImages.set(images);
         this.imagesLoading.set(false);
       });
+
+    effect(() => {
+      const eventId = this.event()?.id;
+      if (!eventId) {
+        return;
+      }
+
+      const sessionKey = `${VIEWED_EVENT_SESSION_KEY_PREFIX}${eventId}`;
+      if (sessionStorage.getItem(sessionKey)) {
+        return;
+      }
+
+      sessionStorage.setItem(sessionKey, 'true');
+      this.eventService.registerView(eventId).subscribe();
+    });
   }
 
   readonly previewPhotos = computed(() => {
@@ -85,8 +101,8 @@ export class Home {
 
   readonly stats = computed(() => ({
     photos: String(this.allImages().length),
-    guests: '340',
-    views: '3.8k',
+    guests: String(this.event()?.guestCount ?? 0),
+    views: String(this.event()?.viewCount ?? 0),
   }));
 
   readonly downloadingAllPhotos = signal(false);
