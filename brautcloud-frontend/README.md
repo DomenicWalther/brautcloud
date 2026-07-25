@@ -4,11 +4,11 @@ BrautCloud is an Angular frontend for a private wedding gallery experience. It i
 
 ## Development
 
-Install dependencies, then start the local development server:
+Install dependencies with pnpm, then start the local development server:
 
 ```bash
-npm install
-npm start
+pnpm install --frozen-lockfile
+pnpm start
 ```
 
 The app serves at `http://localhost:4200/` and reloads when source files change.
@@ -16,19 +16,19 @@ The app serves at `http://localhost:4200/` and reloads when source files change.
 ## Available scripts
 
 ```bash
-npm start   # ng serve
-npm run build
-npm test
-npm run watch
+pnpm start       # ng serve
+pnpm run build
+pnpm test
+pnpm run watch
 ```
 
 ## Build output
 
-`npm run build` creates a production build in `dist/`.
+`pnpm run build` creates a production build in `dist/`.
 
 ## Testing
 
-`npm test` runs the unit test suite with Angular's test runner and Vitest.
+`pnpm test` runs the unit test suite with Angular's test runner and Vitest.
 
 The test suite covers authentication, session lifecycle, and onboarding flows:
 

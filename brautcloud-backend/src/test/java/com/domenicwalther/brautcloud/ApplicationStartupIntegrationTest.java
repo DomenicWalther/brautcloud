@@ -26,7 +26,7 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 	void applicationStartsWithEveryMigrationAppliedToPostgres() {
 		assertThat(applicationContext.getBean(BrautcloudApplication.class)).isNotNull();
 		assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()))
-			.containsExactly("1", "2", "3", "4");
+			.containsExactly("1", "2", "3", "4", "5");
 	}
 
 	@Test

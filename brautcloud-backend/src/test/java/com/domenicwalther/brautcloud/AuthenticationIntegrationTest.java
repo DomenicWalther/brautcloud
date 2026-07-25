@@ -59,7 +59,8 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 	void registrationLoginAndBearerAuthenticationWorkEndToEnd() throws Exception {
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials()))
 			.andExpect(status().isOk())
-			.andExpect(content().string("User registered successfully"));
+			.andExpect(jsonPath("$.accessToken").isNotEmpty())
+			.andExpect(jsonPath("$.onboardingComplete").value(false));
 
 		User storedUser = userRepository.findByEmail("owner@example.com").orElseThrow();
 		assertThat(storedUser.getPassword()).isNotEqualTo("correct-password");
@@ -90,8 +91,9 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 		register();
 
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials()))
-			.andExpect(status().isConflict())
-			.andExpect(content().string("Email already used!"));
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("Bad Request"))
+			.andExpect(jsonPath("$.message").value("Email already used!"));
 
 		mockMvc
 			.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
@@ -100,12 +102,13 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(jsonPath("$.error").value("Unauthorized"))
 			.andExpect(jsonPath("$.message").value("Invalid email or password"));
 
-		mockMvc.perform(get("/api/user")).andExpect(status().isForbidden());
-		mockMvc.perform(get("/api/user").header("Authorization", "Bearer not-a-jwt")).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/user")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/user").header("Authorization", "Bearer not-a-jwt"))
+			.andExpect(status().isUnauthorized());
 		mockMvc
 			.perform(get("/api/user").header("Authorization",
 					"Bearer " + jwtService.generateToken("deleted@example.com")))
-			.andExpect(status().isForbidden());
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
