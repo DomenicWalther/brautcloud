@@ -6,8 +6,11 @@ import {
   catchError,
   EMPTY,
   Observable,
+  of,
   ReplaySubject,
   Subscription,
+  switchMap,
+  take,
   tap,
   timeout,
   throwError,
@@ -17,6 +20,7 @@ import { API_URL } from '../core/tokens';
 
 const EXPLICIT_LOGOUT_STORAGE_KEY = 'brautcloud.explicit-logout';
 const LOGOUT_REQUEST_TIMEOUT_MS = 1000;
+const LOGOUT_REFRESH_WAIT_MS = 1000;
 
 @Injectable({
   providedIn: 'root',
@@ -139,24 +143,36 @@ export class AuthService {
       return;
     }
 
+    const pendingRefresh$ = this.refreshRequest$
+      ? this.refreshRequest$.pipe(
+          take(1),
+          timeout(LOGOUT_REFRESH_WAIT_MS),
+          catchError(() => of(null)),
+        )
+      : of(null);
+
     this._isLoggingOut.set(true);
     this.sessionGeneration += 1;
     this.setExplicitLogoutTombstone();
     this.clearSession();
-    this.cancelRefreshRequest();
 
-    this.http
-      .post(
-        `${this.API_URL}/auth/logout`,
-        {},
-        {
-          withCredentials: true,
-          responseType: 'text',
-        },
-      )
+    pendingRefresh$
       .pipe(
-        timeout(LOGOUT_REQUEST_TIMEOUT_MS),
-        catchError(() => EMPTY),
+        switchMap(() =>
+          this.http
+            .post(
+              `${this.API_URL}/auth/logout`,
+              {},
+              {
+                withCredentials: true,
+                responseType: 'text',
+              },
+            )
+            .pipe(
+              timeout(LOGOUT_REQUEST_TIMEOUT_MS),
+              catchError(() => EMPTY),
+            ),
+        ),
       )
       .subscribe({
         complete: () => {
@@ -213,21 +229,6 @@ export class AuthService {
     this.refreshRequest$ = null;
     this.refreshRequestSubscription = null;
     this.refreshResponse$ = null;
-  }
-
-  private cancelRefreshRequest(): void {
-    const request$ = this.refreshRequest$;
-    const refreshRequestSubscription = this.refreshRequestSubscription;
-    const refreshResponse$ = this.refreshResponse$;
-
-    if (!request$ || !refreshRequestSubscription || !refreshResponse$) {
-      this.clearRefreshRequest(null);
-      return;
-    }
-
-    this.clearRefreshRequest(request$);
-    refreshRequestSubscription.unsubscribe();
-    refreshResponse$.error(new Error('Refresh canceled by logout'));
   }
 
   private hasExplicitLogoutTombstone(): boolean {
