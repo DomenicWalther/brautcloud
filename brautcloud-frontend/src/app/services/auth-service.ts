@@ -18,7 +18,6 @@ import { API_URL } from '../core/tokens';
 const EXPLICIT_LOGOUT_STORAGE_KEY = 'brautcloud.explicit-logout';
 const LOGOUT_REQUEST_TIMEOUT_MS = 1000;
 
-
 @Injectable({
   providedIn: 'root',
 })
@@ -182,15 +181,13 @@ export class AuthService {
   }
 
   private createSession(url: string, credentials: AuthDTO): Observable<AuthResponse> {
-    return this.http
-      .post<AuthResponse>(url, credentials, { withCredentials: true })
-      .pipe(
-        tap((response) => {
-          this.clearExplicitLogoutTombstone();
-          this.sessionGeneration += 1;
-          this.applySession(response);
-        }),
-      );
+    return this.http.post<AuthResponse>(url, credentials, { withCredentials: true }).pipe(
+      tap((response) => {
+        this.clearExplicitLogoutTombstone();
+        this.sessionGeneration += 1;
+        this.applySession(response);
+      }),
+    );
   }
 
   private applySession(response: AuthResponse): void {

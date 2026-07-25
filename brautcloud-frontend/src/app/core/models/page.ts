@@ -8,4 +8,3 @@ export interface Page<T> {
   last: boolean;
   empty: boolean;
 }
-
