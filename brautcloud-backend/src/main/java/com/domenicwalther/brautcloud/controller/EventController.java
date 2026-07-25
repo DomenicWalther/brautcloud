@@ -4,7 +4,8 @@ import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.service.EventService;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,27 +22,24 @@ public class EventController {
 	}
 
 	@GetMapping
-	public List<EventResponse> getEvents() {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return eventService.getEventsByUserEmail(email);
+	public List<EventResponse> getEvents(@AuthenticationPrincipal UserDetails authenticatedUser) {
+		return eventService.getEventsByUserEmail(authenticatedUser.getUsername());
 	}
 
 	@GetMapping("/{eventID}/images")
-	public List<EventImageDTO> getEventImages(@PathVariable UUID eventID) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return eventService.getEventImages(email, eventID);
+	public List<EventImageDTO> getEventImages(@AuthenticationPrincipal UserDetails authenticatedUser,
+			@PathVariable UUID eventID) {
+		return eventService.getEventImages(authenticatedUser.getUsername(), eventID);
 	}
 
 	@PostMapping
-	public void addEvent(@RequestBody EventRequest request) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		eventService.addEvent(email, request);
+	public void addEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @RequestBody EventRequest request) {
+		eventService.addEvent(authenticatedUser.getUsername(), request);
 	}
 
 	@DeleteMapping("{eventID}")
-	public void deleteEvent(@PathVariable UUID eventID) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		eventService.deleteEvent(email, eventID);
+	public void deleteEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @PathVariable UUID eventID) {
+		eventService.deleteEvent(authenticatedUser.getUsername(), eventID);
 	}
 
 }

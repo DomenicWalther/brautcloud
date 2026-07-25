@@ -48,7 +48,9 @@ class EventServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		eventService = new EventService(eventRepository, userRepository, imageRepository);
+		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
+				imageRepository);
+		eventService = new EventService(eventRepository, userRepository, imageRepository, resourceOwnershipService);
 		ReflectionTestUtils.setField(eventService, "s3Service", s3Service);
 	}
 

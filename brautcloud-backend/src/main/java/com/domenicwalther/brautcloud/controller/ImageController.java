@@ -4,7 +4,8 @@ import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
 import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.ImageService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,22 +22,22 @@ public class ImageController {
 	}
 
 	@PostMapping("/presigned-url")
-	public ResponseEntity<List<ImageUploadResponse>> getPresignedUrls(@RequestBody ImageUploadRequest request) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return ResponseEntity.ok(imageService.generatePresignedUploadUrls(email, request));
+	public ResponseEntity<List<ImageUploadResponse>> getPresignedUrls(
+			@AuthenticationPrincipal UserDetails authenticatedUser, @RequestBody ImageUploadRequest request) {
+		return ResponseEntity.ok(imageService.generatePresignedUploadUrls(authenticatedUser.getUsername(), request));
 	}
 
 	@PostMapping("/uploaded")
-	public ResponseEntity<Void> markAsUploaded(@RequestBody List<UUID> imageIds) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		imageService.markImagesAsUploaded(email, imageIds);
+	public ResponseEntity<Void> markAsUploaded(@AuthenticationPrincipal UserDetails authenticatedUser,
+			@RequestBody List<UUID> imageIds) {
+		imageService.markImagesAsUploaded(authenticatedUser.getUsername(), imageIds);
 		return ResponseEntity.noContent().build();
 	}
 
 	@DeleteMapping("{imageID}")
-	public ResponseEntity<Void> deleteFile(@PathVariable UUID imageID) {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		imageService.deleteImageByImageID(email, imageID);
+	public ResponseEntity<Void> deleteFile(@AuthenticationPrincipal UserDetails authenticatedUser,
+			@PathVariable UUID imageID) {
+		imageService.deleteImageByImageID(authenticatedUser.getUsername(), imageID);
 		return ResponseEntity.noContent().build();
 	}
 
