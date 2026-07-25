@@ -18,10 +18,6 @@ export class UserService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
-  constructor() {
-    this.reload();
-  }
-
   reload(): void {
     this._loading.set(true);
     this._error.set(null);

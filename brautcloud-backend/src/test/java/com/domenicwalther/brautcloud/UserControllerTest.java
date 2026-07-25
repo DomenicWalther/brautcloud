@@ -236,14 +236,22 @@ class UserControllerTest {
 		String accessToken = registration.jsonPath().getString("accessToken");
 
 		Response first = complete(accessToken);
-		Response repeated = complete(accessToken);
-
 		first.then().statusCode(200);
+		var onboardingCompletedAtAfterFirst = userRepository.findByEmail("repeat@example.com")
+			.orElseThrow()
+			.getOnboardingCompletedAt();
+
+		Response repeated = complete(accessToken);
 		repeated.then()
 			.statusCode(200)
 			.body("onboardingComplete", equalTo(true))
 			.body("event.id", equalTo(first.jsonPath().getString("event.id")));
+		var onboardingCompletedAtAfterRepeat = userRepository.findByEmail("repeat@example.com")
+			.orElseThrow()
+			.getOnboardingCompletedAt();
+
 		assertEquals(1, eventRepository.count());
+		assertEquals(onboardingCompletedAtAfterFirst, onboardingCompletedAtAfterRepeat);
 	}
 
 	@Test

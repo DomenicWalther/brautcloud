@@ -67,6 +67,45 @@ class OnboardingMigrationTest {
 		}
 	}
 
+	@Test
+	void migrationBackfillsUsingEarliestEventWhenUserHasMultipleEvents() throws Exception {
+		Flyway.configure()
+			.dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+			.locations("classpath:db/migration")
+			.target("4")
+			.load()
+			.migrate();
+
+		UUID eventOwnerId;
+		LocalDateTime earliestEventCreatedAt = LocalDateTime.of(2025, 3, 10, 8, 0);
+		LocalDateTime laterEventCreatedAt = LocalDateTime.of(2025, 6, 1, 12, 30);
+		try (Connection connection = connection()) {
+			eventOwnerId = insertUser(connection, "multi-event-owner@example.com");
+			try (PreparedStatement statement = connection
+				.prepareStatement("INSERT INTO events (event_name, user_id, created_at) VALUES (?, ?, ?)")) {
+				statement.setString(1, "Later wedding");
+				statement.setObject(2, eventOwnerId);
+				statement.setTimestamp(3, Timestamp.valueOf(laterEventCreatedAt));
+				statement.executeUpdate();
+
+				statement.setString(1, "Earliest wedding");
+				statement.setObject(2, eventOwnerId);
+				statement.setTimestamp(3, Timestamp.valueOf(earliestEventCreatedAt));
+				statement.executeUpdate();
+			}
+		}
+
+		Flyway.configure()
+			.dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+			.locations("classpath:db/migration")
+			.load()
+			.migrate();
+
+		try (Connection connection = connection()) {
+			assertEquals(earliestEventCreatedAt, onboardingCompletedAt(connection, eventOwnerId));
+		}
+	}
+
 	private static UUID insertUser(Connection connection, String email) throws Exception {
 		try (PreparedStatement statement = connection
 			.prepareStatement("INSERT INTO users (email, password) VALUES (?, ?) RETURNING id")) {
