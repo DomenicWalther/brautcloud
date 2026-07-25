@@ -13,6 +13,7 @@ import {
   switchMap,
   take,
   tap,
+  timeout,
   throwError,
 } from 'rxjs';
 import { API_URL } from '../core/tokens';
@@ -20,6 +21,8 @@ import { API_URL } from '../core/tokens';
 interface AuthResponse {
   accessToken: string;
 }
+
+const LOGOUT_REFRESH_WAIT_MS = 1000;
 
 @Injectable({
   providedIn: 'root',
@@ -38,10 +41,16 @@ export class AuthService {
   private readonly _isLoggingOut = signal(false);
   readonly isLoggingOut = this._isLoggingOut.asReadonly();
 
+  private refreshBlocked = false;
   private sessionGeneration = 0;
   private refreshRequest$: Observable<string> | null = null;
 
   initializeAuth(): Promise<void> {
+    if (this.refreshBlocked) {
+      this._accessToken.set(null);
+      return new Promise((resolve) => this.finishInitialization(resolve));
+    }
+
     const generation = this.sessionGeneration;
 
     return new Promise((resolve) => {
@@ -76,6 +85,7 @@ export class AuthService {
       )
       .pipe(
         tap((res) => {
+          this.refreshBlocked = false;
           this.sessionGeneration += 1;
           this._accessToken.set(res.accessToken);
         }),
@@ -94,7 +104,7 @@ export class AuthService {
   }
 
   refreshToken(): Observable<string> {
-    if (this._isLoggingOut()) {
+    if (this._isLoggingOut() || this.refreshBlocked) {
       return throwError(() => new Error('Cannot refresh while signing out'));
     }
 
@@ -142,11 +152,13 @@ export class AuthService {
     const pendingRefresh$ = this.refreshRequest$
       ? this.refreshRequest$.pipe(
           take(1),
+          timeout(LOGOUT_REFRESH_WAIT_MS),
           catchError(() => of(null)),
         )
       : of(null);
 
     this._isLoggingOut.set(true);
+    this.refreshBlocked = true;
     this.sessionGeneration += 1;
     this._accessToken.set(null);
 
@@ -178,6 +190,7 @@ export class AuthService {
 
   canAttemptRefresh(requestUrl: string): boolean {
     return (
+      !this.refreshBlocked &&
       !this._isLoggingOut() &&
       !requestUrl.includes('/auth/refresh') &&
       !requestUrl.includes('/auth/logout')
