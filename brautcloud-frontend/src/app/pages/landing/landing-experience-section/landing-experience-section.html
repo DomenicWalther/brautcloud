@@ -1,21 +1,31 @@
-<section class="flex flex-col items-center justify-center mt-20 gap-5 max-w-5/6 mx-auto">
-  <h3 class="font-display text-4xl">The Experience</h3>
-  <div class="h-px w-1/5 bg-mainrose"></div>
-  <section class="mt-10 flex flex-col gap-10 items-center justify-center">
+<section class="experience" id="experience" aria-labelledby="experience-heading">
+  <div class="section-heading">
+    <p>Designed around your day</p>
+    <h2 id="experience-heading">The Experience</h2>
+    <span aria-hidden="true"></span>
+    <div class="section-intro">
+      Beautifully simple for you. Completely effortless for every guest.
+    </div>
+  </div>
+
+  <div class="experience-grid">
     <app-experience-element
+      step="I"
       badge="qr_code"
       title="Instant Access"
       description="Guests scan a personalized QR code. No apps or accounts required for seamless sharing."
     ></app-experience-element>
     <app-experience-element
+      step="II"
       badge="photo_camera"
       title="Collective Memory"
       description="A sophisticated digital home where every perspective of your day lives in harmony."
     ></app-experience-element>
     <app-experience-element
+      step="III"
       badge="editor_choice"
       title="Full Resolution"
       description="Download your collection in original quality. Eternal memories at your fingertips."
     ></app-experience-element>
-  </section>
+  </div>
 </section>
