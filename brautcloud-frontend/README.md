@@ -30,7 +30,7 @@ npm run watch
 
 `npm test` runs the unit test suite with Angular's test runner and Vitest.
 
-The auth service specs cover the logout path, including `POST /api/auth/logout` with credentials, local session clearing on endpoint failure or timeout, refresh cancellation during explicit logout, and reload behavior after a manual sign-out.
+The auth service specs cover the logout path, including `POST /api/auth/logout` with credentials, immediate local session clearing, waiting for in-flight refresh before revoking the session (with timeout), and ensuring stale refresh results cannot restore a logged-out session.
 
 ## Angular CLI
 

@@ -155,5 +155,4 @@ describe('AuthService logout', () => {
     request.flush({ accessToken });
     expect(auth.getAccessToken()).toBe(accessToken);
   }
-
 });
