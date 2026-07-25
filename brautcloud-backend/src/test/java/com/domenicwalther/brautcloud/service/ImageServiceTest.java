@@ -45,7 +45,9 @@ class ImageServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		imageService = new ImageService(imageRepository, eventRepository);
+		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
+				imageRepository);
+		imageService = new ImageService(imageRepository, resourceOwnershipService);
 		ReflectionTestUtils.setField(imageService, "s3Service", s3Service);
 	}
 
@@ -116,6 +118,34 @@ class ImageServiceTest {
 		assertThat(first.isUploaded()).isTrue();
 		assertThat(second.isUploaded()).isTrue();
 		verify(imageRepository).saveAll(List.of(first, second));
+	}
+
+	@Test
+	void markingUploadedRejectsPayloadWhenAnyRequestedImageIsMissing() {
+		UUID foundId = UUID.randomUUID();
+		UUID missingId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Image found = TestFixtures.image(TestFixtures.event(owner, "Wedding"), "found.jpg", false);
+		found.setId(foundId);
+		List<UUID> requestedIds = List.of(foundId, missingId);
+		when(imageRepository.findAllById(requestedIds)).thenReturn(List.of(found));
+
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), requestedIds))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Image not found");
+		verify(imageRepository, never()).saveAll(any());
+	}
+
+	@Test
+	void markingUploadedRejectsPayloadWithDuplicateIds() {
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		List<UUID> duplicateIds = List.of(imageId, imageId);
+
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), duplicateIds))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Image not found");
+		verify(imageRepository, never()).saveAll(any());
 	}
 
 	@Test

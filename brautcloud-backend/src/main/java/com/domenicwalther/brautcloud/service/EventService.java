@@ -28,11 +28,14 @@ public class EventService {
 
 	private final ImageRepository imageRepository;
 
-	public EventService(EventRepository eventRepository, UserRepository userRepository,
-			ImageRepository imageRepository) {
+	private final ResourceOwnershipService resourceOwnershipService;
+
+	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
+			ResourceOwnershipService resourceOwnershipService) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
+		this.resourceOwnershipService = resourceOwnershipService;
 	}
 
 	public List<EventResponse> getEvents() {
@@ -62,12 +65,12 @@ public class EventService {
 	}
 
 	public void deleteEvent(String email, UUID eventID) {
-		Event event = findOwnedEvent(email, eventID);
+		Event event = resourceOwnershipService.requireOwnedEvent(email, eventID);
 		eventRepository.deleteById(event.getId());
 	}
 
 	public List<EventImageDTO> getEventImages(String email, UUID eventID) {
-		findOwnedEvent(email, eventID);
+		resourceOwnershipService.requireOwnedEvent(email, eventID);
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
 		return images.stream().map(image -> {
@@ -78,15 +81,6 @@ public class EventService {
 
 	private User findUserByEmail(String email) {
 		return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-	}
-
-	private Event findOwnedEvent(String email, UUID eventID) {
-		Event event = eventRepository.findById(eventID)
-			.orElseThrow(() -> new ResourceNotFoundException("Event not found"));
-		if (!event.getUser().getEmail().equals(email)) {
-			throw new ResourceNotFoundException("Event not found");
-		}
-		return event;
 	}
 
 }

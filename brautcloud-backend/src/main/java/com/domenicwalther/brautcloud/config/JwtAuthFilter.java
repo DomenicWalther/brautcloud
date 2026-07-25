@@ -11,6 +11,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -19,6 +21,8 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+	private static final Logger logger = LoggerFactory.getLogger(JwtAuthFilter.class);
 
 	private final JwtService jwtService;
 
@@ -55,8 +59,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 			}
 		}
 		catch (JwtException | AuthenticationException | IllegalArgumentException ex) {
-			// Invalid bearer tokens remain unauthenticated and are rejected by Spring
-			// Security.
+			logger.debug("Rejected bearer authentication for {} {} ({})", request.getMethod(), request.getRequestURI(),
+					ex.getClass().getSimpleName());
 		}
 
 		filterChain.doFilter(request, response);
