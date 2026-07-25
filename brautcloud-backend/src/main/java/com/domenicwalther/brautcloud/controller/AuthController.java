@@ -56,10 +56,11 @@ public class AuthController {
 	@Transactional
 	public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request,
 			HttpServletResponse response) {
-		String email = normalizeEmail(request.email());
-		if (userRepository.findByEmail(email).isPresent()) {
+		String submittedEmail = sanitizeEmail(request.email());
+		if (userRepository.findByEmailIgnoreCase(submittedEmail).isPresent()) {
 			throw new BadRequestException("Email already used!");
 		}
+		String email = canonicalizeEmail(submittedEmail);
 
 		User user = new User();
 		user.setEmail(email);
@@ -77,10 +78,10 @@ public class AuthController {
 
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
-		String email = normalizeEmail(request.email());
+		String email = sanitizeEmail(request.email());
 		authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
 
-		User user = userRepository.findByEmail(email)
+		User user = userRepository.findByEmailIgnoreCase(email)
 			.orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
 		return ResponseEntity.ok(authSessionService.issue(user, response));
@@ -112,8 +113,12 @@ public class AuthController {
 		return ResponseEntity.ok("Logged out");
 	}
 
-	private String normalizeEmail(String email) {
-		return email.trim().toLowerCase(Locale.ROOT);
+	private String sanitizeEmail(String email) {
+		return email.trim();
+	}
+
+	private String canonicalizeEmail(String email) {
+		return email.toLowerCase(Locale.ROOT);
 	}
 
 }

@@ -6,6 +6,7 @@ import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.service.OnboardingService;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -60,6 +61,9 @@ class UserControllerTest {
 
 	@Autowired
 	private EntityManager entityManager;
+
+	@Autowired
+	private JwtService jwtService;
 
 	@BeforeAll
 	static void beforeAll() {
@@ -125,11 +129,47 @@ class UserControllerTest {
 	}
 
 	@Test
+	void mixedCaseLegacyAccountCanStillLoginAndReceivesCanonicalSessionIdentity() {
+		User user = User.builder().email("User@Example.com").password(passwordEncoder.encode("Password123!")).build();
+		userRepository.saveAndFlush(user);
+
+		Response response = login("user@example.com");
+
+		response.then()
+			.statusCode(200)
+			.contentType(ContentType.JSON)
+			.body("accessToken", not(nullValue()))
+			.body("onboardingComplete", equalTo(false));
+		assertNotNull(response.cookie("refresh_token"));
+		assertEquals("User@Example.com", jwtService.extractEmail(response.jsonPath().getString("accessToken")));
+		assertEquals(1, userRepository.count());
+	}
+
+	@Test
 	void duplicateRegistrationReturnsStructuredFailureWithoutReplacingSession() {
 		register("duplicate@example.com").then().statusCode(200);
 
 		given().contentType(ContentType.JSON)
 			.body(credentials("duplicate@example.com"))
+			.when()
+			.post("/api/auth/register")
+			.then()
+			.statusCode(400)
+			.contentType(ContentType.JSON)
+			.header(HttpHeaders.SET_COOKIE, nullValue())
+			.body("error", equalTo("Bad Request"))
+			.body("message", equalTo("Email already used!"));
+
+		assertEquals(1, userRepository.count());
+	}
+
+	@Test
+	void mixedCaseLegacyAccountRejectsCaseVariantRegistration() {
+		User user = User.builder().email("User@Example.com").password(passwordEncoder.encode("Password123!")).build();
+		userRepository.saveAndFlush(user);
+
+		given().contentType(ContentType.JSON)
+			.body(credentials("user@example.com"))
 			.when()
 			.post("/api/auth/register")
 			.then()
