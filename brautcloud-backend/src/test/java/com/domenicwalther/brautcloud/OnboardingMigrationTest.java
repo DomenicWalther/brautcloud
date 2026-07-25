@@ -44,6 +44,7 @@ class OnboardingMigrationTest {
 		UUID emptyUserId;
 		LocalDateTime eventCreatedAt = LocalDateTime.of(2025, 6, 1, 12, 30);
 		try (Connection connection = connection()) {
+			connection.setAutoCommit(false);
 			eventOwnerId = insertUser(connection, "owner@example.com");
 			emptyUserId = insertUser(connection, "empty@example.com");
 			try (PreparedStatement statement = connection
@@ -53,6 +54,7 @@ class OnboardingMigrationTest {
 				statement.setTimestamp(3, Timestamp.valueOf(eventCreatedAt));
 				statement.executeUpdate();
 			}
+			connection.commit();
 		}
 
 		Flyway.configure()
@@ -80,6 +82,7 @@ class OnboardingMigrationTest {
 		LocalDateTime earliestEventCreatedAt = LocalDateTime.of(2025, 3, 10, 8, 0);
 		LocalDateTime laterEventCreatedAt = LocalDateTime.of(2025, 6, 1, 12, 30);
 		try (Connection connection = connection()) {
+			connection.setAutoCommit(false);
 			eventOwnerId = insertUser(connection, "multi-event-owner@example.com");
 			try (PreparedStatement statement = connection
 				.prepareStatement("INSERT INTO events (event_name, user_id, created_at) VALUES (?, ?, ?)")) {
@@ -93,6 +96,7 @@ class OnboardingMigrationTest {
 				statement.setTimestamp(3, Timestamp.valueOf(earliestEventCreatedAt));
 				statement.executeUpdate();
 			}
+			connection.commit();
 		}
 
 		Flyway.configure()

@@ -102,12 +102,13 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(jsonPath("$.error").value("Unauthorized"))
 			.andExpect(jsonPath("$.message").value("Invalid email or password"));
 
-		mockMvc.perform(get("/api/user")).andExpect(status().isForbidden());
-		mockMvc.perform(get("/api/user").header("Authorization", "Bearer not-a-jwt")).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/user")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/user").header("Authorization", "Bearer not-a-jwt"))
+			.andExpect(status().isUnauthorized());
 		mockMvc
 			.perform(get("/api/user").header("Authorization",
 					"Bearer " + jwtService.generateToken("deleted@example.com")))
-			.andExpect(status().isForbidden());
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
