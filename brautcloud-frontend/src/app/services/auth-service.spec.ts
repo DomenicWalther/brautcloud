@@ -8,30 +8,24 @@ import { AuthService } from './auth-service';
 
 describe('AuthService logout', () => {
   const apiUrl = 'https://api.example.test/api';
+  let localStorageState: Record<string, string>;
   let auth: AuthService;
   let http: HttpTestingController;
   let httpClient: HttpClient;
   let router: Router;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
-        provideHttpClientTesting(),
-        provideRouter([]),
-        { provide: API_URL, useValue: apiUrl },
-      ],
-    });
-
-    auth = TestBed.inject(AuthService);
-    http = TestBed.inject(HttpTestingController);
-    httpClient = TestBed.inject(HttpClient);
-    router = TestBed.inject(Router);
-    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    localStorageState = {};
+    installLocalStorageMock();
+    globalThis.localStorage.clear();
+    setupTestingModule();
   });
 
   afterEach(() => {
-    http.verify();
+    http?.verify();
+    TestBed.resetTestingModule();
+    globalThis.localStorage?.clear();
+    vi.useRealTimers();
   });
 
   it('revokes the refresh session with credentials, clears local auth, and navigates', () => {
@@ -89,7 +83,7 @@ describe('AuthService logout', () => {
     expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
   });
 
-  it('waits for an in-flight refresh before revoking it and ignores its stale access token', () => {
+  it('cancels an in-flight refresh before sending logout', () => {
     authenticate('original-token');
 
     let refreshError: unknown;
@@ -99,12 +93,8 @@ describe('AuthService logout', () => {
     auth.logout();
 
     expect(auth.getAccessToken()).toBeNull();
-    http.expectNone(`${apiUrl}/auth/logout`);
-
-    refresh.flush({ accessToken: 'stale-refreshed-token' });
-
+    expect(refresh.cancelled).toBe(true);
     expect(refreshError).toBeInstanceOf(Error);
-    expect(auth.getAccessToken()).toBeNull();
 
     const logout = http.expectOne(`${apiUrl}/auth/logout`);
     expect(logout.request.withCredentials).toBe(true);
@@ -115,29 +105,18 @@ describe('AuthService logout', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/sign-in', { replaceUrl: true });
   });
 
-  it('bounds the wait for an in-flight refresh before navigating away', async () => {
+  it('navigates away when the logout request hangs', async () => {
     vi.useFakeTimers();
 
     try {
-      authenticate('original-token');
-
-      let refreshError: unknown;
-      auth.refreshToken().subscribe({ error: (error) => (refreshError = error) });
-      const refresh = http.expectOne(`${apiUrl}/auth/refresh`);
+      authenticate('access-token');
 
       auth.logout();
-
-      http.expectNone(`${apiUrl}/auth/logout`);
+      const logout = http.expectOne(`${apiUrl}/auth/logout`);
 
       await vi.advanceTimersByTimeAsync(1000);
 
-      const logout = http.expectOne(`${apiUrl}/auth/logout`);
-      expect(logout.request.withCredentials).toBe(true);
-      logout.flush('Logged out');
-
-      refresh.flush({ accessToken: 'late-token' });
-
-      expect(refreshError).toBeInstanceOf(Error);
+      expect(logout.cancelled).toBe(true);
       expect(auth.getAccessToken()).toBeNull();
       expect(auth.isLoggingOut()).toBe(false);
       expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/sign-in', { replaceUrl: true });
@@ -146,11 +125,87 @@ describe('AuthService logout', () => {
     }
   });
 
+  it('skips refresh on reload after explicit logout until login succeeds again', async () => {
+    authenticate('access-token');
+
+    auth.logout();
+
+    const logout = http.expectOne(`${apiUrl}/auth/logout`);
+    logout.flush('Unavailable', { status: 401, statusText: 'Unauthorized' });
+
+    recreateService();
+
+    await auth.initializeAuth();
+
+    http.expectNone(`${apiUrl}/auth/refresh`);
+    expect(auth.getAccessToken()).toBeNull();
+    expect(auth.isAuthenticated()).toBe(false);
+
+    authenticate('new-access-token');
+
+    recreateService();
+
+    const initializePromise = auth.initializeAuth();
+    const refresh = http.expectOne(`${apiUrl}/auth/refresh`);
+    expect(refresh.request.withCredentials).toBe(true);
+    refresh.flush({ accessToken: 'restored-token' });
+    await initializePromise;
+
+    expect(auth.getAccessToken()).toBe('restored-token');
+  });
+
   function authenticate(accessToken: string): void {
     auth.login({ email: 'couple@example.test', password: 'secret' }).subscribe();
     const request = http.expectOne(`${apiUrl}/auth/login`);
     expect(request.request.withCredentials).toBe(true);
     request.flush({ accessToken });
     expect(auth.getAccessToken()).toBe(accessToken);
+  }
+
+  function recreateService(): void {
+    http.verify();
+    TestBed.resetTestingModule();
+    setupTestingModule();
+  }
+
+  function setupTestingModule(): void {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: API_URL, useValue: apiUrl },
+      ],
+    });
+
+    auth = TestBed.inject(AuthService);
+    http = TestBed.inject(HttpTestingController);
+    httpClient = TestBed.inject(HttpClient);
+    router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+  }
+
+  function installLocalStorageMock(): void {
+    const storage = {
+      clear: () => {
+        localStorageState = {};
+      },
+      getItem: (key: string) => localStorageState[key] ?? null,
+      key: (index: number) => Object.keys(localStorageState)[index] ?? null,
+      removeItem: (key: string) => {
+        delete localStorageState[key];
+      },
+      setItem: (key: string, value: string) => {
+        localStorageState[key] = value;
+      },
+      get length() {
+        return Object.keys(localStorageState).length;
+      },
+    } satisfies Storage;
+
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: storage,
+    });
   }
 });

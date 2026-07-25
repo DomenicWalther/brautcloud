@@ -5,13 +5,9 @@ import {
   BehaviorSubject,
   catchError,
   EMPTY,
-  finalize,
-  map,
   Observable,
-  of,
-  shareReplay,
-  switchMap,
-  take,
+  ReplaySubject,
+  Subscription,
   tap,
   timeout,
   throwError,
@@ -22,7 +18,8 @@ interface AuthResponse {
   accessToken: string;
 }
 
-const LOGOUT_REFRESH_WAIT_MS = 1000;
+const EXPLICIT_LOGOUT_STORAGE_KEY = 'brautcloud.explicit-logout';
+const LOGOUT_REQUEST_TIMEOUT_MS = 1000;
 
 @Injectable({
   providedIn: 'root',
@@ -41,9 +38,11 @@ export class AuthService {
   private readonly _isLoggingOut = signal(false);
   readonly isLoggingOut = this._isLoggingOut.asReadonly();
 
-  private refreshBlocked = false;
+  private refreshBlocked = this.hasExplicitLogoutTombstone();
   private sessionGeneration = 0;
   private refreshRequest$: Observable<string> | null = null;
+  private refreshRequestSubscription: Subscription | null = null;
+  private refreshResponse$: ReplaySubject<string> | null = null;
 
   initializeAuth(): Promise<void> {
     if (this.refreshBlocked) {
@@ -85,7 +84,7 @@ export class AuthService {
       )
       .pipe(
         tap((res) => {
-          this.refreshBlocked = false;
+          this.clearExplicitLogoutTombstone();
           this.sessionGeneration += 1;
           this._accessToken.set(res.accessToken);
         }),
@@ -113,34 +112,35 @@ export class AuthService {
     }
 
     const generation = this.sessionGeneration;
-    let request$: Observable<string>;
+    const response$ = new ReplaySubject<string>(1);
+    const request$ = response$.asObservable();
 
-    request$ = this.http
+    this.refreshResponse$ = response$;
+    this.refreshRequest$ = request$;
+    this.refreshRequestSubscription = this.http
       .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
-      .pipe(
-        map((res) => {
-          if (generation !== this.sessionGeneration || this._isLoggingOut()) {
-            throw new Error('Refresh completed after the session was cleared');
+      .subscribe({
+        next: (res) => {
+          if (generation !== this.sessionGeneration || this._isLoggingOut() || this.refreshBlocked) {
+            response$.error(new Error('Refresh completed after the session was cleared'));
+            this.clearRefreshRequest(request$);
+            return;
           }
 
           this._accessToken.set(res.accessToken);
-          return res.accessToken;
-        }),
-        catchError((err) => {
+          response$.next(res.accessToken);
+          response$.complete();
+          this.clearRefreshRequest(request$);
+        },
+        error: (err) => {
           if (generation === this.sessionGeneration) {
             this._accessToken.set(null);
           }
-          return throwError(() => err);
-        }),
-        finalize(() => {
-          if (this.refreshRequest$ === request$) {
-            this.refreshRequest$ = null;
-          }
-        }),
-        shareReplay({ bufferSize: 1, refCount: false }),
-      );
+          response$.error(err);
+          this.clearRefreshRequest(request$);
+        },
+      });
 
-    this.refreshRequest$ = request$;
     return request$;
   }
 
@@ -149,43 +149,33 @@ export class AuthService {
       return;
     }
 
-    const pendingRefresh$ = this.refreshRequest$
-      ? this.refreshRequest$.pipe(
-          take(1),
-          timeout(LOGOUT_REFRESH_WAIT_MS),
-          catchError(() => of(null)),
-        )
-      : of(null);
-
     this._isLoggingOut.set(true);
-    this.refreshBlocked = true;
     this.sessionGeneration += 1;
+    this.setExplicitLogoutTombstone();
     this._accessToken.set(null);
+    this.cancelRefreshRequest();
 
-    // The browser is locally signed out immediately. A separately retained stateless access JWT
-    // can remain server-valid until its configured expiry (currently up to ten minutes).
-    pendingRefresh$
+    this.http
+      .post(
+        `${this.API_URL}/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+          responseType: 'text',
+        },
+      )
       .pipe(
-        switchMap(() =>
-          this.http.post(
-            `${this.API_URL}/auth/logout`,
-            {},
-            {
-              withCredentials: true,
-              responseType: 'text',
-            },
-          ),
-        ),
+        timeout(LOGOUT_REQUEST_TIMEOUT_MS),
         catchError(() => EMPTY),
-        finalize(() => {
-          this.refreshRequest$ = null;
+      )
+      .subscribe({
+        complete: () => {
           this._accessToken.set(null);
           this._isLoggingOut.set(false);
           this._initialized.next(true);
           void this.router.navigateByUrl('/auth/sign-in', { replaceUrl: true });
-        }),
-      )
-      .subscribe();
+        },
+      });
   }
 
   canAttemptRefresh(requestUrl: string): boolean {
@@ -204,5 +194,54 @@ export class AuthService {
   private finishInitialization(resolve: () => void): void {
     this._initialized.next(true);
     resolve();
+  }
+
+  private clearRefreshRequest(request$: Observable<string> | null): void {
+    if (request$ && this.refreshRequest$ !== request$) {
+      return;
+    }
+
+    this.refreshRequest$ = null;
+    this.refreshRequestSubscription = null;
+    this.refreshResponse$ = null;
+  }
+
+  private cancelRefreshRequest(): void {
+    const request$ = this.refreshRequest$;
+    const refreshRequestSubscription = this.refreshRequestSubscription;
+    const refreshResponse$ = this.refreshResponse$;
+
+    if (!request$ || !refreshRequestSubscription || !refreshResponse$) {
+      this.clearRefreshRequest(null);
+      return;
+    }
+
+    this.clearRefreshRequest(request$);
+    refreshRequestSubscription.unsubscribe();
+    refreshResponse$.error(new Error('Refresh canceled by logout'));
+  }
+
+  private hasExplicitLogoutTombstone(): boolean {
+    try {
+      return globalThis.localStorage?.getItem(EXPLICIT_LOGOUT_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  private setExplicitLogoutTombstone(): void {
+    this.refreshBlocked = true;
+
+    try {
+      globalThis.localStorage?.setItem(EXPLICIT_LOGOUT_STORAGE_KEY, 'true');
+    } catch {}
+  }
+
+  private clearExplicitLogoutTombstone(): void {
+    this.refreshBlocked = false;
+
+    try {
+      globalThis.localStorage?.removeItem(EXPLICIT_LOGOUT_STORAGE_KEY);
+    } catch {}
   }
 }
