@@ -12,7 +12,19 @@ describe('Onboarding accessibility', () => {
   it('starts on an accessible, validation-gated first step', async () => {
     await TestBed.configureTestingModule({
       imports: [Onboarding],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        { provide: OnboardingService, useValue: { submitOnboarding: vi.fn() } },
+        { provide: AuthService, useValue: { markOnboardingComplete: vi.fn() } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
+        {
+          provide: AuthRoutingService,
+          useValue: { destinationAfterOnboarding: vi.fn() },
+        },
+      ],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(Onboarding);
