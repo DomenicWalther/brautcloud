@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -15,39 +14,20 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "events")
-public class Event {
+@Table(name = "event_guest_visits")
+public class EventGuestVisit {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;
 
 	@ManyToOne
-	@JoinColumn(name = "user_id")
-	private User user;
+	@JoinColumn(name = "event_id")
+	private Event event;
 
-	private String eventName;
-
-	private String lastName;
-
-	private String firstNameCoupleOne;
-
-	private String firstNameCoupleTwo;
-
-	private String location;
-
-	private LocalDateTime date;
-
-	private String password;
-
-	private String qrCode;
-
-	private long viewCount;
+	private UUID visitorId;
 
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
-
-	@OneToMany(mappedBy = "event")
-	private List<Image> images;
 
 }

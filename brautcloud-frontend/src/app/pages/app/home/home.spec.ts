@@ -5,6 +5,7 @@ import { QrCodeComponent } from 'ng-qrcode';
 import { of, Subject, throwError } from 'rxjs';
 import { APP_URL } from '../../../core/tokens';
 import { EventImageDto } from '../../../core/models/event-image.dto';
+import { EventDto } from '../../../core/models/event.dto';
 import { UserDto } from '../../../core/models/user.dto';
 import { EventService } from '../../../services/event-service';
 import { ImageService } from '../../../services/image-service';
@@ -22,12 +23,28 @@ class StubQrCode {
   styleClass = input('');
 }
 
+function eventFixture(overrides: Partial<EventDto> = {}): EventDto {
+  return {
+    id: 'event-1',
+    date: null,
+    eventName: 'Wedding',
+    firstNameCoupleOne: 'Alex',
+    firstNameCoupleTwo: 'Sam',
+    location: 'Berlin',
+    userId: 'user-1',
+    viewCount: 0,
+    guestCount: 0,
+    ...overrides,
+  };
+}
+
 describe('Home defensive empty state', () => {
   const user = signal<UserDto | null>(null);
   const loading = signal(false);
   const error = signal<string | null>(null);
   const eventService = {
     downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
   };
   const imageService = {
     getEventImages: vi.fn(),
@@ -38,7 +55,9 @@ describe('Home defensive empty state', () => {
     user.set(null);
     loading.set(false);
     error.set(null);
+    sessionStorage.clear();
     eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
     imageService.getEventImages.mockReset();
 
     await TestBed.configureTestingModule({
@@ -75,6 +94,7 @@ describe('Home defensive empty state', () => {
     expect(content).not.toContain('Live Gallery');
     expect(fixture.nativeElement.querySelector('qr-code')).toBeNull();
     expect(imageService.getEventImages).not.toHaveBeenCalled();
+    expect(eventService.registerView).not.toHaveBeenCalled();
   });
 
   it('renders explicit loading and error states', () => {
@@ -94,6 +114,7 @@ describe('Home gallery preview and photos stat', () => {
   const user = signal<UserDto | null>(null);
   const eventService = {
     downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
   };
   const imageService = {
     getEventImages: vi.fn(),
@@ -102,7 +123,9 @@ describe('Home gallery preview and photos stat', () => {
 
   beforeEach(async () => {
     user.set(null);
+    sessionStorage.clear();
     eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
     imageService.getEventImages.mockReset();
 
     await TestBed.configureTestingModule({
@@ -191,6 +214,100 @@ describe('Home gallery preview and photos stat', () => {
   });
 });
 
+describe('Home live guest and view stats', () => {
+  const user = signal<UserDto | null>(null);
+  const eventService = {
+    downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
+  };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
+  let fixture: ComponentFixture<Home>;
+
+  beforeEach(async () => {
+    user.set(null);
+    sessionStorage.clear();
+    eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
+    imageService.getEventImages.mockReset().mockReturnValue(of([]));
+
+    await TestBed.configureTestingModule({
+      imports: [Home],
+      providers: [
+        { provide: APP_URL, useValue: 'http://app.test' },
+        {
+          provide: UserService,
+          useValue: {
+            user: user.asReadonly(),
+            loading: signal(false).asReadonly(),
+            error: signal<string | null>(null).asReadonly(),
+          },
+        },
+        { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
+      ],
+    })
+      .overrideComponent(Home, {
+        remove: { imports: [QrCodeComponent] },
+        add: { imports: [StubQrCode] },
+      })
+      .compileComponents();
+    fixture = TestBed.createComponent(Home);
+  });
+
+  it('renders live guest and view counts from the loaded event', () => {
+    user.set({
+      id: 'user-1',
+      createdAt: '2030-01-01T00:00:00',
+      email: 'couple@example.test',
+      emailVerified: true,
+      onboardingComplete: true,
+      events: [eventFixture({ guestCount: 4, viewCount: 12 })],
+    });
+
+    fixture.detectChanges();
+
+    const content = fixture.nativeElement.textContent as string;
+    expect(content).toContain('4');
+    expect(content).toContain('12');
+  });
+
+  it('registers a view exactly once per event per browser session', () => {
+    user.set({
+      id: 'user-1',
+      createdAt: '2030-01-01T00:00:00',
+      email: 'couple@example.test',
+      emailVerified: true,
+      onboardingComplete: true,
+      events: [eventFixture({ id: 'event-once' })],
+    });
+
+    fixture.detectChanges();
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(eventService.registerView).toHaveBeenCalledTimes(1);
+    expect(eventService.registerView).toHaveBeenCalledWith('event-once');
+  });
+
+  it('does not register a view again after a simulated page refresh with a persisted session flag', () => {
+    sessionStorage.setItem('brautcloud-event-viewed-event-refreshed', 'true');
+    user.set({
+      id: 'user-1',
+      createdAt: '2030-01-01T00:00:00',
+      email: 'couple@example.test',
+      emailVerified: true,
+      onboardingComplete: true,
+      events: [eventFixture({ id: 'event-refreshed' })],
+    });
+
+    fixture.detectChanges();
+
+    expect(eventService.registerView).not.toHaveBeenCalled();
+  });
+});
+
 describe('Home download all photos button', () => {
   const activeUser: UserDto = {
     createdAt: '2026-01-01T00:00:00Z',
@@ -198,21 +315,12 @@ describe('Home download all photos button', () => {
     emailVerified: true,
     onboardingComplete: true,
     id: 'user-1',
-    events: [
-      {
-        id: 'event-1',
-        eventName: 'Alex & Sam Wedding',
-        firstNameCoupleOne: 'Alex',
-        firstNameCoupleTwo: 'Sam',
-        location: 'Berlin',
-        date: null,
-        userId: 'user-1',
-      },
-    ],
+    events: [event],
   };
   const user = signal<UserDto | null>(activeUser);
   const eventService = {
     downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
   };
   const imageService = {
     getEventImages: vi.fn(),
@@ -223,7 +331,9 @@ describe('Home download all photos button', () => {
 
   beforeEach(async () => {
     user.set(activeUser);
+    sessionStorage.clear();
     eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
     imageService.getEventImages.mockReset();
     imageService.getEventImages.mockReturnValue(of([]));
     createObjectURLSpy = vi.fn().mockReturnValue('blob:mock-url');
@@ -319,7 +429,7 @@ const userTemplate: UserDto = {
   events: [],
 };
 
-const event = {
+const event: EventDto = {
   id: 'event-1',
   date: null,
   eventName: 'Sophie & Marcus',
@@ -327,6 +437,8 @@ const event = {
   firstNameCoupleTwo: 'Marcus',
   location: 'Eichenfürst',
   userId: 'user-1',
+  viewCount: 0,
+  guestCount: 0,
 };
 
 const image1: EventImageDto = { id: 'image-1', url: 'https://cdn.test/image-1.jpg' };

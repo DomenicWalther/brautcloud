@@ -4,8 +4,10 @@ import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
+import com.domenicwalther.brautcloud.model.EventGuestVisit;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
+import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -46,6 +49,9 @@ class EventServiceTest {
 	private ImageRepository imageRepository;
 
 	@Mock
+	private EventGuestVisitRepository eventGuestVisitRepository;
+
+	@Mock
 	private S3Service s3Service;
 
 	private EventService eventService;
@@ -54,7 +60,8 @@ class EventServiceTest {
 	void setUp() {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
-		eventService = new EventService(eventRepository, userRepository, imageRepository, resourceOwnershipService);
+		eventService = new EventService(eventRepository, userRepository, imageRepository, resourceOwnershipService,
+				eventGuestVisitRepository);
 		ReflectionTestUtils.setField(eventService, "s3Service", s3Service);
 	}
 
@@ -64,8 +71,10 @@ class EventServiceTest {
 		user.setId(UUID.randomUUID());
 		Event event = TestFixtures.event(user, "Wedding");
 		event.setId(UUID.randomUUID());
+		event.setViewCount(7L);
 		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 		when(eventRepository.findByUser(user)).thenReturn(List.of(event));
+		when(eventGuestVisitRepository.countByEventId(event.getId())).thenReturn(2L);
 
 		List<EventResponse> responses = eventService.getEventsByUserEmail(user.getEmail());
 
@@ -73,7 +82,76 @@ class EventServiceTest {
 			assertThat(response.getId()).isEqualTo(event.getId());
 			assertThat(response.getEventName()).isEqualTo("Wedding");
 			assertThat(response.getUserId()).isEqualTo(user.getId());
+			assertThat(response.getViewCount()).isEqualTo(7L);
+			assertThat(response.getGuestCount()).isEqualTo(2L);
 		});
+	}
+
+	@Test
+	void registeringAViewIncrementsViewCountAndRecordsNewVisitor() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		UUID visitorId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(eventGuestVisitRepository.existsByEventIdAndVisitorId(eventId, visitorId)).thenReturn(false);
+
+		eventService.registerView(user.getEmail(), eventId, visitorId);
+
+		verify(eventRepository).incrementViewCount(eventId);
+		ArgumentCaptor<EventGuestVisit> visit = ArgumentCaptor.forClass(EventGuestVisit.class);
+		verify(eventGuestVisitRepository).save(visit.capture());
+		assertThat(visit.getValue().getEvent()).isSameAs(event);
+		assertThat(visit.getValue().getVisitorId()).isEqualTo(visitorId);
+	}
+
+	@Test
+	void repeatedViewFromKnownVisitorIncrementsViewsWithoutDuplicatingVisit() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		UUID visitorId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(eventGuestVisitRepository.existsByEventIdAndVisitorId(eventId, visitorId)).thenReturn(true);
+
+		eventService.registerView(user.getEmail(), eventId, visitorId);
+
+		verify(eventRepository).incrementViewCount(eventId);
+		verify(eventGuestVisitRepository, never()).save(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void concurrentDuplicateVisitInsertIsSwallowed() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		UUID visitorId = UUID.randomUUID();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(eventGuestVisitRepository.existsByEventIdAndVisitorId(eventId, visitorId)).thenReturn(false);
+		when(eventGuestVisitRepository.save(org.mockito.ArgumentMatchers.any()))
+			.thenThrow(new DataIntegrityViolationException("duplicate visitor"));
+
+		eventService.registerView(user.getEmail(), eventId, visitorId);
+
+		verify(eventRepository).incrementViewCount(eventId);
+	}
+
+	@Test
+	void viewRegistrationForForeignEventIsRejected() {
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+		assertThatThrownBy(() -> eventService.registerView("other@example.com", eventId, UUID.randomUUID()))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		verify(eventRepository, never()).incrementViewCount(org.mockito.ArgumentMatchers.any());
+		verify(eventGuestVisitRepository, never()).save(org.mockito.ArgumentMatchers.any());
 	}
 
 	@Test

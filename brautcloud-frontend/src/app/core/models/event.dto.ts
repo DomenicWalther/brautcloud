@@ -6,4 +6,6 @@ export interface EventDto {
   id: string;
   location: string;
   userId: string;
+  viewCount: number;
+  guestCount: number;
 }

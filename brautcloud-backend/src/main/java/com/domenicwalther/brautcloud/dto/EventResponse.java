@@ -25,9 +25,18 @@ public class EventResponse {
 
 	private String firstNameCoupleTwo;
 
+	private long viewCount;
+
+	private long guestCount;
+
 	public static EventResponse fromEvent(Event event) {
+		return fromEvent(event, 0L);
+	}
+
+	public static EventResponse fromEvent(Event event, long guestCount) {
 		return new EventResponse(event.getId(), event.getEventName(), event.getLocation(), event.getDate(),
-				event.getUser().getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo());
+				event.getUser().getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo(),
+				event.getViewCount(), guestCount);
 	}
 
 }

@@ -5,13 +5,17 @@ import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
+import com.domenicwalther.brautcloud.model.EventGuestVisit;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
+import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
@@ -33,12 +37,15 @@ public class EventService {
 
 	private final ResourceOwnershipService resourceOwnershipService;
 
+	private final EventGuestVisitRepository eventGuestVisitRepository;
+
 	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
-			ResourceOwnershipService resourceOwnershipService) {
+			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
+		this.eventGuestVisitRepository = eventGuestVisitRepository;
 	}
 
 	public List<EventResponse> getEvents() {
@@ -48,7 +55,26 @@ public class EventService {
 	public List<EventResponse> getEventsByUserEmail(String email) {
 		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
-		return eventRepository.findByUser(user).stream().map(EventResponse::fromEvent).toList();
+		return eventRepository.findByUser(user).stream().map(this::toEventResponse).toList();
+	}
+
+	public EventResponse toEventResponse(Event event) {
+		return EventResponse.fromEvent(event, eventGuestVisitRepository.countByEventId(event.getId()));
+	}
+
+	@Transactional
+	public void registerView(String email, UUID eventId, UUID visitorId) {
+		Event event = resourceOwnershipService.requireOwnedEvent(email, eventId);
+		eventRepository.incrementViewCount(event.getId());
+		if (!eventGuestVisitRepository.existsByEventIdAndVisitorId(event.getId(), visitorId)) {
+			try {
+				eventGuestVisitRepository.save(EventGuestVisit.builder().event(event).visitorId(visitorId).build());
+			}
+			catch (DataIntegrityViolationException ignored) {
+				// A concurrent request for the same visitor already recorded the distinct
+				// visit.
+			}
+		}
 	}
 
 	public void addEvent(String email, EventRequest request) {

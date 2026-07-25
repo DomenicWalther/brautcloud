@@ -22,16 +22,14 @@ public class UserResponse {
 
 	private List<EventResponse> events;
 
-	public static UserResponse fromUser(User user) {
+	public static UserResponse fromUser(User user, List<EventResponse> events) {
 		UserResponse response = new UserResponse();
 		response.setId(user.getId());
 		response.setCreatedAt(user.getCreatedAt());
 		response.setEmail(user.getEmail());
 		response.setEmailVerified(user.isEmailVerified());
 		response.setOnboardingComplete(user.getOnboardingCompletedAt() != null);
-
-		List<EventResponse> eventResponses = user.getEvents().stream().map(EventResponse::fromEvent).toList();
-		response.setEvents(eventResponses);
+		response.setEvents(events);
 		return response;
 	}
 
