@@ -4,8 +4,6 @@ import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.service.EventService;
-import org.springframework.data.domain.Page;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,17 +28,20 @@ public class EventController {
 
 	@GetMapping("/{eventID}/images")
 	public List<EventImageDTO> getEventImages(@PathVariable UUID eventID) {
-		return eventService.getEventImages(eventID);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		return eventService.getEventImages(email, eventID);
 	}
 
 	@PostMapping
 	public void addEvent(@RequestBody EventRequest request) {
-		eventService.addEvent(request);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		eventService.addEvent(email, request);
 	}
 
 	@DeleteMapping("{eventID}")
 	public void deleteEvent(@PathVariable UUID eventID) {
-		eventService.deleteEvent(eventID);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		eventService.deleteEvent(email, eventID);
 	}
 
 }

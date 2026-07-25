@@ -2,6 +2,7 @@ package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.dto.AuthRequest;
 import com.domenicwalther.brautcloud.dto.AuthResponse;
+import com.domenicwalther.brautcloud.dto.RegisterRequest;
 import com.domenicwalther.brautcloud.model.RefreshToken;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
@@ -9,7 +10,9 @@ import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -45,9 +48,9 @@ public class AuthController {
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<String> register(@RequestBody AuthRequest request) {
+	public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
 		if (userRepository.findByEmail(request.email()).isPresent()) {
-			return ResponseEntity.badRequest().body("Email already used!");
+			return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already used!");
 		}
 
 		User user = new User();
@@ -59,7 +62,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/login")
-	public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request, HttpServletResponse response) {
+	public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
 		authenticationManager
 			.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 

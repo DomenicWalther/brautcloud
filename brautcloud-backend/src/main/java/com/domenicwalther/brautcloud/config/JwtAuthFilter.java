@@ -2,11 +2,13 @@ package com.domenicwalther.brautcloud.config;
 
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.JwtService;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -38,17 +40,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 		}
 
 		String token = authHeader.substring(7);
-		String email = jwtService.extractEmail(token);
+		try {
+			String email = jwtService.extractEmail(token);
 
-		if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-			UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+			if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+				UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-			if (jwtService.isTokenValid(token, userDetails)) {
-				UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
-						null, userDetails.getAuthorities());
-				authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-				SecurityContextHolder.getContext().setAuthentication(authToken);
+				if (jwtService.isTokenValid(token, userDetails)) {
+					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
+							null, userDetails.getAuthorities());
+					authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+					SecurityContextHolder.getContext().setAuthentication(authToken);
+				}
 			}
+		}
+		catch (JwtException | AuthenticationException | IllegalArgumentException ex) {
+			// Invalid bearer tokens remain unauthenticated and are rejected by Spring
+			// Security.
 		}
 
 		filterChain.doFilter(request, response);

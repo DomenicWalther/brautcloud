@@ -47,6 +47,14 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}
 
+	@ExceptionHandler(InvalidRefreshTokenException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Unauthorized");
+		error.put("message", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+	}
+
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
 		Map<String, String> error = new HashMap<>();

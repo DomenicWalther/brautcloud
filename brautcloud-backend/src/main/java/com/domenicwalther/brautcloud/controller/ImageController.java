@@ -4,6 +4,7 @@ import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
 import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.ImageService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,18 +22,21 @@ public class ImageController {
 
 	@PostMapping("/presigned-url")
 	public ResponseEntity<List<ImageUploadResponse>> getPresignedUrls(@RequestBody ImageUploadRequest request) {
-		return ResponseEntity.ok(imageService.generatePresignedUploadUrls(request));
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		return ResponseEntity.ok(imageService.generatePresignedUploadUrls(email, request));
 	}
 
 	@PostMapping("/uploaded")
 	public ResponseEntity<Void> markAsUploaded(@RequestBody List<UUID> imageIds) {
-		imageService.markImagesAsUploaded(imageIds);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		imageService.markImagesAsUploaded(email, imageIds);
 		return ResponseEntity.noContent().build();
 	}
 
 	@DeleteMapping("{imageID}")
 	public ResponseEntity<Void> deleteFile(@PathVariable UUID imageID) {
-		imageService.deleteImageByImageID(imageID);
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		imageService.deleteImageByImageID(email, imageID);
 		return ResponseEntity.noContent().build();
 	}
 
