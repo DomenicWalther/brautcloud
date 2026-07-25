@@ -238,6 +238,7 @@ describe('Home live guest and view stats', () => {
     await TestBed.configureTestingModule({
       imports: [Home],
       providers: [
+        provideRouter([]),
         { provide: APP_URL, useValue: 'http://app.test' },
         {
           provide: UserService,
