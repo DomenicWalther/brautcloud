@@ -119,7 +119,7 @@ export class AuthService {
       .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
       .pipe(
         map((res) => {
-          if (generation !== this.sessionGeneration || this._isLoggingOut()) {
+          if (generation !== this.sessionGeneration || this._isLoggingOut() || this.refreshBlocked) {
             throw new Error('Refresh completed after the session was cleared');
           }
 
