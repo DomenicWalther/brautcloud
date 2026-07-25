@@ -41,7 +41,7 @@ Included in this Project is a Spring_Run.run.xml which automatically starts Dopp
 
 Prerequisites:
 
-- JDK 25 (the Maven wrapper downloads Maven itself)
+- JDK 21 (the Maven wrapper downloads Maven itself)
 - a running Docker-compatible container daemon
 - permission to pull and run `postgres:16-alpine`
 

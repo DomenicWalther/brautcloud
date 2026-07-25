@@ -30,7 +30,13 @@ npm run watch
 
 `npm test` runs the unit test suite with Angular's test runner and Vitest.
 
-The auth service specs cover the logout path, including `POST /api/auth/logout` with credentials, local session clearing on endpoint failure or timeout, refresh cancellation during explicit logout, and reload behavior after a manual sign-out.
+The test suite covers authentication, session lifecycle, and onboarding flows:
+
+- **Auth service**: logout path with `POST /api/auth/logout`, local session clearing, refresh cancellation, and onboarding state tracking from registration and refresh responses.
+- **Auth routing**: onboarding-aware routing with safe return-url validation, guard enforcement (auth, guest, onboarding required, onboarding page), and destination resolution for incomplete vs. completed sessions.
+- **Registration and sign-in**: duplicate-submission suppression, structured error handling, and navigation to onboarding or the intended destination.
+- **Onboarding submission**: validation before sending, visible error display after failure, and session completion marking before navigation.
+- **Home**: defensive rendering without event data, explicit loading and error states.
 
 ## Angular CLI
 
