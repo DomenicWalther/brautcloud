@@ -1,12 +1,14 @@
 <main class="max-w-5/6 mx-auto mt-10">
-  <section>
-    <h2 class="text-mainrose uppercase font-body tracking-[0.2em] text-xs font-bold">
-      Shared Moments
-    </h2>
-    <h1 class="text-6xl font-display">
-      {{ event()?.firstNameCoupleOne }} & {{ event()?.firstNameCoupleTwo }}
-    </h1>
-  </section>
+  @if (event(); as activeEvent) {
+    <section>
+      <h2 class="text-mainrose uppercase font-body tracking-[0.2em] text-xs font-bold">
+        Shared Moments
+      </h2>
+      <h1 class="text-6xl font-display">
+        {{ activeEvent.firstNameCoupleOne }} & {{ activeEvent.firstNameCoupleTwo }}
+      </h1>
+    </section>
+  }
 
   <app-gallery></app-gallery>
 </main>

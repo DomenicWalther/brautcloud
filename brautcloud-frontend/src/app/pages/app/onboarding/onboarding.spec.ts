@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router, UrlTree } from '@angular/router';
 import { Subject } from 'rxjs';
 import { OnboardingResponse } from '../../../core/models/onboarding.dto';
@@ -14,6 +14,7 @@ describe('Onboarding submission', () => {
   let authService: { markOnboardingComplete: ReturnType<typeof vi.fn> };
   let router: Router;
   let component: Onboarding;
+  let fixture: ComponentFixture<Onboarding>;
 
   beforeEach(() => {
     responses = new Subject<OnboardingResponse>();
@@ -25,6 +26,7 @@ describe('Onboarding submission', () => {
     };
 
     TestBed.configureTestingModule({
+      imports: [Onboarding],
       providers: [
         provideRouter([]),
         { provide: OnboardingService, useValue: onboardingService },
@@ -47,7 +49,31 @@ describe('Onboarding submission', () => {
 
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    component = TestBed.runInInjectionContext(() => new Onboarding());
+    fixture = TestBed.createComponent(Onboarding);
+    component = fixture.componentInstance;
+  });
+
+  it('renders and reaches Step 3 before submitting onboarding', () => {
+    fillValidModel(component);
+    fixture.detectChanges();
+
+    const buttons = () =>
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
+    expect(fixture.nativeElement.textContent).toContain('Tell us about');
+    expect(buttons()[0].textContent).toContain('Continue');
+
+    buttons()[buttons().length - 1].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Name your');
+    expect(onboardingService.submitOnboarding).not.toHaveBeenCalled();
+
+    buttons()[buttons().length - 1].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Create your');
+    expect(buttons()[buttons().length - 1].textContent).toContain('Create Gallery');
+
+    buttons()[buttons().length - 1].click();
+    expect(onboardingService.submitOnboarding).toHaveBeenCalledOnce();
   });
 
   it('validates before sending and prevents duplicate submissions while pending', () => {
