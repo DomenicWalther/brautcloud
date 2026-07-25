@@ -2,12 +2,13 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { API_URL } from '../core/tokens';
+import { API_URL, LOGOUT_COMPLETION_DEADLINE_MS } from '../core/tokens';
 import { authInterceptor } from './auth-interceptor';
 import { AuthService } from './auth-service';
 
 describe('AuthService logout', () => {
   const apiUrl = 'https://api.example.test/api';
+  const logoutCompletionDeadlineMs = 1_000;
   let localStorageState: Record<string, string>;
   let auth: AuthService;
   let http: HttpTestingController;
@@ -85,7 +86,26 @@ describe('AuthService logout', () => {
     expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels an in-flight refresh before sending logout', () => {
+  it('shares one refresh request across concurrent interceptor retries', () => {
+    authenticate('original-token');
+
+    const refreshedTokens: string[] = [];
+    auth.refreshToken().subscribe((token) => refreshedTokens.push(token));
+    auth.refreshToken().subscribe((token) => refreshedTokens.push(token));
+
+    const refresh = http.expectOne(`${apiUrl}/auth/refresh`);
+    expect(refresh.request.withCredentials).toBe(true);
+    refresh.flush({ accessToken: 'shared-refreshed-token' });
+
+    expect(refreshedTokens).toEqual(['shared-refreshed-token', 'shared-refreshed-token']);
+    expect(auth.getAccessToken()).toBe('shared-refreshed-token');
+
+    auth.refreshToken().subscribe();
+    const nextRefresh = http.expectOne(`${apiUrl}/auth/refresh`);
+    nextRefresh.flush({ accessToken: 'next-refreshed-token' });
+  });
+
+  it('cancels an in-flight shared refresh before sending logout', () => {
     authenticate('original-token');
 
     let refreshError: unknown;
@@ -107,7 +127,7 @@ describe('AuthService logout', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/sign-in', { replaceUrl: true });
   });
 
-  it('navigates away when the logout request hangs', async () => {
+  it('uses the configured completion deadline when the logout request hangs', async () => {
     vi.useFakeTimers();
 
     try {
@@ -116,7 +136,11 @@ describe('AuthService logout', () => {
       auth.logout();
       const logout = http.expectOne(`${apiUrl}/auth/logout`);
 
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(logoutCompletionDeadlineMs - 1);
+      expect(auth.isLoggingOut()).toBe(true);
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(logout.cancelled).toBe(true);
       expect(auth.getAccessToken()).toBeNull();
@@ -177,6 +201,7 @@ describe('AuthService logout', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: API_URL, useValue: apiUrl },
+        { provide: LOGOUT_COMPLETION_DEADLINE_MS, useValue: logoutCompletionDeadlineMs },
       ],
     });
 

@@ -5,21 +5,24 @@ import {
   BehaviorSubject,
   catchError,
   EMPTY,
+  finalize,
+  map,
+  mergeMap,
   Observable,
-  ReplaySubject,
-  Subscription,
+  shareReplay,
+  Subject,
+  takeUntil,
   tap,
   timeout,
   throwError,
 } from 'rxjs';
-import { API_URL } from '../core/tokens';
+import { API_URL, LOGOUT_COMPLETION_DEADLINE_MS } from '../core/tokens';
 
 interface AuthResponse {
   accessToken: string;
 }
 
 const EXPLICIT_LOGOUT_STORAGE_KEY = 'brautcloud.explicit-logout';
-const LOGOUT_REQUEST_TIMEOUT_MS = 1000;
 
 @Injectable({
   providedIn: 'root',
@@ -28,6 +31,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly API_URL = inject(API_URL);
+  private readonly logoutCompletionDeadlineMs = inject(LOGOUT_COMPLETION_DEADLINE_MS);
 
   private readonly _accessToken = signal<string | null>(null);
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
@@ -41,8 +45,7 @@ export class AuthService {
   private refreshBlocked = this.hasExplicitLogoutTombstone();
   private sessionGeneration = 0;
   private refreshRequest$: Observable<string> | null = null;
-  private refreshRequestSubscription: Subscription | null = null;
-  private refreshResponse$: ReplaySubject<string> | null = null;
+  private readonly refreshCancellation$ = new Subject<void>();
 
   initializeAuth(): Promise<void> {
     if (this.refreshBlocked) {
@@ -112,39 +115,43 @@ export class AuthService {
     }
 
     const generation = this.sessionGeneration;
-    const response$ = new ReplaySubject<string>(1);
-    const request$ = response$.asObservable();
+    let request$: Observable<string>;
 
-    this.refreshResponse$ = response$;
-    this.refreshRequest$ = request$;
-    this.refreshRequestSubscription = this.http
+    request$ = this.http
       .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
-      .subscribe({
-        next: (res) => {
+      .pipe(
+        takeUntil(
+          this.refreshCancellation$.pipe(
+            mergeMap(() => throwError(() => new Error('Refresh canceled by logout'))),
+          ),
+        ),
+        map((res) => {
           if (
             generation !== this.sessionGeneration ||
             this._isLoggingOut() ||
             this.refreshBlocked
           ) {
-            response$.error(new Error('Refresh completed after the session was cleared'));
-            this.clearRefreshRequest(request$);
-            return;
+            throw new Error('Refresh completed after the session was cleared');
           }
 
           this._accessToken.set(res.accessToken);
-          response$.next(res.accessToken);
-          response$.complete();
-          this.clearRefreshRequest(request$);
-        },
-        error: (err) => {
-          if (generation === this.sessionGeneration) {
+          return res.accessToken;
+        }),
+        catchError((err) => {
+          if (generation === this.sessionGeneration && !this.refreshBlocked) {
             this._accessToken.set(null);
           }
-          response$.error(err);
-          this.clearRefreshRequest(request$);
-        },
-      });
+          return throwError(() => err);
+        }),
+        finalize(() => {
+          if (this.refreshRequest$ === request$) {
+            this.refreshRequest$ = null;
+          }
+        }),
+        shareReplay({ bufferSize: 1, refCount: true }),
+      );
 
+    this.refreshRequest$ = request$;
     return request$;
   }
 
@@ -169,7 +176,7 @@ export class AuthService {
         },
       )
       .pipe(
-        timeout(LOGOUT_REQUEST_TIMEOUT_MS),
+        timeout(this.logoutCompletionDeadlineMs),
         catchError(() => EMPTY),
       )
       .subscribe({
@@ -200,29 +207,9 @@ export class AuthService {
     resolve();
   }
 
-  private clearRefreshRequest(request$: Observable<string> | null): void {
-    if (request$ && this.refreshRequest$ !== request$) {
-      return;
-    }
-
-    this.refreshRequest$ = null;
-    this.refreshRequestSubscription = null;
-    this.refreshResponse$ = null;
-  }
-
   private cancelRefreshRequest(): void {
-    const request$ = this.refreshRequest$;
-    const refreshRequestSubscription = this.refreshRequestSubscription;
-    const refreshResponse$ = this.refreshResponse$;
-
-    if (!request$ || !refreshRequestSubscription || !refreshResponse$) {
-      this.clearRefreshRequest(null);
-      return;
-    }
-
-    this.clearRefreshRequest(request$);
-    refreshRequestSubscription.unsubscribe();
-    refreshResponse$.error(new Error('Refresh canceled by logout'));
+    this.refreshCancellation$.next();
+    this.refreshRequest$ = null;
   }
 
   private hasExplicitLogoutTombstone(): boolean {
