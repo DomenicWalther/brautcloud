@@ -1,15 +1,27 @@
-name: Format Check
+name: Backend Format Check
 
 on:
   pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - brautcloud-backend/**
+      - .github/workflows/backend-format-check.yml
   push:
     branches:
       - dev
       - main
+    paths:
+      - brautcloud-backend/**
+      - .github/workflows/backend-format-check.yml
 
 jobs:
   format:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: brautcloud-backend
 
     steps:
       - name: Checkout repository
@@ -21,6 +33,7 @@ jobs:
           distribution: graalvm
           java-version: '25'
           cache: maven
+          cache-dependency-path: brautcloud-backend/pom.xml
 
       - name: Run and check formatting
         run: ./mvnw -B spring-javaformat:validate
