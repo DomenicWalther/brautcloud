@@ -38,7 +38,9 @@
             <div class="relative min-w-0 w-full aspect-square">
               <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
               @if (photo.extraCount) {
-                <div class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center">
+                <div
+                  class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center"
+                >
                   <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
                 </div>
               }
