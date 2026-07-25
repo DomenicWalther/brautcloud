@@ -27,17 +27,12 @@
         ></app-form-label>
       </section>
     </app-step>
-    <app-step
-      stepRegisterLabel="step2"
-      [isStepInputValid]="stepTwoValid()"
-      [isSubmitting]="submitting()"
-      (complete)="submit()"
-    >
+    <app-step stepRegisterLabel="step2" [isStepInputValid]="stepTwoValid()">
       <app-step-header
         stepCount="2"
-        description="This is how your gallery will be named and how guests will recognise the event."
+        description="This is where your guests will gather to share their photos."
       >
-        Tell us about<br />the <span class="text-gold-light italic">couple.</span>
+        Name your<br /><span class="text-gold-light italic">venue.</span>
       </app-step-header>
       <div class="mt-10">
         <app-form-label
@@ -45,6 +40,26 @@
           label="Venue Name"
           [field]="onboardingForm.venue"
         />
+      </div>
+    </app-step>
+    <app-step
+      stepRegisterLabel="step3"
+      [isStepInputValid]="stepThreeValid()"
+      [isSubmitting]="submitting()"
+      (complete)="submit()"
+    >
+      <app-step-header
+        stepCount="3"
+        description="Review your details before creating your shared gallery."
+      >
+        Create your<br /><span class="text-gold-light italic">gallery.</span>
+      </app-step-header>
+      <div class="mt-10 flex flex-col gap-3 font-body text-mainsilk">
+        <p>
+          <span class="text-gray-400">Couple:</span> {{ model().firstName }} &
+          {{ model().partnerFirstName }} {{ model().familyName }}
+        </p>
+        <p><span class="text-gray-400">Venue:</span> {{ model().venue }}</p>
         @if (submissionError()) {
           <p role="alert" aria-live="assertive" class="mt-4 text-red-300">
             {{ submissionError() }}

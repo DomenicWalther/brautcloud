@@ -49,6 +49,7 @@ export class Onboarding {
   );
 
   readonly stepTwoValid = computed(() => this.onboardingForm.venue().valid());
+  readonly stepThreeValid = computed(() => this.stepOneValid() && this.stepTwoValid());
 
   submit(): void {
     if (this.onboardingForm().invalid() || this.submitting()) {
