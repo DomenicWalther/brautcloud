@@ -14,13 +14,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401 && !req.url.includes('/refresh')) {
+      if (err.status === 401 && auth.canAttemptRefresh(req.url)) {
         return auth.refreshToken().pipe(
           switchMap((newToken) => {
             return next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } }));
           }),
           catchError((refreshErr) => {
-            router.navigate(['/auth/sign-in']);
+            if (!auth.isLoggingOut()) {
+              void router.navigateByUrl('/auth/sign-in', { replaceUrl: true });
+            }
             return throwError(() => refreshErr);
           }),
         );
