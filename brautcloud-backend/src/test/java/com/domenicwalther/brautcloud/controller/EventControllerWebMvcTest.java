@@ -13,9 +13,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -116,6 +118,28 @@ class EventControllerWebMvcTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(imageId.toString()))
 			.andExpect(jsonPath("$[0].url").value("https://files.test/photo"));
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void downloadEventImagesStreamsZipWithAttachmentHeader() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		StreamingResponseBody body = outputStream -> outputStream.write("zip-bytes".getBytes());
+		when(eventService.streamEventImagesAsZip("owner@example.com", eventId)).thenReturn(body);
+
+		mockMvc.perform(get("/api/events/{eventId}/images/download", eventId))
+			.andExpect(status().isOk())
+			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+				.string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"event-photos.zip\""));
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void downloadEventImagesReturnsNoContentForEmptyGallery() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		when(eventService.streamEventImagesAsZip("owner@example.com", eventId)).thenReturn(null);
+
+		mockMvc.perform(get("/api/events/{eventId}/images/download", eventId)).andExpect(status().isNoContent());
 	}
 
 	@Test

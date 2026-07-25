@@ -17,11 +17,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -141,6 +145,50 @@ class EventServiceTest {
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Event not found");
 		verify(eventRepository, never()).deleteById(eventId);
+	}
+
+	@Test
+	void streamEventImagesAsZipBundlesEachUploadedImage() throws Exception {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		Image first = new Image();
+		first.setId(UUID.randomUUID());
+		first.setImageKey("first.jpg");
+		Image second = new Image();
+		second.setId(UUID.randomUUID());
+		second.setImageKey("second.jpg");
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of(first, second));
+		when(s3Service.getObjectBytes("first.jpg")).thenReturn("first-bytes".getBytes());
+		when(s3Service.getObjectBytes("second.jpg")).thenReturn("second-bytes".getBytes());
+
+		StreamingResponseBody body = eventService.streamEventImagesAsZip(user.getEmail(), eventId);
+		assertThat(body).isNotNull();
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		body.writeTo(out);
+
+		try (ZipInputStream zipIn = new ZipInputStream(new java.io.ByteArrayInputStream(out.toByteArray()))) {
+			ZipEntry firstEntry = zipIn.getNextEntry();
+			assertThat(firstEntry.getName()).isEqualTo("first.jpg");
+			ZipEntry secondEntry = zipIn.getNextEntry();
+			assertThat(secondEntry.getName()).isEqualTo("second.jpg");
+			assertThat(zipIn.getNextEntry()).isNull();
+		}
+	}
+
+	@Test
+	void streamEventImagesAsZipReturnsNullForEmptyGallery() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+
+		assertThat(eventService.streamEventImagesAsZip(user.getEmail(), eventId)).isNull();
 	}
 
 	private static EventRequest request(UUID userId) {
