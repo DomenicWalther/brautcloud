@@ -146,6 +146,25 @@ class UserControllerTest {
 	}
 
 	@Test
+	void legacyCaseVariantDuplicatesAuthenticateDeterministicallyWithout500s() {
+		userRepository.saveAndFlush(
+				User.builder().email("User@Example.com").password(passwordEncoder.encode("Password123!")).build());
+		userRepository.saveAndFlush(
+				User.builder().email("user@example.com").password(passwordEncoder.encode("Password123!")).build());
+
+		Response exactUppercase = login("User@Example.com");
+		Response exactLowercase = login("user@example.com");
+		Response fallbackCase = login("USER@example.com");
+
+		exactUppercase.then().statusCode(200).body("onboardingComplete", equalTo(false));
+		exactLowercase.then().statusCode(200).body("onboardingComplete", equalTo(false));
+		fallbackCase.then().statusCode(200).body("onboardingComplete", equalTo(false));
+		assertEquals("User@Example.com", jwtService.extractEmail(exactUppercase.jsonPath().getString("accessToken")));
+		assertEquals("user@example.com", jwtService.extractEmail(exactLowercase.jsonPath().getString("accessToken")));
+		assertEquals("User@Example.com", jwtService.extractEmail(fallbackCase.jsonPath().getString("accessToken")));
+	}
+
+	@Test
 	void duplicateRegistrationReturnsStructuredFailureWithoutReplacingSession() {
 		register("duplicate@example.com").then().statusCode(200);
 

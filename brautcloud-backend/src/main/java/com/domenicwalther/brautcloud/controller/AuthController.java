@@ -15,9 +15,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -57,7 +59,7 @@ public class AuthController {
 	public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest request,
 			HttpServletResponse response) {
 		String submittedEmail = sanitizeEmail(request.email());
-		if (userRepository.findByEmailIgnoreCase(submittedEmail).isPresent()) {
+		if (userRepository.existsByEmailCaseInsensitive(submittedEmail)) {
 			throw new BadRequestException("Email already used!");
 		}
 		String email = canonicalizeEmail(submittedEmail);
@@ -79,10 +81,12 @@ public class AuthController {
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response) {
 		String email = sanitizeEmail(request.email());
-		authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
+		Authentication authentication = authenticationManager
+			.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
+		String persistedEmail = ((UserDetails) authentication.getPrincipal()).getUsername();
 
-		User user = userRepository.findByEmailIgnoreCase(email)
-			.orElseThrow(() -> new UsernameNotFoundException("User not found"));
+		User user = userRepository.findByEmail(persistedEmail)
+			.orElseThrow(() -> new AuthenticationCredentialsNotFoundException("User not found"));
 
 		return ResponseEntity.ok(authSessionService.issue(user, response));
 	}
