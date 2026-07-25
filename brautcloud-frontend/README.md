@@ -36,6 +36,7 @@ The test suite covers authentication, session lifecycle, and onboarding flows:
 - **Auth routing**: onboarding-aware routing with safe return-url validation, guard enforcement (auth, guest, onboarding required, onboarding page), and destination resolution for incomplete vs. completed sessions.
 - **Registration and sign-in**: duplicate-submission suppression, structured error handling, and navigation to onboarding or the intended destination.
 - **Onboarding submission**: validation before sending, visible error display after failure, and session completion marking before navigation.
+- **Gallery**: empty state handling (no event, no images, image loading errors) and populated gallery rendering.
 - **Home**: defensive rendering without event data, explicit loading and error states.
 
 ## Angular CLI
