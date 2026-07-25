@@ -1,71 +1,100 @@
-<main class="bg-noir-soft h-dvh text-white flex justify-center items-start pt-32">
-  <app-multi-step-form class="h-full">
-    <app-step stepRegisterLabel="step1" [isStepInputValid]="stepOneValid()">
-      <app-step-header
-        stepCount="1"
-        description="This is how your gallery will be named and how guests will recognise the event."
-      >
-        Tell us about<br />the <span class="text-gold-light italic">couple.</span>
-      </app-step-header>
-      <section class="flex flex-col gap-5">
-        <div class="mt-10 flex gap-5">
-          <app-form-label
-            placeholder="Sophie"
-            label="Your First Name"
-            [field]="onboardingForm.firstName"
-          ></app-form-label>
-          <app-form-label
-            placeholder="Marcus"
-            label="Your Partner's First Name"
-            [field]="onboardingForm.partnerFirstName"
-          ></app-form-label>
-        </div>
-        <app-form-label
-          placeholder="Müller-Weber"
-          label="Family Name (Shared or Hyphenated)"
-          [field]="onboardingForm.familyName"
-        ></app-form-label>
-      </section>
-    </app-step>
-    <app-step stepRegisterLabel="step2" [isStepInputValid]="stepTwoValid()">
-      <app-step-header
-        stepCount="2"
-        description="This is where your guests will gather to share their photos."
-      >
-        Name your<br /><span class="text-gold-light italic">venue.</span>
-      </app-step-header>
-      <div class="mt-10">
-        <app-form-label
-          placeholder="Eichenfürst"
-          label="Venue Name"
-          [field]="onboardingForm.venue"
-        />
-      </div>
-    </app-step>
-    <app-step
-      stepRegisterLabel="step3"
-      [isStepInputValid]="stepThreeValid()"
-      [isSubmitting]="submitting()"
-      (complete)="submit()"
+<a class="bc-skip-link" href="#onboarding-form">Skip to setup form</a>
+
+<main class="bc-onboarding bc-inverse">
+  <header class="bc-onboarding__header">
+    <a class="bc-brand-lockup" routerLink="/" aria-label="BrautCloud home">
+      <span class="bc-brand-mark" aria-hidden="true"></span>
+      <span>BrautCloud</span>
+    </a>
+    <p>Gallery setup</p>
+  </header>
+
+  <div class="bc-onboarding__layout">
+    <aside class="bc-onboarding__aside" aria-label="Setup introduction">
+      <p class="bc-eyebrow">A considered beginning</p>
+      <p class="bc-onboarding__quote">A few details, then your private gallery is ready.</p>
+      <p class="bc-muted">
+        Names and venue details help guests recognise the celebration they are joining.
+      </p>
+    </aside>
+
+    <section
+      id="onboarding-form"
+      class="bc-onboarding__panel"
+      aria-label="Gallery setup form"
+      tabindex="-1"
     >
-      <app-step-header
-        stepCount="3"
-        description="Review your details before creating your shared gallery."
-      >
-        Create your<br /><span class="text-gold-light italic">gallery.</span>
-      </app-step-header>
-      <div class="mt-10 flex flex-col gap-3 font-body text-mainsilk">
-        <p>
-          <span class="text-gray-400">Couple:</span> {{ model().firstName }} &
-          {{ model().partnerFirstName }} {{ model().familyName }}
-        </p>
-        <p><span class="text-gray-400">Venue:</span> {{ model().venue }}</p>
-        @if (submissionError()) {
-          <p role="alert" aria-live="assertive" class="mt-4 text-red-300">
-            {{ submissionError() }}
-          </p>
-        }
-      </div>
-    </app-step>
-  </app-multi-step-form>
+      <app-multi-step-form>
+        <app-step stepRegisterLabel="step1" [isStepInputValid]="stepOneValid()">
+          <app-step-header
+            stepCount="1"
+            description="This is how your gallery will be named and how guests will recognise the event."
+          >
+            Tell us about<br />the <span>couple.</span>
+          </app-step-header>
+          <section class="bc-form onboarding-form-fields">
+            <div class="bc-form-row">
+              <app-form-label
+                placeholder="Sophie"
+                label="Your first name"
+                [field]="onboardingForm.firstName"
+              ></app-form-label>
+              <app-form-label
+                placeholder="Marcus"
+                label="Your partner's first name"
+                [field]="onboardingForm.partnerFirstName"
+              ></app-form-label>
+            </div>
+            <app-form-label
+              placeholder="Müller-Weber"
+              label="Family name (shared or hyphenated)"
+              [field]="onboardingForm.familyName"
+            ></app-form-label>
+          </section>
+        </app-step>
+
+        <app-step stepRegisterLabel="step2" [isStepInputValid]="stepTwoValid()">
+          <app-step-header
+            stepCount="2"
+            description="The venue gives guests one more familiar detail when they open your private gallery."
+          >
+            Where will you<br /><span>celebrate?</span>
+          </app-step-header>
+          <section class="bc-form onboarding-form-fields">
+            <app-form-label
+              placeholder="Eichenfürst"
+              label="Venue name"
+              [field]="onboardingForm.venue"
+            />
+          </section>
+        </app-step>
+
+        <app-step
+          stepRegisterLabel="step3"
+          [isStepInputValid]="stepThreeValid()"
+          [isSubmitting]="submitting()"
+          (complete)="submit()"
+        >
+          <app-step-header
+            stepCount="3"
+            description="Review your details before creating your shared gallery."
+          >
+            Create your<br /><span>gallery.</span>
+          </app-step-header>
+          <section class="bc-form onboarding-form-fields">
+            <p class="bc-muted">
+              <strong>Couple:</strong> {{ model().firstName }} & {{ model().partnerFirstName }}
+              {{ model().familyName }}
+            </p>
+            <p class="bc-muted"><strong>Venue:</strong> {{ model().venue }}</p>
+            @if (submissionError()) {
+              <p role="alert" aria-live="assertive" class="text-red-300">
+                {{ submissionError() }}
+              </p>
+            }
+          </section>
+        </app-step>
+      </app-multi-step-form>
+    </section>
+  </div>
 </main>

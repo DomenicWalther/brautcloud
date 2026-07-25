@@ -3,6 +3,7 @@
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools directly.
 
 Available gstack skills:
+
 - `/office-hours` — open-ended Q&A and advice
 - `/plan-ceo-review` — CEO-level plan review
 - `/plan-eng-review` — engineering plan review
@@ -44,6 +45,7 @@ Available gstack skills:
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
 
 Key routing rules:
+
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
 - Architecture → invoke /plan-eng-review
@@ -66,6 +68,10 @@ Key routing rules:
 ## Backend testing
 
 Run the complete backend suite with `cd brautcloud-backend && ./mvnw clean test`; prerequisites and Podman setup are documented in `brautcloud-backend/Readme.md`. Tests that need production database behavior must use the shared PostgreSQL Testcontainers support under `brautcloud-backend/src/test/java/com/domenicwalther/brautcloud/support`; do not substitute H2 for PostgreSQL semantics. External object storage must use safe test doubles and must not require live credentials.
+
+## Design system
+
+Read `DESIGN.md` before making visual or UI decisions. Frontend tokens and shared patterns live under `brautcloud-frontend/src/styles/`; do not introduce page-local colors, controls, or state styling when a documented primitive exists.
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

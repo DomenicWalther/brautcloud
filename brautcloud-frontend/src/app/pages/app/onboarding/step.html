@@ -1,12 +1,13 @@
 @if (isActiveStep()) {
   <ng-content></ng-content>
 
-  <div class="w-full flex justify-between pt-8 border-t-gold-dim border-t mt-12">
+  <div class="onboarding-step-actions">
     <div>
       @if (!stepStateService.isFirst()) {
         <button
+          type="button"
           (click)="stepStateService.back()"
-          class="font-sc bg-gold text-noir text-sm px-11 py-4 cursor-pointer"
+          class="bc-button bc-button--inverse"
         >
           Back
         </button>
@@ -21,7 +22,7 @@
     } @else {
       <app-form-button
         [isDisabled]="!isStepInputValid() || isSubmitting()"
-        [buttonLabel]="isSubmitting() ? 'Creating Gallery…' : 'Create Gallery'"
+        [buttonLabel]="isSubmitting() ? 'Creating gallery…' : 'Create gallery'"
         (buttonEvent)="submit()"
       />
     }

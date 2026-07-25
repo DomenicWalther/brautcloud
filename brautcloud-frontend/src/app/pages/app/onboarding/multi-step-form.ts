@@ -6,6 +6,7 @@ import { StepComponent } from './step';
   selector: 'app-multi-step-form',
   template: `<ng-content />`,
   providers: [StepStateService],
+  host: { class: 'onboarding-steps' },
 })
 export class MultiStepForm {
   steps = contentChildren(StepComponent);

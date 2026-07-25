@@ -16,7 +16,7 @@ describe('Landing', () => {
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
-    const skipLink = root.querySelector('.skip-link');
+    const skipLink = root.querySelector('.bc-skip-link');
     const primaryNav = root.querySelector('nav[aria-label="Primary navigation"]');
     const footerNav = root.querySelector('nav[aria-label="Footer navigation"]');
     const main = root.querySelector('main#main-content');

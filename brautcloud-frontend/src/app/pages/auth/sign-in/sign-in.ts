@@ -6,10 +6,11 @@ import { AuthDTO } from '../../../core/models/auth.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
 import { authSchema } from '../schemas/auth.schema';
+import { AuthShell } from '../../../components/auth-shell/auth-shell';
 
 @Component({
   selector: 'app-sign-in',
-  imports: [RouterLink, FormField],
+  imports: [RouterLink, FormField, AuthShell],
   templateUrl: './sign-in.html',
   styles: ``,
 })

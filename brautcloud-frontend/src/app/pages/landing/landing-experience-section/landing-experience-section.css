@@ -18,7 +18,7 @@
 
 .section-heading > p {
   margin: 0 0 1.2rem;
-  color: #9a7443;
+  color: var(--bc-color-accent-strong);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.28em;
@@ -57,12 +57,12 @@ h2 {
   grid-template-columns: repeat(3, 1fr);
   width: min(70rem, 100%);
   margin: 0 auto;
-  border-top: 1px solid #dcd5ca;
-  border-bottom: 1px solid #dcd5ca;
+  border-top: 1px solid var(--bc-color-border);
+  border-bottom: 1px solid var(--bc-color-border);
 }
 
 app-experience-element:not(:last-child) {
-  border-right: 1px solid #dcd5ca;
+  border-right: 1px solid var(--bc-color-border);
 }
 
 @media (max-width: 44rem) {
@@ -72,6 +72,6 @@ app-experience-element:not(:last-child) {
 
   app-experience-element:not(:last-child) {
     border-right: 0;
-    border-bottom: 1px solid #dcd5ca;
+    border-bottom: 1px solid var(--bc-color-border);
   }
 }

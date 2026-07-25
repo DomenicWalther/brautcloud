@@ -1,6 +1,8 @@
 # BrautCloud Frontend
 
-BrautCloud is an Angular frontend for a private wedding gallery experience. It includes the editorial landing page, couple sign-in and sign-up, and an authenticated app shell with a shared sign-out control backed by cookie-based refresh sessions.
+BrautCloud is an Angular frontend for a private wedding gallery experience. The landing page uses a premium editorial layout while the authentication, setup, dashboard, upload, and gallery routes adapt the same design language to product work, including couple sign-in and sign-up and an authenticated app shell with a shared sign-out control backed by cookie-based refresh sessions.
+
+`../DESIGN.md` is the source of truth for visual principles, tokens, shared patterns, responsive behavior, accessibility, and the current page-family inventory.
 
 ## Development
 
@@ -16,8 +18,9 @@ The app serves at `http://localhost:4200/` and reloads when source files change.
 ## Available scripts
 
 ```bash
-pnpm start       # ng serve
+pnpm start           # ng serve
 pnpm run build
+pnpm run format:check
 pnpm test
 pnpm run watch
 ```
@@ -26,9 +29,9 @@ pnpm run watch
 
 `pnpm run build` creates a production build in `dist/`.
 
-## Testing
+## Validation
 
-`pnpm test` runs the unit test suite with Angular's test runner and Vitest.
+`pnpm run format:check` checks source formatting. `pnpm test` runs the unit test suite with Angular's test runner and Vitest. `pnpm run build` creates the production bundle; the existing `ng-qrcode` CommonJS optimization warning is accepted.
 
 The test suite covers authentication, session lifecycle, and onboarding flows:
 

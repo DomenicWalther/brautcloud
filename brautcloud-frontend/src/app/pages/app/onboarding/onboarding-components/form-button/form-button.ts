@@ -5,6 +5,7 @@ import { Component, input, output } from '@angular/core';
   imports: [],
   templateUrl: './form-button.html',
   styles: ``,
+  host: { class: 'onboarding-form-button' },
 })
 export class FormButton {
   buttonLabel = input.required<string>();

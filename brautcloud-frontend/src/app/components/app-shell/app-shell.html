@@ -1,0 +1,35 @@
+<a class="bc-skip-link" href="#workspace-content">Skip to workspace content</a>
+
+<div class="workspace-shell">
+  <header class="workspace-header">
+    <a class="bc-brand-lockup" routerLink="/" aria-label="BrautCloud home">
+      <span class="bc-brand-mark" aria-hidden="true"></span>
+      <span>BrautCloud</span>
+    </a>
+
+    <nav class="workspace-nav" aria-label="Gallery workspace">
+      <a routerLink="/app/home" routerLinkActive="is-active">Overview</a>
+      <a routerLink="/app/gallery" routerLinkActive="is-active">Gallery</a>
+      <a routerLink="/app/upload" routerLinkActive="is-active">Upload</a>
+    </nav>
+  </header>
+
+  <main id="workspace-content" class="workspace-content" tabindex="-1">
+    <ng-content />
+  </main>
+
+  <nav class="workspace-mobile-nav" aria-label="Gallery workspace mobile navigation">
+    <a routerLink="/app/home" routerLinkActive="is-active">
+      <span class="material-symbols-outlined" aria-hidden="true">home</span>
+      <span>Overview</span>
+    </a>
+    <a routerLink="/app/gallery" routerLinkActive="is-active">
+      <span class="material-symbols-outlined" aria-hidden="true">gallery_thumbnail</span>
+      <span>Gallery</span>
+    </a>
+    <a routerLink="/app/upload" routerLinkActive="is-active">
+      <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
+      <span>Upload</span>
+    </a>
+  </nav>
+</div>

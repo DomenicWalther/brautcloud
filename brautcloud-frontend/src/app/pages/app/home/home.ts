@@ -3,6 +3,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { QrCodeComponent } from 'ng-qrcode';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { APP_URL } from '../../../core/tokens';
+import { AppShell } from '../../../components/app-shell/app-shell';
 import { EventImageDto } from '../../../core/models/event-image.dto';
 import { EventService } from '../../../services/event-service';
 import { ImageService } from '../../../services/image-service';
@@ -14,7 +15,7 @@ const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
 
 @Component({
   selector: 'app-home',
-  imports: [HomeStats, QrCodeComponent],
+  imports: [HomeStats, QrCodeComponent, AppShell],
   templateUrl: './home.html',
   styles: ``,
 })
@@ -28,6 +29,10 @@ export class Home {
   readonly loading = this.userService.loading;
   readonly loadError = this.userService.error;
   readonly event = computed(() => this.user()?.events?.[0] ?? null);
+  readonly coupleName = computed(() => {
+    const event = this.event();
+    return event ? `${event.firstNameCoupleOne} & ${event.firstNameCoupleTwo}` : 'Your celebration';
+  });
 
   private readonly allImages = signal<EventImageDto[]>([]);
   readonly imagesLoading = signal(true);

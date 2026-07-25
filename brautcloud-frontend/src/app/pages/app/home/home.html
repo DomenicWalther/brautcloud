@@ -1,94 +1,108 @@
-<main class="max-w-5/6 mx-auto flex flex-col gap-5">
-  @if (loading()) {
-    <p role="status" class="mt-14 font-body text-gray-500">Loading your gallery…</p>
-  } @else if (loadError()) {
-    <section class="mt-14" role="alert">
-      <h1 class="font-display text-4xl">Your gallery is temporarily unavailable</h1>
-      <p class="mt-3 font-body text-gray-500">{{ loadError() }}</p>
-    </section>
-  } @else if (event(); as activeEvent) {
-    <section class="mt-14 flex flex-col gap-4">
-      <h1 class="font-display text-5xl">
-        Welcome,<br />{{ activeEvent.firstNameCoupleOne }} &
-        {{ activeEvent.firstNameCoupleTwo }}
-      </h1>
-      @if (daysTillWedding() !== null) {
-        <h2 class="uppercase font-body">
-          <span class="text-mainrose">{{ daysTillWedding() }}</span> Days until your Wedding
-        </h2>
-      }
-    </section>
-    <section>
-      <img src="https://placehold.co/400x500" alt="" class="rounded-xl" />
-    </section>
-    <app-home-stats [statInput]="stats()"></app-home-stats>
-    <section class="flex flex-col gap-5">
-      <div class="flex justify-between items-center">
-        <p class="font-display text-2xl">Live Gallery</p>
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 aspect-square bg-mainrose rounded-full"></div>
-          <p class="font-body text-mainrose">LIVE NOW</p>
+<app-shell>
+  <div class="bc-page dashboard-page">
+    @if (loading()) {
+      <p role="status" class="bc-muted">Loading your gallery…</p>
+    } @else if (loadError()) {
+      <section class="bc-surface" role="alert">
+        <h1 class="bc-display">Your gallery is temporarily unavailable</h1>
+        <p class="bc-muted">{{ loadError() }}</p>
+      </section>
+    } @else if (event()) {
+      <header class="bc-page-header dashboard-heading">
+        <div>
+          <p class="bc-eyebrow">Your private gallery</p>
+          <h1 class="bc-display">
+            Welcome, <em>{{ coupleName() }}</em>
+          </h1>
         </div>
-      </div>
-      @if (imagesLoading()) {
-        <p role="status" class="font-body text-gray-500">Loading photos…</p>
-      } @else if (previewPhotos().length > 0) {
-        <div class="flex gap-2">
-          @for (photo of previewPhotos(); track photo.url) {
-            <div class="relative min-w-0 w-full aspect-square">
-              <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
-              @if (photo.extraCount) {
-                <div
-                  class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center"
-                >
-                  <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
+        @if (daysTillWedding() !== null) {
+          <p class="bc-lede">
+            <strong>{{ daysTillWedding() }}</strong> days until your wedding. Everything your
+            guests share will gather here.
+          </p>
+        }
+      </header>
+
+      <section class="dashboard-portrait bc-surface" aria-label="Wedding overview">
+        <div class="dashboard-portrait__image">
+          <img src="/images/main-hero-image.jpg" alt="A newlywed couple embracing beside a lake" />
+        </div>
+        <div class="dashboard-portrait__details">
+          <p class="bc-eyebrow">The celebration</p>
+          <h2 class="bc-heading">{{ coupleName() }}</h2>
+          <p class="bc-muted">Your gallery is ready to collect every point of view.</p>
+          <app-home-stats [statInput]="stats()"></app-home-stats>
+        </div>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="bc-surface bc-card" aria-labelledby="live-gallery-title">
+          <div class="bc-card-header">
+            <div>
+              <p class="bc-eyebrow">Shared moments</p>
+              <h2 id="live-gallery-title" class="bc-card-title">Live gallery</h2>
+            </div>
+            <span class="bc-status">Live now</span>
+          </div>
+
+          @if (imagesLoading()) {
+            <p role="status" class="bc-muted">Loading photos…</p>
+          } @else if (previewPhotos().length > 0) {
+            <div class="dashboard-previews">
+              @for (photo of previewPhotos(); track photo.url) {
+                <div class="dashboard-preview">
+                  <img [src]="photo.url" alt="" />
+                  @if (photo.extraCount) {
+                    <div class="dashboard-preview__more" aria-label="More gallery photographs">
+                      <span>+{{ photo.extraCount }}</span>
+                    </div>
+                  }
                 </div>
               }
             </div>
+          } @else {
+            <p role="status" class="bc-muted">No photos yet.</p>
           }
-        </div>
-      } @else {
-        <p role="status" class="font-body text-gray-500">No photos yet.</p>
-      }
-      <button
-        type="button"
-        (click)="downloadAllPhotos()"
-        [disabled]="downloadingAllPhotos()"
-        class="w-full bg-mainrose text-white font-body py-4 flex justify-center items-center gap-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span class="material-symbols-outlined">cloud_download</span>
-        {{ downloadingAllPhotos() ? 'PREPARING DOWNLOAD…' : 'DOWNLOAD ALL PHOTOS' }}
-      </button>
-      @if (downloadAllPhotosError(); as downloadError) {
-        <p class="font-body text-sm text-mainrose" role="alert">{{ downloadError }}</p>
-      }
-    </section>
-    <section
-      class="bg-mainblack rounded-4xl text-mainsilk flex items-center flex-col my-10 p-10 gap-5"
-    >
-      <div class="flex flex-col items-center">
-        <p class="text-4xl font-display">Event QR Code</p>
-        <p class="font-body text-gray-400 text-sm">Share this with your Guests</p>
+
+          <button
+            type="button"
+            (click)="downloadAllPhotos()"
+            [disabled]="downloadingAllPhotos()"
+            class="bc-button bc-button--primary bc-button--wide"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">cloud_download</span>
+            {{ downloadingAllPhotos() ? 'Preparing download…' : 'Download all photos' }}
+          </button>
+          @if (downloadAllPhotosError(); as downloadError) {
+            <p role="alert" class="text-red-300">{{ downloadError }}</p>
+          }
+        </section>
+
+        <section
+          class="bc-surface bc-surface--inverse bc-card dashboard-qr"
+          aria-labelledby="qr-title"
+        >
+          <div>
+            <p class="bc-eyebrow">Guest access</p>
+            <h2 id="qr-title" class="bc-card-title">Event QR code</h2>
+            <p class="bc-muted">Place it where guests can scan and share in moments.</p>
+          </div>
+          <div class="dashboard-qr__code" aria-label="QR code for the event gallery">
+            <qr-code [value]="eventUrl() ?? ''" size="220" errorCorrectionLevel="M" />
+          </div>
+          <div class="dashboard-qr__actions">
+            <button type="button" class="bc-button bc-button--primary">Download for print</button>
+            <button type="button" class="bc-button bc-button--inverse">Copy gallery link</button>
+          </div>
+        </section>
       </div>
-      <qr-code
-        [value]="eventUrl() ?? ''"
-        size="300"
-        errorCorrectionLevel="M"
-        styleClass="rounded-4xl"
-      />
-      <button
-        class="text-mainrose border border-mainrose rounded-full px-8 py-2 uppercase text-xs font-bold"
-      >
-        Download for Print
-      </button>
-      <button class="uppercase cursor-pointer text-sm tracking-widest">Copy Gallery Link</button>
-    </section>
-  } @else {
-    <section class="mt-14" role="status">
-      <h1 class="font-display text-4xl">No gallery is available yet</h1>
-      <p class="mt-3 font-body text-gray-500">
-        Your account is safe. Please contact support if setup was already completed.
-      </p>
-    </section>
-  }
-</main>
+    } @else {
+      <section class="bc-surface" role="status">
+        <h1 class="bc-display">No gallery is available yet</h1>
+        <p class="bc-muted">
+          Your account is safe. Please contact support if setup was already completed.
+        </p>
+      </section>
+    }
+  </div>
+</app-shell>

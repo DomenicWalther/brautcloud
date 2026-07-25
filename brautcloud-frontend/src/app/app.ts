@@ -12,7 +12,10 @@ export class App {
 
   constructor() {
     afterNextRender(() => {
-      if (typeof ResizeObserver === 'undefined') {
+      if (
+        typeof ResizeObserver === 'undefined' ||
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ) {
         return;
       }
 

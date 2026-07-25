@@ -99,48 +99,9 @@ h1 em {
   gap: 0.8rem;
 }
 
-.hero-actions a {
-  display: inline-flex;
+.hero-actions .bc-button {
   min-height: 3.45rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0.9rem 1.8rem;
-  border: 1px solid;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  transition:
-    color 180ms ease,
-    background 180ms ease,
-    border-color 180ms ease,
-    transform 180ms ease;
-}
-
-.primary-action {
-  color: var(--noir);
-  background: var(--gold);
-  border-color: var(--gold) !important;
-}
-
-.primary-action:hover,
-.primary-action:focus-visible {
-  color: var(--noir);
-  background: var(--gold-light);
-  border-color: var(--gold-light) !important;
-  transform: translateY(-2px);
-}
-
-.secondary-action {
-  color: rgb(248 245 239 / 86%);
-  border-color: rgb(248 245 239 / 28%) !important;
-}
-
-.secondary-action:hover,
-.secondary-action:focus-visible {
-  color: var(--ivory);
-  border-color: var(--gold) !important;
-  transform: translateY(-2px);
+  padding-inline: 1.8rem;
 }
 
 .hero-notes {
@@ -387,11 +348,5 @@ figcaption strong {
   figcaption {
     right: -0.4rem;
     bottom: 1.8rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-actions a {
-    transition: none;
   }
 }

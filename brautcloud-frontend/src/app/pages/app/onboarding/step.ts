@@ -6,6 +6,7 @@ import { FormButton } from './onboarding-components/form-button/form-button';
   selector: 'app-step',
   templateUrl: './step.html',
   imports: [FormButton],
+  host: { class: 'onboarding-step' },
 })
 export class StepComponent implements OnInit {
   stepRegisterLabel = input.required<string>();

@@ -13,7 +13,7 @@
   position: absolute;
   top: 1.2rem;
   left: 1.35rem;
-  color: #a47d49;
+  color: var(--bc-color-accent-strong);
   font-family: var(--font-serif);
   font-size: 1rem;
   font-style: italic;
@@ -30,7 +30,7 @@
 }
 
 .material-symbols-outlined {
-  color: #9a7443;
+  color: var(--bc-color-accent-strong);
   font-size: 1.4rem;
   transform: rotate(-45deg);
 }

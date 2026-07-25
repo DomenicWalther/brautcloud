@@ -1,17 +1,17 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { EventImageDto } from '../../../../core/models/event-image.dto';
 import { EventDto } from '../../../../core/models/event.dto';
 import { ImageService } from '../../../../services/image-service';
 import { UserService } from '../../../../services/user-service';
 import { Gallery } from './gallery';
 
-describe('Gallery empty states', () => {
+describe('Gallery states', () => {
   const user = signal<{ events: EventDto[] } | null>(null);
   const imageService = {
-    getEventImages: vi.fn(),
+    getEventImages: vi.fn<(eventId: string) => Observable<EventImageDto[]>>(),
   };
   let fixture: ComponentFixture<Gallery>;
 
@@ -34,6 +34,17 @@ describe('Gallery empty states', () => {
     fixture = TestBed.createComponent(Gallery);
   });
 
+  it('announces loading while moments are being gathered', () => {
+    imageService.getEventImages.mockReturnValue(new Subject<EventImageDto[]>());
+    user.set({ events: [event] });
+
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[aria-busy="true"]')?.textContent).toContain(
+      'Preparing your gallery',
+    );
+  });
+
   it('stops loading and offers home navigation when no event exists', () => {
     fixture.detectChanges();
 
@@ -43,14 +54,14 @@ describe('Gallery empty states', () => {
     expect(imageService.getEventImages).not.toHaveBeenCalled();
   });
 
-  it('renders upload navigation when event has no images', () => {
+  it('shows a useful empty state and upload navigation when event has no images', () => {
     user.set({ events: [event] });
     imageService.getEventImages.mockReturnValue(of([]));
 
     fixture.detectChanges();
 
     expect(fixture.componentInstance.loading()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('Your gallery is ready for photos');
+    expect(fixture.nativeElement.textContent).toContain('Your first moments will appear here');
     expect(fixture.nativeElement.querySelector('a[routerlink="/app/upload"]')).toBeTruthy();
   });
 
@@ -61,19 +72,24 @@ describe('Gallery empty states', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.loading()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('Gallery unavailable');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'Gallery unavailable',
+    );
     expect(fixture.nativeElement.textContent).toContain('Back to home');
   });
 
-  it('keeps rendering images for populated galleries', () => {
+  it('renders accessible populated gallery imagery', () => {
     user.set({ events: [event] });
     imageService.getEventImages.mockReturnValue(of([image]));
 
     fixture.detectChanges();
 
-    const renderedImage = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+    const renderedImage = fixture.nativeElement.querySelector(
+      '.gallery-photo img',
+    ) as HTMLImageElement;
     expect(fixture.componentInstance.loading()).toBe(false);
-    expect(renderedImage.src).toBe(image.url);
+    expect(renderedImage.getAttribute('src')).toBe(image.url);
+    expect(renderedImage.getAttribute('alt')).toBe('Wedding gallery moment 1');
   });
 });
 

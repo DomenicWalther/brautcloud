@@ -1,0 +1,122 @@
+:root {
+  /* Raw palette: warm neutrals and restrained metallic accents. */
+  --bc-palette-ivory-50: #fffdfa;
+  --bc-palette-ivory-100: #f8f5ef;
+  --bc-palette-ivory-200: #ede8df;
+  --bc-palette-ivory-300: #dcd5ca;
+  --bc-palette-stone-500: #70675f;
+  --bc-palette-stone-700: #48413b;
+  --bc-palette-noir-800: #211e1a;
+  --bc-palette-noir-900: #161412;
+  --bc-palette-noir-950: #0b0a09;
+  --bc-palette-gold-200: #ead8ae;
+  --bc-palette-gold-400: #c9a869;
+  --bc-palette-gold-700: #765329;
+
+  /* Semantic color roles. Never use gold-400 for small text on light surfaces. */
+  --bc-color-canvas: var(--bc-palette-ivory-100);
+  --bc-color-surface: var(--bc-palette-ivory-50);
+  --bc-color-surface-muted: var(--bc-palette-ivory-200);
+  --bc-color-surface-inverse: var(--bc-palette-noir-900);
+  --bc-color-surface-inverse-raised: var(--bc-palette-noir-800);
+  --bc-color-surface-inverse-strong: var(--bc-palette-noir-950);
+  --bc-color-text: #292521;
+  --bc-color-text-strong: #181512;
+  --bc-color-text-muted: var(--bc-palette-stone-500);
+  --bc-color-text-inverse: var(--bc-palette-ivory-100);
+  --bc-color-text-inverse-muted: #bdb4a8;
+  --bc-color-accent: var(--bc-palette-gold-400);
+  --bc-color-accent-soft: var(--bc-palette-gold-200);
+  --bc-color-accent-strong: var(--bc-palette-gold-700);
+  --bc-color-border: var(--bc-palette-ivory-300);
+  --bc-color-border-strong: #bdb3a5;
+  --bc-color-border-inverse: rgb(201 168 105 / 28%);
+  --bc-color-success: #2f6b50;
+  --bc-color-warning: #87571d;
+  --bc-color-danger: #9b3d38;
+  --bc-color-info: #35627a;
+  --bc-color-focus: #a9793e;
+  --bc-color-scrim: rgb(11 10 9 / 58%);
+
+  /* Typography: expressive serif for memory, clear sans for action and data. */
+  --bc-font-display: 'Cormorant Garamond', Georgia, serif;
+  --bc-font-body: 'Jost', 'Trebuchet MS', sans-serif;
+  --bc-font-small-caps: 'Cormorant SC', Georgia, serif;
+  --bc-font-size-xs: 0.75rem;
+  --bc-font-size-sm: 0.875rem;
+  --bc-font-size-md: 1rem;
+  --bc-font-size-lg: 1.125rem;
+  --bc-font-size-xl: 1.375rem;
+  --bc-font-size-2xl: clamp(1.75rem, 3vw, 2.25rem);
+  --bc-font-size-3xl: clamp(2.5rem, 6vw, 4.75rem);
+  --bc-leading-tight: 0.98;
+  --bc-leading-body: 1.65;
+  --bc-tracking-label: 0.16em;
+
+  /* Four-pixel spacing foundation, with an intentionally spacious upper scale. */
+  --bc-space-2xs: 0.25rem;
+  --bc-space-xs: 0.5rem;
+  --bc-space-sm: 0.75rem;
+  --bc-space-md: 1rem;
+  --bc-space-lg: 1.5rem;
+  --bc-space-xl: 2rem;
+  --bc-space-2xl: 3rem;
+  --bc-space-3xl: 4rem;
+  --bc-space-4xl: 6rem;
+
+  --bc-container-narrow: 32rem;
+  --bc-container-content: 76rem;
+  --bc-container-wide: 88rem;
+  --bc-gutter: clamp(1rem, 5vw, 4rem);
+
+  /* Radius follows hierarchy; pill shapes are reserved for compact controls/status. */
+  --bc-radius-xs: 2px;
+  --bc-radius-sm: 4px;
+  --bc-radius-md: 8px;
+  --bc-radius-lg: 14px;
+  --bc-radius-xl: 22px;
+  --bc-radius-round: 999px;
+
+  --bc-shadow-sm: 0 0.5rem 1.5rem rgb(31 24 17 / 8%);
+  --bc-shadow-md: 0 1.25rem 3.5rem rgb(31 24 17 / 12%);
+  --bc-shadow-inverse: 0 2.5rem 6rem rgb(0 0 0 / 38%);
+
+  --bc-duration-fast: 120ms;
+  --bc-duration-short: 180ms;
+  --bc-duration-medium: 280ms;
+  --bc-ease-enter: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bc-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Compatibility aliases for the merged landing component styles. */
+  --gold: var(--bc-color-accent);
+  --gold-light: var(--bc-color-accent-soft);
+  --ivory: var(--bc-color-canvas);
+  --ivory-dark: var(--bc-color-surface-muted);
+  --noir: var(--bc-color-surface-inverse-strong);
+  --noir-soft: var(--bc-color-surface-inverse);
+  --charcoal: var(--bc-color-text);
+  --warm-grey: var(--bc-color-text-muted);
+  --font-serif: var(--bc-font-display);
+  --font-sans: var(--bc-font-body);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-mainrose: var(--bc-color-accent);
+  --color-mainsilk: var(--bc-color-canvas);
+  --color-mainblack: var(--bc-color-surface-inverse);
+  --color-gold: var(--bc-color-accent);
+  --color-gold-light: var(--bc-color-accent-soft);
+  --color-gold-dim: rgb(201 168 105 / 12%);
+  --color-ivory: var(--bc-color-canvas);
+  --color-ivory-dark: var(--bc-color-surface-muted);
+  --color-noir: var(--bc-color-surface-inverse-strong);
+  --color-noir-soft: var(--bc-color-surface-inverse);
+  --color-charcoal: var(--bc-color-text);
+  --color-warm-grey: var(--bc-color-text-muted);
+  --font-display: var(--bc-font-display);
+  --font-body: var(--bc-font-body);
+  --font-serif: var(--bc-font-display);
+  --font-sc: var(--bc-font-small-caps);
+}
