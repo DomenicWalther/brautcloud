@@ -45,7 +45,7 @@ Prerequisites:
 - a running Docker-compatible container daemon
 - permission to pull and run `postgres:16-alpine`
 
-No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. Integration tests start one shared PostgreSQL Testcontainer, apply the real Flyway migrations, and replace S3 operations with a test double.
+No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The full clean suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against one shared PostgreSQL Testcontainer while replacing S3 operations with a test double.
 
 Run the complete suite from a clean build:
 
@@ -53,6 +53,8 @@ Run the complete suite from a clean build:
 cd brautcloud-backend
 ./mvnw clean test
 ```
+
+This full run requires a reachable Docker-compatible socket. If Docker Desktop, Podman, or another compatible daemon is not running, the PostgreSQL-backed integration tests fail before the Spring context finishes booting.
 
 For rootless Podman, expose its Docker-compatible socket first. Some Podman setups also require Ryuk to be disabled; the suite has its own shutdown hook for the shared PostgreSQL container:
 
