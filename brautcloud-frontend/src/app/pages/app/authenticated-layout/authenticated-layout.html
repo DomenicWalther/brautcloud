@@ -1,0 +1,14 @@
+<header class="app-header">
+  <a class="brand" routerLink="/app/home" aria-label="BrautCloud home">BrautCloud</a>
+
+  <nav class="app-nav" aria-label="Account navigation">
+    <a routerLink="/app/home" routerLinkActive="active-link">Home</a>
+    <a routerLink="/app/gallery" routerLinkActive="active-link">Gallery</a>
+    <button type="button" (click)="signOut()" [disabled]="isSigningOut()">
+      <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+      <span>{{ isSigningOut() ? 'Signing out…' : 'Sign out' }}</span>
+    </button>
+  </nav>
+</header>
+
+<router-outlet />

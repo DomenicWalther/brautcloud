@@ -1,13 +1,18 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import {
-  Observable,
-  tap,
   BehaviorSubject,
-  filter,
-  take,
-  switchMap,
   catchError,
+  EMPTY,
+  finalize,
+  map,
+  Observable,
+  of,
+  shareReplay,
+  switchMap,
+  take,
+  tap,
   throwError,
 } from 'rxjs';
 import { API_URL } from '../core/tokens';
@@ -20,32 +25,40 @@ interface AuthResponse {
   providedIn: 'root',
 })
 export class AuthService {
-  private http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly API_URL = inject(API_URL);
 
-  private _accessToken = signal<string | null>(null);
+  private readonly _accessToken = signal<string | null>(null);
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
 
-  private _initialized = new BehaviorSubject<boolean>(false);
+  private readonly _initialized = new BehaviorSubject<boolean>(false);
   readonly initialized$ = this._initialized.asObservable();
 
-  private _isRefreshing = false;
-  private _refreshTokenSubject = new BehaviorSubject<string | null>(null);
+  private readonly _isLoggingOut = signal(false);
+  readonly isLoggingOut = this._isLoggingOut.asReadonly();
+
+  private sessionGeneration = 0;
+  private refreshRequest$: Observable<string> | null = null;
 
   initializeAuth(): Promise<void> {
+    const generation = this.sessionGeneration;
+
     return new Promise((resolve) => {
       this.http
         .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
         .subscribe({
           next: (res) => {
-            this._accessToken.set(res.accessToken);
-            this._initialized.next(true);
-            resolve();
+            if (generation === this.sessionGeneration && !this._isLoggingOut()) {
+              this._accessToken.set(res.accessToken);
+            }
+            this.finishInitialization(resolve);
           },
           error: () => {
-            this._accessToken.set(null);
-            this._initialized.next(true);
-            resolve();
+            if (generation === this.sessionGeneration) {
+              this._accessToken.set(null);
+            }
+            this.finishInitialization(resolve);
           },
         });
     });
@@ -61,10 +74,15 @@ export class AuthService {
         },
         { withCredentials: true },
       )
-      .pipe(tap((res) => this._accessToken.set(res.accessToken)));
+      .pipe(
+        tap((res) => {
+          this.sessionGeneration += 1;
+          this._accessToken.set(res.accessToken);
+        }),
+      );
   }
 
-  register({ email, password }: { email: string; password: string }): Observable<any> {
+  register({ email, password }: { email: string; password: string }): Observable<unknown> {
     return this.http.post(
       `${this.API_URL}/auth/register`,
       {
@@ -76,38 +94,102 @@ export class AuthService {
   }
 
   refreshToken(): Observable<string> {
-    if (this._isRefreshing) {
-      return this._refreshTokenSubject.pipe(
-        filter((token) => token !== null),
-        take(1),
-      ) as Observable<string>;
+    if (this._isLoggingOut()) {
+      return throwError(() => new Error('Cannot refresh while signing out'));
     }
 
-    this._isRefreshing = true;
-    this._refreshTokenSubject.next(null);
+    if (this.refreshRequest$) {
+      return this.refreshRequest$;
+    }
 
-    return this.http
+    const generation = this.sessionGeneration;
+    let request$: Observable<string>;
+
+    request$ = this.http
       .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
       .pipe(
-        tap((res) => {
-          this._isRefreshing = false;
+        map((res) => {
+          if (generation !== this.sessionGeneration || this._isLoggingOut()) {
+            throw new Error('Refresh completed after the session was cleared');
+          }
+
           this._accessToken.set(res.accessToken);
-          this._refreshTokenSubject.next(res.accessToken);
+          return res.accessToken;
         }),
-        switchMap((res) => [res.accessToken]),
         catchError((err) => {
-          this._isRefreshing = false;
-          this._accessToken.set(null);
+          if (generation === this.sessionGeneration) {
+            this._accessToken.set(null);
+          }
           return throwError(() => err);
         }),
+        finalize(() => {
+          if (this.refreshRequest$ === request$) {
+            this.refreshRequest$ = null;
+          }
+        }),
+        shareReplay({ bufferSize: 1, refCount: false }),
       );
+
+    this.refreshRequest$ = request$;
+    return request$;
   }
 
   logout(): void {
+    if (this._isLoggingOut()) {
+      return;
+    }
+
+    const pendingRefresh$ = this.refreshRequest$
+      ? this.refreshRequest$.pipe(
+          take(1),
+          catchError(() => of(null)),
+        )
+      : of(null);
+
+    this._isLoggingOut.set(true);
+    this.sessionGeneration += 1;
     this._accessToken.set(null);
+
+    // The browser is locally signed out immediately. A separately retained stateless access JWT
+    // can remain server-valid until its configured expiry (currently up to ten minutes).
+    pendingRefresh$
+      .pipe(
+        switchMap(() =>
+          this.http.post(
+            `${this.API_URL}/auth/logout`,
+            {},
+            {
+              withCredentials: true,
+              responseType: 'text',
+            },
+          ),
+        ),
+        catchError(() => EMPTY),
+        finalize(() => {
+          this.refreshRequest$ = null;
+          this._accessToken.set(null);
+          this._isLoggingOut.set(false);
+          this._initialized.next(true);
+          void this.router.navigateByUrl('/auth/sign-in', { replaceUrl: true });
+        }),
+      )
+      .subscribe();
+  }
+
+  canAttemptRefresh(requestUrl: string): boolean {
+    return (
+      !this._isLoggingOut() &&
+      !requestUrl.includes('/auth/refresh') &&
+      !requestUrl.includes('/auth/logout')
+    );
   }
 
   getAccessToken(): string | null {
     return this._accessToken();
+  }
+
+  private finishInitialization(resolve: () => void): void {
+    this._initialized.next(true);
+    resolve();
   }
 }

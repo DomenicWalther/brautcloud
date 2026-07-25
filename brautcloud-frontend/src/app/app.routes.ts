@@ -32,11 +32,15 @@ export const routes: Routes = [
           return import('./pages/auth/reset-password/reset-password').then((m) => m.ResetPassword);
         },
       },
-    ]
+    ],
   },
   {
     path: 'app',
     canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/app/authenticated-layout/authenticated-layout').then(
+        (m) => m.AuthenticatedLayout,
+      ),
     children: [
       { path: 'home', loadComponent: () => import('./pages/app/home/home').then((m) => m.Home) },
       {
@@ -54,7 +58,8 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding),
       },
       {
-        path: '**', redirectTo: 'home'
+        path: '**',
+        redirectTo: 'home',
       },
     ],
   },
