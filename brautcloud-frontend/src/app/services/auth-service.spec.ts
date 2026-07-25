@@ -143,7 +143,7 @@ describe('AuthService logout', () => {
     expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels an in-flight refresh before sending logout', () => {
+  it('waits for an in-flight refresh before revoking it and ignores its stale access token', () => {
     authenticate('original-token');
 
     let refreshError: unknown;
@@ -153,8 +153,12 @@ describe('AuthService logout', () => {
     auth.logout();
 
     expect(auth.getAccessToken()).toBeNull();
-    expect(refresh.cancelled).toBe(true);
+    http.expectNone(`${apiUrl}/auth/logout`);
+
+    refresh.flush({ accessToken: 'stale-refreshed-token' });
+
     expect(refreshError).toBeInstanceOf(Error);
+    expect(auth.getAccessToken()).toBeNull();
 
     const logout = http.expectOne(`${apiUrl}/auth/logout`);
     expect(logout.request.withCredentials).toBe(true);
@@ -163,6 +167,37 @@ describe('AuthService logout', () => {
 
     expect(auth.getAccessToken()).toBeNull();
     expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/sign-in', { replaceUrl: true });
+  });
+
+  it('bounds the wait for an in-flight refresh before navigating away', async () => {
+    vi.useFakeTimers();
+
+    try {
+      authenticate('original-token');
+
+      let refreshError: unknown;
+      auth.refreshToken().subscribe({ error: (error) => (refreshError = error) });
+      const refresh = http.expectOne(`${apiUrl}/auth/refresh`);
+
+      auth.logout();
+
+      http.expectNone(`${apiUrl}/auth/logout`);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const logout = http.expectOne(`${apiUrl}/auth/logout`);
+      expect(logout.request.withCredentials).toBe(true);
+      logout.flush('Logged out');
+
+      refresh.flush({ accessToken: 'late-token' });
+
+      expect(refreshError).toBeInstanceOf(Error);
+      expect(auth.getAccessToken()).toBeNull();
+      expect(auth.isLoggingOut()).toBe(false);
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/auth/sign-in', { replaceUrl: true });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('navigates away when the logout request hangs', async () => {

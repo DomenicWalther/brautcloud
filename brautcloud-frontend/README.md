@@ -32,7 +32,7 @@ pnpm run watch
 
 The test suite covers authentication, session lifecycle, and onboarding flows:
 
-- **Auth service**: logout path with `POST /api/auth/logout`, local session clearing, refresh cancellation, and onboarding state tracking from registration and refresh responses.
+- **Auth service**: logout path with `POST /api/auth/logout`, immediate local session clearing, waiting for an in-flight refresh (with a bounded timeout) before revoking the session, ignoring stale refresh results once logout has started, and onboarding state tracking from registration and refresh responses.
 - **Auth routing**: onboarding-aware routing with safe return-url validation, guard enforcement (auth, guest, onboarding required, onboarding page), and destination resolution for incomplete vs. completed sessions.
 - **Registration and sign-in**: duplicate-submission suppression, structured error handling, and navigation to onboarding or the intended destination.
 - **Onboarding submission**: validation before sending, visible error display after failure, and session completion marking before navigation.
