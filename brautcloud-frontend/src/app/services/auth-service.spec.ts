@@ -71,7 +71,9 @@ describe('AuthService logout', () => {
     logout.flush('Unavailable', { status: 401, statusText: 'Unauthorized' });
 
     let protectedRequestError: unknown;
-    httpClient.get(`${apiUrl}/protected`).subscribe({ error: (error) => (protectedRequestError = error) });
+    httpClient
+      .get(`${apiUrl}/protected`)
+      .subscribe({ error: (error) => (protectedRequestError = error) });
 
     const protectedRequest = http.expectOne(`${apiUrl}/protected`);
     expect(protectedRequest.request.headers.has('Authorization')).toBe(false);

@@ -121,7 +121,11 @@ export class AuthService {
       .post<AuthResponse>(`${this.API_URL}/auth/refresh`, {}, { withCredentials: true })
       .subscribe({
         next: (res) => {
-          if (generation !== this.sessionGeneration || this._isLoggingOut() || this.refreshBlocked) {
+          if (
+            generation !== this.sessionGeneration ||
+            this._isLoggingOut() ||
+            this.refreshBlocked
+          ) {
             response$.error(new Error('Refresh completed after the session was cleared'));
             this.clearRefreshRequest(request$);
             return;

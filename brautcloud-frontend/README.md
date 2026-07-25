@@ -1,6 +1,6 @@
 # BrautCloud Frontend
 
-BrautCloud is an Angular frontend for a private wedding gallery experience. The landing page uses a premium editorial layout while preserving the existing sign-in and sign-up flows for creating and accessing galleries.
+BrautCloud is an Angular frontend for a private wedding gallery experience. It includes the editorial landing page, couple sign-in and sign-up, and an authenticated app shell with a shared sign-out control backed by cookie-based refresh sessions.
 
 ## Development
 
@@ -29,6 +29,8 @@ npm run watch
 ## Testing
 
 `npm test` runs the unit test suite with Angular's test runner and Vitest.
+
+The auth service specs cover the logout path, including `POST /api/auth/logout` with credentials, local session clearing on endpoint failure or timeout, refresh cancellation during explicit logout, and reload behavior after a manual sign-out.
 
 ## Angular CLI
 
