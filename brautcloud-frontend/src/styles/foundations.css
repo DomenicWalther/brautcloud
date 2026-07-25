@@ -107,7 +107,7 @@ svg {
 .material-symbols-outlined {
   display: inline-block;
   direction: ltr;
-  font-family: 'Material Symbols Outlined';
+  font-family: 'Material Symbols Outlined', sans-serif;
   font-size: 1.5rem;
   font-style: normal;
   font-weight: normal;
