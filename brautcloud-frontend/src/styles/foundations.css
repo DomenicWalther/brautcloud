@@ -43,7 +43,12 @@
 html {
   min-width: 0;
   background: var(--bc-color-canvas);
-  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
