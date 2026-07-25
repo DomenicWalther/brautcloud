@@ -4,8 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { QrCodeComponent } from 'ng-qrcode';
 import { of, Subject, throwError } from 'rxjs';
 import { APP_URL } from '../../../core/tokens';
+import { EventImageDto } from '../../../core/models/event-image.dto';
 import { UserDto } from '../../../core/models/user.dto';
 import { EventService } from '../../../services/event-service';
+import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { Home } from './home';
 
@@ -27,6 +29,9 @@ describe('Home defensive empty state', () => {
   const eventService = {
     downloadEventImages: vi.fn(),
   };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
   let fixture: ComponentFixture<Home>;
 
   beforeEach(async () => {
@@ -34,6 +39,7 @@ describe('Home defensive empty state', () => {
     loading.set(false);
     error.set(null);
     eventService.downloadEventImages.mockReset();
+    imageService.getEventImages.mockReset();
 
     await TestBed.configureTestingModule({
       imports: [Home],
@@ -48,8 +54,14 @@ describe('Home defensive empty state', () => {
           },
         },
         { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(Home, {
+        remove: { imports: [QrCodeComponent] },
+        add: { imports: [StubQrCode] },
+      })
+      .compileComponents();
     fixture = TestBed.createComponent(Home);
   });
 
@@ -62,6 +74,7 @@ describe('Home defensive empty state', () => {
     expect(content).not.toContain('Days until your Wedding');
     expect(content).not.toContain('Live Gallery');
     expect(fixture.nativeElement.querySelector('qr-code')).toBeNull();
+    expect(imageService.getEventImages).not.toHaveBeenCalled();
   });
 
   it('renders explicit loading and error states', () => {
@@ -74,6 +87,107 @@ describe('Home defensive empty state', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Your gallery is temporarily unavailable');
     expect(fixture.nativeElement.textContent).toContain('Unable to load');
+  });
+});
+
+describe('Home gallery preview and photos stat', () => {
+  const user = signal<UserDto | null>(null);
+  const eventService = {
+    downloadEventImages: vi.fn(),
+  };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
+  let fixture: ComponentFixture<Home>;
+
+  beforeEach(async () => {
+    user.set(null);
+    eventService.downloadEventImages.mockReset();
+    imageService.getEventImages.mockReset();
+
+    await TestBed.configureTestingModule({
+      imports: [Home],
+      providers: [
+        { provide: APP_URL, useValue: 'http://app.test' },
+        {
+          provide: UserService,
+          useValue: {
+            user: user.asReadonly(),
+            loading: signal(false).asReadonly(),
+            error: signal<string | null>(null).asReadonly(),
+          },
+        },
+        { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
+      ],
+    })
+      .overrideComponent(Home, {
+        remove: { imports: [QrCodeComponent] },
+        add: { imports: [StubQrCode] },
+      })
+      .compileComponents();
+    fixture = TestBed.createComponent(Home);
+  });
+
+  it('shows a loading state for the gallery preview until images resolve', () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([]));
+
+    fixture.detectChanges();
+
+    expect(imageService.getEventImages).toHaveBeenCalledWith('event-1');
+  });
+
+  it('shows an empty state and zero photos stat when the event has no images', () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([]));
+
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.imagesLoading()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('No photos yet');
+    expect(fixture.nativeElement.querySelectorAll('.aspect-square img').length).toBe(0);
+    expect(fixture.componentInstance.stats().photos).toBe('0');
+  });
+
+  it('renders fewer tiles than slots when there are fewer real images than slots', () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([image1]));
+
+    fixture.detectChanges();
+
+    const tiles = fixture.nativeElement.querySelectorAll(
+      '.aspect-square img',
+    ) as NodeListOf<HTMLImageElement>;
+    expect(tiles.length).toBe(1);
+    expect(tiles[0].src).toBe(image1.url);
+    expect(fixture.nativeElement.textContent).not.toContain('+');
+    expect(fixture.componentInstance.stats().photos).toBe('1');
+  });
+
+  it('shows the real remaining count overlay when there are more images than preview slots', () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([image1, image2, image3, image4, image5]));
+
+    fixture.detectChanges();
+
+    const tiles = fixture.nativeElement.querySelectorAll(
+      '.aspect-square img',
+    ) as NodeListOf<HTMLImageElement>;
+    expect(tiles.length).toBe(3);
+    expect(fixture.nativeElement.textContent).toContain('+2');
+    expect(fixture.componentInstance.stats().photos).toBe('5');
+  });
+
+  it('does not render stale images and treats failed fetches as empty', () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(throwError(() => new Error('failed')));
+
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.imagesLoading()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('No photos yet');
+    expect(fixture.componentInstance.stats().photos).toBe('0');
   });
 });
 
@@ -100,6 +214,9 @@ describe('Home download all photos button', () => {
   const eventService = {
     downloadEventImages: vi.fn(),
   };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
   let fixture: ComponentFixture<Home>;
   let createObjectURLSpy: ReturnType<typeof vi.fn>;
   let revokeObjectURLSpy: ReturnType<typeof vi.fn>;
@@ -107,6 +224,8 @@ describe('Home download all photos button', () => {
   beforeEach(async () => {
     user.set(activeUser);
     eventService.downloadEventImages.mockReset();
+    imageService.getEventImages.mockReset();
+    imageService.getEventImages.mockReturnValue(of([]));
     createObjectURLSpy = vi.fn().mockReturnValue('blob:mock-url');
     revokeObjectURLSpy = vi.fn();
     (URL as unknown as { createObjectURL: unknown }).createObjectURL = createObjectURLSpy;
@@ -125,6 +244,7 @@ describe('Home download all photos button', () => {
           },
         },
         { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
       ],
     })
       .overrideComponent(Home, {
@@ -189,3 +309,28 @@ describe('Home download all photos button', () => {
     expect(downloadButton().disabled).toBe(false);
   });
 });
+
+const userTemplate: UserDto = {
+  createdAt: '2024-01-01T00:00:00Z',
+  email: 'test@example.com',
+  emailVerified: true,
+  onboardingComplete: true,
+  id: 'user-1',
+  events: [],
+};
+
+const event = {
+  id: 'event-1',
+  date: null,
+  eventName: 'Sophie & Marcus',
+  firstNameCoupleOne: 'Sophie',
+  firstNameCoupleTwo: 'Marcus',
+  location: 'Eichenfürst',
+  userId: 'user-1',
+};
+
+const image1: EventImageDto = { id: 'image-1', url: 'https://cdn.test/image-1.jpg' };
+const image2: EventImageDto = { id: 'image-2', url: 'https://cdn.test/image-2.jpg' };
+const image3: EventImageDto = { id: 'image-3', url: 'https://cdn.test/image-3.jpg' };
+const image4: EventImageDto = { id: 'image-4', url: 'https://cdn.test/image-4.jpg' };
+const image5: EventImageDto = { id: 'image-5', url: 'https://cdn.test/image-5.jpg' };

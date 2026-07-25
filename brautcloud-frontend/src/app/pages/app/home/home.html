@@ -21,7 +21,7 @@
     <section>
       <img src="https://placehold.co/400x500" alt="" class="rounded-xl" />
     </section>
-    <app-home-stats [statInput]="stats"></app-home-stats>
+    <app-home-stats [statInput]="stats()"></app-home-stats>
     <section class="flex flex-col gap-5">
       <div class="flex justify-between items-center">
         <p class="font-display text-2xl">Live Gallery</p>
@@ -30,18 +30,26 @@
           <p class="font-body text-mainrose">LIVE NOW</p>
         </div>
       </div>
-      <div class="flex gap-2">
-        @for (photo of photos; track photo.url) {
-          <div class="relative min-w-0 w-full aspect-square">
-            <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
-            @if (photo.extraCount) {
-              <div class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center">
-                <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
-              </div>
-            }
-          </div>
-        }
-      </div>
+      @if (imagesLoading()) {
+        <p role="status" class="font-body text-gray-500">Loading photos…</p>
+      } @else if (previewPhotos().length > 0) {
+        <div class="flex gap-2">
+          @for (photo of previewPhotos(); track photo.url) {
+            <div class="relative min-w-0 w-full aspect-square">
+              <img [src]="photo.url" alt="" class="rounded-lg w-full h-full object-cover" />
+              @if (photo.extraCount) {
+                <div
+                  class="absolute inset-0 bg-black/40 rounded-sm flex items-center justify-center"
+                >
+                  <span class="text-white text-xl font-display">+{{ photo.extraCount }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p role="status" class="font-body text-gray-500">No photos yet.</p>
+      }
       <button
         type="button"
         (click)="downloadAllPhotos()"
