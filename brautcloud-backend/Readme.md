@@ -36,3 +36,37 @@ Add these variables in your Doppler project/config:
 > These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections.
 
 Included in this Project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot.
+
+## Running the backend test suite
+
+Prerequisites:
+
+- JDK 25 (the Maven wrapper downloads Maven itself)
+- a running Docker-compatible container daemon
+- permission to pull and run `postgres:16-alpine`
+
+No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. Integration tests start one shared PostgreSQL Testcontainer, apply the real Flyway migrations, and replace S3 operations with a test double.
+
+Run the complete suite from a clean build:
+
+```bash
+cd brautcloud-backend
+./mvnw clean test
+```
+
+For rootless Podman, expose its Docker-compatible socket first. Some Podman setups also require Ryuk to be disabled; the suite has its own shutdown hook for the shared PostgreSQL container:
+
+```bash
+systemctl --user start podman.socket
+DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/podman/podman.sock" \
+  TESTCONTAINERS_RYUK_DISABLED=true \
+  ./mvnw clean test
+```
+
+Focused unit and MVC slice tests can run without a container, for example:
+
+```bash
+./mvnw -Dtest=JwtServiceTest,EventControllerWebMvcTest test
+```
+
+Database integration tests intentionally use PostgreSQL through Testcontainers rather than H2 so constraints, UUIDs, migrations, cascade behavior, and SQL semantics match production.

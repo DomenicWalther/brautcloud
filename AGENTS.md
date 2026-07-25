@@ -62,6 +62,10 @@ Key routing rules:
 - Use `dev` as the integration base: branch from `origin/dev`, validate and diff against `origin/dev`, and open implementation pull requests with base `dev` (pass `--base dev` when a tool does not inherit the repository default).
 - `main` is release-only. The intended release path is a pull request from `dev` to `main`; do not target `main` directly from implementation branches.
 - The GitHub default branch is `dev`, which is also the authoritative base used by no-mistakes for rebases, validation diffs, and pull requests.
+
+## Backend testing
+
+Run the complete backend suite with `cd brautcloud-backend && ./mvnw clean test`; prerequisites and Podman setup are documented in `brautcloud-backend/Readme.md`. Tests that need production database behavior must use the shared PostgreSQL Testcontainers support under `brautcloud-backend/src/test/java/com/domenicwalther/brautcloud/support`; do not substitute H2 for PostgreSQL semantics. External object storage must use safe test doubles and must not require live credentials.
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

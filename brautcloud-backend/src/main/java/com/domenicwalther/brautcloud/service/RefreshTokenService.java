@@ -52,10 +52,12 @@ public class RefreshTokenService {
 		return refreshToken;
 	}
 
+	@Transactional
 	public void deleteByUser(User user) {
 		refreshTokenRepository.deleteByUser(user);
 	}
 
+	@Transactional
 	public void deleteByToken(String token) {
 		refreshTokenRepository.findByToken(token).ifPresent(t -> deleteByUser(t.getUser()));
 	}
