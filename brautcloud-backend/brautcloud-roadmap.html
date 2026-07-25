@@ -604,10 +604,10 @@ code {
             </div>
             <div class="phase-card-desc">Backend auth endpoints already exist — this week is about wiring the Angular forms to them.</div>
             <div class="foundation-tasks">
-              <div class="ft-item"><div class="ft-dot"></div>Wire sign-in form → <code>POST /api/auth/login</code>, store JWT in localStorage</div>
+              <div class="ft-item"><div class="ft-dot"></div>Wire sign-in form → <code>POST /api/auth/login</code> with cookie-backed refresh sessions</div>
               <div class="ft-item"><div class="ft-dot"></div>Wire sign-up form → <code>POST /api/auth/register</code></div>
               <div class="ft-item"><div class="ft-dot"></div>Add route guards protecting all <code>/app/*</code> routes</div>
-              <div class="ft-item"><div class="ft-dot"></div>Handle token refresh + logout flow end-to-end</div>
+              <div class="ft-item"><div class="ft-dot"></div>Ship end-to-end refresh coordination and explicit logout handling for the authenticated app shell</div>
             </div>
           </div>
 
