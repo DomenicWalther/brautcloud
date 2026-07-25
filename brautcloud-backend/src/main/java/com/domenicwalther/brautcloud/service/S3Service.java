@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -35,6 +36,11 @@ public class S3Service {
 		DeleteObjectRequest request = DeleteObjectRequest.builder().bucket(bucketName).key(key).build();
 		s3Client.deleteObject(request);
 
+	}
+
+	public byte[] getObjectBytes(String key) {
+		GetObjectRequest request = GetObjectRequest.builder().bucket(bucketName).key(key).build();
+		return s3Client.getObjectAsBytes(request).asByteArray();
 	}
 
 	public String getPresignedUrl(String key) {

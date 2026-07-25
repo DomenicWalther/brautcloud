@@ -12,9 +12,12 @@ import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 public class EventService {
@@ -77,6 +80,25 @@ public class EventService {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			return new EventImageDTO(image.getId(), url);
 		}).toList();
+	}
+
+	public StreamingResponseBody streamEventImagesAsZip(String email, UUID eventID) {
+		resourceOwnershipService.requireOwnedEvent(email, eventID);
+		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
+		if (images.isEmpty()) {
+			return null;
+		}
+
+		return outputStream -> {
+			try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
+				for (Image image : images) {
+					byte[] data = s3Service.getObjectBytes(image.getImageKey());
+					zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
+					zipOutputStream.write(data);
+					zipOutputStream.closeEntry();
+				}
+			}
+		};
 	}
 
 	private User findUserByEmail(String email) {
