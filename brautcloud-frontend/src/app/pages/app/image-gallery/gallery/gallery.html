@@ -1,37 +1,46 @@
 @if (loading()) {
-  <p role="status" class="text-center py-8">Loading gallery...</p>
-} @else if (loadError()) {
-  <section class="mt-10 text-center" role="alert">
-    <h2 class="font-display text-3xl">Gallery unavailable</h2>
-    <p class="mt-3 text-gray-500">{{ loadError() }}</p>
-    <a routerLink="/app/home" class="inline-block mt-6 bg-mainrose text-white px-6 py-3">
-      Back to home
-    </a>
+  <section class="bc-loading-state" aria-live="polite" aria-busy="true">
+    <div class="bc-loading-state__inner">
+      <span class="bc-spinner" aria-hidden="true"></span>
+      <h2>Preparing your gallery</h2>
+      <p>Gathering every shared moment.</p>
+    </div>
+  </section>
+} @else if (loadError(); as error) {
+  <section class="bc-empty-state" role="alert">
+    <div class="bc-empty-state__inner">
+      <span class="material-symbols-outlined" aria-hidden="true">cloud_off</span>
+      <h2>Gallery unavailable</h2>
+      <p>{{ error }}</p>
+      <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+    </div>
   </section>
 } @else if (event()) {
   @if (images().length > 0) {
-    <div class="columns-1 sm:columns-2 md:columns-3 gap-4 mt-10">
-      @for (img of images(); track img.id) {
-        <div class="mb-4 break-inside-avoid">
-          <img [src]="img.url" loading="lazy" class="w-full rounded-lg" />
-        </div>
+    <div class="gallery-masonry" aria-label="Wedding photographs">
+      @for (img of images(); track img.id; let i = $index) {
+        <figure class="gallery-photo">
+          <img [src]="img.url" loading="lazy" [alt]="'Wedding gallery moment ' + (i + 1)" />
+        </figure>
       }
     </div>
   } @else {
-    <section class="mt-10 text-center" role="status">
-      <h2 class="font-display text-3xl">Your gallery is ready for photos</h2>
-      <p class="mt-3 text-gray-500">Upload your first photos to share them with your guests.</p>
-      <a routerLink="/app/upload" class="inline-block mt-6 bg-mainrose text-white px-6 py-3">
-        Upload photos
-      </a>
+    <section class="bc-empty-state">
+      <div class="bc-empty-state__inner">
+        <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+        <h2>Your first moments will appear here</h2>
+        <p>Share the gallery QR code with guests, then return as the collection grows.</p>
+        <a routerLink="/app/upload" class="bc-button bc-button--primary">Upload photos</a>
+      </div>
     </section>
   }
 } @else {
-  <section class="mt-10 text-center" role="status">
-    <h2 class="font-display text-3xl">No gallery is available yet</h2>
-    <p class="mt-3 text-gray-500">Complete your event setup from home to create a gallery.</p>
-    <a routerLink="/app/home" class="inline-block mt-6 bg-mainrose text-white px-6 py-3">
-      Back to home
-    </a>
+  <section class="bc-empty-state" role="status">
+    <div class="bc-empty-state__inner">
+      <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+      <h2>No gallery is available yet</h2>
+      <p>Complete your event setup from home to create a gallery.</p>
+      <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+    </div>
   </section>
 }

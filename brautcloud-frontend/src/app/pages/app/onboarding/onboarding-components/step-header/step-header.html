@@ -1,9 +1,7 @@
-<div class="flex flex-col gap-4">
-  <p class="text-gold-light text-sm font-sc">Step {{ stepCount() }} of 3</p>
-  <h2 class="font-serif text-6xl">
+<header class="onboarding-step-header">
+  <p class="bc-eyebrow">Step {{ stepCount() }} of 3</p>
+  <h1 class="bc-display">
     <ng-content></ng-content>
-  </h2>
-  <p class="text-white/40">
-    {{ description() }}
-  </p>
-</div>
+  </h1>
+  <p class="bc-lede">{{ description() }}</p>
+</header>

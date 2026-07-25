@@ -1,0 +1,32 @@
+<a class="bc-skip-link" href="#auth-content">Skip to form</a>
+
+<main class="auth-shell">
+  <section class="auth-story" aria-label="About BrautCloud">
+    <a class="bc-brand-lockup" routerLink="/" aria-label="BrautCloud home">
+      <span class="bc-brand-mark" aria-hidden="true"></span>
+      <span>BrautCloud</span>
+    </a>
+    <div class="auth-story__copy">
+      <p class="bc-eyebrow">Every moment, beautifully kept</p>
+      <p class="auth-story__quote">A private home for every perspective of your wedding day.</p>
+      <span class="auth-story__rule" aria-hidden="true"></span>
+      <p>Considered for couples. Effortless for guests.</p>
+    </div>
+    <p class="auth-story__footer">Private wedding galleries · Original quality</p>
+  </section>
+
+  <section id="auth-content" class="auth-panel" aria-labelledby="auth-title" tabindex="-1">
+    <a class="auth-panel__brand bc-brand-lockup" routerLink="/" aria-label="BrautCloud home">
+      <span class="bc-brand-mark" aria-hidden="true"></span>
+      <span>BrautCloud</span>
+    </a>
+    <header class="auth-panel__header">
+      <p class="bc-eyebrow">{{ eyebrow() }}</p>
+      <h1 id="auth-title" class="bc-display">{{ title() }}</h1>
+      <p class="bc-lede">{{ description() }}</p>
+    </header>
+    <div class="auth-panel__content">
+      <ng-content />
+    </div>
+  </section>
+</main>

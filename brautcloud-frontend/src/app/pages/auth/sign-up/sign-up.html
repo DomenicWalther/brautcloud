@@ -1,81 +1,108 @@
-<main class="flex flex-col items-center h-dvh justify-center bg-gray-900 text-white gap-20">
-  <p>BrautCloud</p>
-  <div class="text-center">
-    <h1 class="text-4xl">Begin your Legacy</h1>
-    <h2 class="text-xl text-mainrose/70">Join the circle of Elegance</h2>
-  </div>
-  <form class="flex flex-col gap-5 w-1/3" (submit)="onSubmit($event)">
-    <div>
-      <label class="flex flex-col">
-        <span class="font-bold">Email</span>
-        <input
-          type="email"
-          placeholder="Email Address"
-          class="border-mainrose/50 border-2 px-4 py-2"
-          [formField]="registerForm.email"
-        />
-      </label>
+<app-auth-shell
+  eyebrow="Your story starts here"
+  title="Create your gallery"
+  description="Set up the private space where every guest's perspective will come together."
+>
+  <form class="bc-form" (submit)="onSubmit($event)" novalidate>
+    <div class="bc-field">
+      <label class="bc-field-label" for="sign-up-email">Email address</label>
+      <input
+        id="sign-up-email"
+        class="bc-input"
+        type="email"
+        placeholder="you@example.com"
+        autocomplete="email"
+        [formField]="registerForm.email"
+        [attr.aria-invalid]="registerForm.email().touched() && registerForm.email().invalid()"
+        [attr.aria-describedby]="
+          registerForm.email().touched() && registerForm.email().invalid()
+            ? 'sign-up-email-error'
+            : null
+        "
+      />
       @if (registerForm.email().touched() && registerForm.email().invalid()) {
-        @for (error of registerForm.email().errors(); track error) {
-          <p>{{ error.message }}</p>
-        }
+        <div id="sign-up-email-error" role="alert">
+          @for (error of registerForm.email().errors(); track error) {
+            <p class="bc-field-error">{{ error.message }}</p>
+          }
+        </div>
       }
     </div>
-    <div>
-      <label class="flex flex-col">
-        <span class="font-bold">Password</span>
-        <input
-          type="password"
-          placeholder="Create password"
-          class="border-mainrose/50 border-2 px-4 py-2"
-          [formField]="registerForm.password"
-        />
-      </label>
+
+    <div class="bc-field">
+      <label class="bc-field-label" for="sign-up-password">Password</label>
+      <input
+        id="sign-up-password"
+        class="bc-input"
+        type="password"
+        placeholder="Create a password"
+        autocomplete="new-password"
+        [formField]="registerForm.password"
+        [attr.aria-invalid]="registerForm.password().touched() && registerForm.password().invalid()"
+        [attr.aria-describedby]="
+          registerForm.password().touched() && registerForm.password().invalid()
+            ? 'sign-up-password-error'
+            : 'sign-up-password-hint'
+        "
+      />
+      <p id="sign-up-password-hint" class="bc-field-hint">
+        Choose a unique password for your private gallery.
+      </p>
       @if (registerForm.password().touched() && registerForm.password().invalid()) {
-        @for (error of registerForm.password().errors(); track error) {
-          <p>{{ error.message }}</p>
-        }
+        <div id="sign-up-password-error" role="alert">
+          @for (error of registerForm.password().errors(); track error) {
+            <p class="bc-field-error">{{ error.message }}</p>
+          }
+        </div>
       }
     </div>
-    <div>
-      <label class="flex flex-col">
-        <span class="font-bold">Confirm Password</span>
-        <input
-          type="password"
-          placeholder="Confirm password"
-          class="border-mainrose/50 border-2 px-4 py-2"
-          [formField]="registerForm.confirmPassword"
-        />
-      </label>
+
+    <div class="bc-field">
+      <label class="bc-field-label" for="sign-up-confirm-password">Confirm password</label>
+      <input
+        id="sign-up-confirm-password"
+        class="bc-input"
+        type="password"
+        placeholder="Repeat your password"
+        autocomplete="new-password"
+        [formField]="registerForm.confirmPassword"
+        [attr.aria-invalid]="
+          registerForm.confirmPassword().touched() && registerForm.confirmPassword().invalid()
+        "
+        [attr.aria-describedby]="
+          registerForm.confirmPassword().touched() && registerForm.confirmPassword().invalid()
+            ? 'sign-up-confirm-password-error'
+            : null
+        "
+      />
       @if (registerForm.confirmPassword().touched() && registerForm.confirmPassword().invalid()) {
-        @for (error of registerForm.confirmPassword().errors(); track error) {
-          <p>{{ error.message }}</p>
-        }
+        <div id="sign-up-confirm-password-error" role="alert">
+          @for (error of registerForm.confirmPassword().errors(); track error) {
+            <p class="bc-field-error">{{ error.message }}</p>
+          }
+        </div>
       }
     </div>
     @if (serverError()) {
       <p role="alert" class="text-red-300">{{ serverError() }}</p>
     }
+
     <button
       type="submit"
-      class="bg-mainrose font-bold py-4 text-sm cursor-pointer hover:scale-105 translate-all duration-300 disabled:opacity-50"
+      class="bc-button bc-button--primary bc-button--wide"
       [disabled]="registerForm().invalid() || submitting()"
     >
-      {{ submitting() ? 'CREATING ACCOUNT…' : 'CREATE ACCOUNT' }}
+      {{ submitting() ? 'Creating account…' : 'Create account' }}
     </button>
   </form>
-  <p>
-    By joining, you agree to our
-    <span class="font-bold underline cursor-pointer">Terms of Service</span> and
-    <span class="font-bold underline cursor-pointer">Privacy Policy</span>
+
+  <p class="bc-auth-terms">
+    By joining, you agree to our <span>Terms of Service</span> and <span>Privacy Policy</span>.
   </p>
-  <p>
-    Already have an Account?
-    <span
-      class="text-mainrose font-bold cursor-pointer hover:text-mainrose/80 translate-all duration-300"
-      routerLink="/auth/sign-in"
-      [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
-      >Log In</span
+  <p class="bc-auth-switch">
+    Already have an account?
+    <a routerLink="/auth/sign-in" [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
+      >Sign in</a
     >
   </p>
-</main>
+</app-auth-shell>

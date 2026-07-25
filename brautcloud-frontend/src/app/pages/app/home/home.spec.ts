@@ -1,6 +1,7 @@
 import { HttpResponse } from '@angular/common/http';
 import { Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { QrCodeComponent } from 'ng-qrcode';
 import { of, Subject, throwError } from 'rxjs';
 import { APP_URL } from '../../../core/tokens';
@@ -63,6 +64,7 @@ describe('Home defensive empty state', () => {
     await TestBed.configureTestingModule({
       imports: [Home],
       providers: [
+        provideRouter([]),
         { provide: APP_URL, useValue: 'http://app.test' },
         {
           provide: UserService,
@@ -90,8 +92,8 @@ describe('Home defensive empty state', () => {
 
     expect(content).toContain('No gallery is available yet');
     expect(content).not.toContain('Welcome,');
-    expect(content).not.toContain('Days until your Wedding');
-    expect(content).not.toContain('Live Gallery');
+    expect(content).not.toContain('days until your wedding');
+    expect(content).not.toContain('Live gallery');
     expect(fixture.nativeElement.querySelector('qr-code')).toBeNull();
     expect(imageService.getEventImages).not.toHaveBeenCalled();
     expect(eventService.registerView).not.toHaveBeenCalled();
@@ -131,6 +133,7 @@ describe('Home gallery preview and photos stat', () => {
     await TestBed.configureTestingModule({
       imports: [Home],
       providers: [
+        provideRouter([]),
         { provide: APP_URL, useValue: 'http://app.test' },
         {
           provide: UserService,
@@ -169,7 +172,7 @@ describe('Home gallery preview and photos stat', () => {
 
     expect(fixture.componentInstance.imagesLoading()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('No photos yet');
-    expect(fixture.nativeElement.querySelectorAll('.aspect-square img').length).toBe(0);
+    expect(fixture.nativeElement.querySelectorAll('.dashboard-preview img').length).toBe(0);
     expect(fixture.componentInstance.stats().photos).toBe('0');
   });
 
@@ -180,7 +183,7 @@ describe('Home gallery preview and photos stat', () => {
     fixture.detectChanges();
 
     const tiles = fixture.nativeElement.querySelectorAll(
-      '.aspect-square img',
+      '.dashboard-preview img',
     ) as NodeListOf<HTMLImageElement>;
     expect(tiles.length).toBe(1);
     expect(tiles[0].src).toBe(image1.url);
@@ -195,7 +198,7 @@ describe('Home gallery preview and photos stat', () => {
     fixture.detectChanges();
 
     const tiles = fixture.nativeElement.querySelectorAll(
-      '.aspect-square img',
+      '.dashboard-preview img',
     ) as NodeListOf<HTMLImageElement>;
     expect(tiles.length).toBe(3);
     expect(fixture.nativeElement.textContent).toContain('+2');
@@ -235,6 +238,7 @@ describe('Home live guest and view stats', () => {
     await TestBed.configureTestingModule({
       imports: [Home],
       providers: [
+        provideRouter([]),
         { provide: APP_URL, useValue: 'http://app.test' },
         {
           provide: UserService,
@@ -344,6 +348,7 @@ describe('Home download all photos button', () => {
     await TestBed.configureTestingModule({
       imports: [Home],
       providers: [
+        provideRouter([]),
         { provide: APP_URL, useValue: 'http://app.test' },
         {
           provide: UserService,
@@ -369,7 +374,7 @@ describe('Home download all photos button', () => {
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('button'),
     ) as HTMLButtonElement[];
-    return buttons.find((button) => button.textContent?.includes('DOWNLOAD'))!;
+    return buttons.find((button) => button.textContent?.toLowerCase().includes('download'))!;
   }
 
   it('disables the button and shows a preparing label while the download is in flight, then completes the download', () => {
@@ -381,7 +386,7 @@ describe('Home download all photos button', () => {
     fixture.detectChanges();
 
     expect(downloadButton().disabled).toBe(true);
-    expect(downloadButton().textContent).toContain('PREPARING DOWNLOAD');
+    expect(downloadButton().textContent).toContain('Preparing download');
 
     response$.next(new HttpResponse<Blob>({ body: new Blob(['x']), status: 200 }));
     response$.complete();

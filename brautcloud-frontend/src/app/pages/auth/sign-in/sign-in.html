@@ -1,62 +1,81 @@
-<main class="flex flex-col items-center h-dvh justify-center bg-gray-900 text-white gap-20">
-  <p>BrautCloud</p>
-  <div class="text-center">
-    <h1 class="text-4xl">Sign In</h1>
-  </div>
-  <form class="flex flex-col gap-5 w-1/3" (submit)="onSubmit($event)">
-    <div>
-      <label class="flex flex-col">
-        <span class="font-bold">Email</span>
-        <input
-          type="email"
-          placeholder="Email Address"
-          class="border-mainrose/50 border-2 px-4 py-2"
-          [formField]="loginForm.email"
-        />
-      </label>
+<app-auth-shell
+  eyebrow="Welcome back"
+  title="Sign in"
+  description="Return to your private gallery workspace and the moments waiting there."
+>
+  <form class="bc-form" (submit)="onSubmit($event)" novalidate>
+    <div class="bc-field">
+      <label class="bc-field-label" for="sign-in-email">Email address</label>
+      <input
+        id="sign-in-email"
+        class="bc-input"
+        type="email"
+        placeholder="you@example.com"
+        autocomplete="email"
+        [formField]="loginForm.email"
+        [attr.aria-invalid]="loginForm.email().touched() && loginForm.email().invalid()"
+        [attr.aria-describedby]="
+          loginForm.email().touched() && loginForm.email().invalid() ? 'sign-in-email-error' : null
+        "
+      />
       @if (loginForm.email().touched() && loginForm.email().invalid()) {
-        @for (error of loginForm.email().errors(); track error) {
-          <p>{{ error.message }}</p>
-        }
+        <div id="sign-in-email-error" role="alert">
+          @for (error of loginForm.email().errors(); track error) {
+            <p class="bc-field-error">{{ error.message }}</p>
+          }
+        </div>
       }
     </div>
-    <div>
-      <label class="flex flex-col">
-        <span class="font-bold">Password</span>
-        <input
-          type="password"
-          [formField]="loginForm.password"
-          placeholder="Create password"
-          class="border-mainrose/50 border-2 px-4 py-2"
-        />
-      </label>
+
+    <div class="bc-field">
+      <div class="bc-field-heading">
+        <label class="bc-field-label" for="sign-in-password">Password</label>
+        <a routerLink="/auth/reset-password">Forgot password?</a>
+      </div>
+      <input
+        id="sign-in-password"
+        class="bc-input"
+        type="password"
+        placeholder="Enter your password"
+        autocomplete="current-password"
+        [formField]="loginForm.password"
+        [attr.aria-invalid]="loginForm.password().touched() && loginForm.password().invalid()"
+        [attr.aria-describedby]="
+          loginForm.password().touched() && loginForm.password().invalid()
+            ? 'sign-in-password-error'
+            : null
+        "
+      />
       @if (loginForm.password().touched() && loginForm.password().invalid()) {
-        @for (error of loginForm.password().errors(); track error) {
-          <p>{{ error.message }}</p>
-        }
+        <div id="sign-in-password-error" role="alert">
+          @for (error of loginForm.password().errors(); track error) {
+            <p class="bc-field-error">{{ error.message }}</p>
+          }
+        </div>
       }
     </div>
     @if (serverError()) {
       <p role="alert" class="text-red-300">{{ serverError() }}</p>
     }
+
     <button
       type="submit"
-      class="bg-mainrose font-bold py-4 text-sm cursor-pointer disabled:opacity-50"
+      class="bc-button bc-button--primary bc-button--wide"
       [disabled]="loginForm().invalid() || submitting()"
     >
-      {{ submitting() ? 'SIGNING IN…' : 'LOGIN' }}
+      @if (submitting()) {
+        <span class="bc-spinner bc-button-spinner" aria-hidden="true"></span>
+        Signing in
+      } @else {
+        Sign in
+      }
     </button>
   </form>
-  <p class="font-light text-gray-400 text-sm cursor-pointer" routerLink="/auth/reset-password">
-    FORGOT PASSWORD?
-  </p>
-  <p>
-    Don't have an account?
-    <span
-      class="text-mainrose font-bold cursor-pointer"
-      routerLink="/auth/sign-up"
-      [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
-      >Sign Up</span
+
+  <p class="bc-auth-switch">
+    New to BrautCloud?
+    <a routerLink="/auth/sign-up" [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
+      >Create your gallery</a
     >
   </p>
-</main>
+</app-auth-shell>

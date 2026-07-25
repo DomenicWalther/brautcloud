@@ -6,7 +6,7 @@ import { FieldTree, FormField } from '@angular/forms/signals';
   imports: [FormField],
   templateUrl: './form-label.html',
   styles: ``,
-  host: { class: 'flex-1' },
+  host: { class: 'onboarding-field' },
 })
 export class FormLabel {
   label = input.required<string>();

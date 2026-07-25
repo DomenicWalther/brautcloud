@@ -6,6 +6,7 @@ import { AuthDTO } from '../../../core/models/auth.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
 import { authSchema } from '../schemas/auth.schema';
+import { AuthShell } from '../../../components/auth-shell/auth-shell';
 
 interface RegisterDTO {
   email: string;
@@ -15,7 +16,7 @@ interface RegisterDTO {
 
 @Component({
   selector: 'app-sign-up',
-  imports: [RouterLink, FormField],
+  imports: [RouterLink, FormField, AuthShell],
   templateUrl: './sign-up.html',
   styles: ``,
 })

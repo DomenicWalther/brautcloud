@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { form, required } from '@angular/forms/signals';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OnboardingDto } from '../../../core/models/onboarding.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
@@ -13,7 +13,7 @@ import { StepComponent } from './step';
 
 @Component({
   selector: 'app-onboarding',
-  imports: [MultiStepForm, StepComponent, FormLabel, StepHeader],
+  imports: [MultiStepForm, StepComponent, FormLabel, StepHeader, RouterLink],
   templateUrl: './onboarding.html',
   styles: ``,
 })

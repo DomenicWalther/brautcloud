@@ -8,6 +8,41 @@ import { AuthService } from '../../../services/auth-service';
 import { OnboardingService } from '../../../services/onboarding-service';
 import { Onboarding } from './onboarding';
 
+describe('Onboarding accessibility', () => {
+  it('starts on an accessible, validation-gated first step', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Onboarding],
+      providers: [
+        provideRouter([]),
+        { provide: OnboardingService, useValue: { submitOnboarding: vi.fn() } },
+        { provide: AuthService, useValue: { markOnboardingComplete: vi.fn() } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
+        {
+          provide: AuthRoutingService,
+          useValue: { destinationAfterOnboarding: vi.fn() },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Onboarding);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const skipLink = root.querySelector('.bc-skip-link');
+    const panel = root.querySelector('#onboarding-form');
+    const continueButton = root.querySelector<HTMLButtonElement>('app-form-button button');
+
+    expect(skipLink?.getAttribute('href')).toBe('#onboarding-form');
+    expect(panel?.getAttribute('tabindex')).toBe('-1');
+    expect(root.textContent).toContain('Step 1 of 3');
+    expect(root.querySelectorAll('input[required]').length).toBe(3);
+    expect(continueButton?.disabled).toBe(true);
+  });
+});
+
 describe('Onboarding submission', () => {
   let responses: Subject<OnboardingResponse>;
   let onboardingService: { submitOnboarding: ReturnType<typeof vi.fn> };
@@ -64,13 +99,13 @@ describe('Onboarding submission', () => {
 
     buttons()[buttons().length - 1].click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Name your');
+    expect(fixture.nativeElement.textContent).toContain('Where will you');
     expect(onboardingService.submitOnboarding).not.toHaveBeenCalled();
 
     buttons()[buttons().length - 1].click();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Create your');
-    expect(buttons()[buttons().length - 1].textContent).toContain('Create Gallery');
+    expect(buttons()[buttons().length - 1].textContent).toContain('Create gallery');
 
     buttons()[buttons().length - 1].click();
     expect(onboardingService.submitOnboarding).toHaveBeenCalledOnce();

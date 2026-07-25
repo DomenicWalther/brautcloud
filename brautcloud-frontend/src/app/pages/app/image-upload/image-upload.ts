@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { RouterLink } from '@angular/router';
+import { AppShell } from '../../../components/app-shell/app-shell';
 
 export interface SelectedFile {
   file: File;
@@ -15,7 +16,7 @@ export interface UploadedImage {
 
 @Component({
   selector: 'app-image-upload',
-  imports: [RouterLink],
+  imports: [RouterLink, AppShell],
   templateUrl: './image-upload.html',
   styles: ``,
 })
@@ -31,6 +32,7 @@ export class ImageUpload {
   selectedFiles = signal<SelectedFile[]>([]);
   uploadedImages = signal<UploadedImage[]>([]);
   isUploading = signal(false);
+  uploadError = signal<string | null>(null);
 
   onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -75,6 +77,7 @@ export class ImageUpload {
     const eventId = this.event()?.id;
     if (!eventId || this.isUploading()) return;
 
+    this.uploadError.set(null);
     this.isUploading.set(true);
     const files = this.selectedFiles();
 
@@ -92,12 +95,18 @@ export class ImageUpload {
 
         const failed = results.filter((r) => !r.success);
         if (failed.length > 0) {
+          this.uploadError.set(
+            `${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could not be uploaded. Please try again.`,
+          );
           console.error('Some uploads failed:', failed);
         }
         this.clearAllSelected();
         this.isUploading.set(false);
       },
       error: (err) => {
+        this.uploadError.set(
+          'The upload could not be completed. Check your connection and try again.',
+        );
         console.error('Upload failed:', err);
         this.isUploading.set(false);
       },
@@ -112,6 +121,7 @@ export class ImageUpload {
         this.uploadedImages.update((images) => images.filter((_, i) => i !== index));
       },
       error: (err) => {
+        this.uploadError.set('That photo could not be removed. Please try again.');
         console.error('Failed to delete image:', err);
       },
     });

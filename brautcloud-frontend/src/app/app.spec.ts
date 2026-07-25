@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { routes } from './app.routes';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -19,5 +20,19 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('router-outlet')).toBeTruthy();
+  });
+
+  it('keeps every public, authentication, and workspace page family routed', () => {
+    const authPaths = routes
+      .find((route) => route.path === 'auth')
+      ?.children?.map((route) => route.path);
+    const appPaths = routes
+      .find((route) => route.path === 'app')
+      ?.children?.map((route) => route.path);
+
+    expect(routes.some((route) => route.path === '')).toBe(true);
+    expect(authPaths).toEqual(['sign-in', 'sign-up', 'reset-password']);
+    expect(appPaths).toEqual(['home', 'upload', 'gallery', 'onboarding', '**']);
+    expect(routes.at(-1)?.path).toBe('**');
   });
 });

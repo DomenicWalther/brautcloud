@@ -2,10 +2,11 @@ import { Component, computed, inject } from '@angular/core';
 
 import { Gallery } from './gallery/gallery';
 import { UserService } from '../../../services/user-service';
+import { AppShell } from '../../../components/app-shell/app-shell';
 
 @Component({
   selector: 'app-image-gallery',
-  imports: [Gallery],
+  imports: [Gallery, AppShell],
   templateUrl: './image-gallery.html',
 })
 export class ImageGallery {
