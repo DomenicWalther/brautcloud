@@ -33,7 +33,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: "22.x"
           cache: pnpm
           cache-dependency-path: brautcloud-frontend/pnpm-lock.yaml
 
@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: graalvm
-          java-version: '25'
+          java-version: "25"
           cache: maven
           cache-dependency-path: brautcloud-backend/pom.xml
 

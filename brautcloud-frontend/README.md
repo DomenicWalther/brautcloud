@@ -24,11 +24,11 @@ pnpm run watch
 
 ## Build output
 
-`npm run build` creates a production build in `dist/`.
+`pnpm run build` creates a production build in `dist/`.
 
 ## Testing
 
-`npm test` runs the unit test suite with Angular's test runner and Vitest.
+`pnpm test` runs the unit test suite with Angular's test runner and Vitest.
 
 The test suite covers authentication, session lifecycle, and onboarding flows:
 
