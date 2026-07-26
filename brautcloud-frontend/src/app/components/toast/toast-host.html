@@ -1,0 +1,27 @@
+@if (toasts().length > 0) {
+  <aside class="toast-host" aria-label="Notifications">
+    @for (toast of toasts(); track toast.id) {
+      <div
+        [class]="'toast toast--' + toast.kind"
+        [attr.role]="toast.kind === 'error' || toast.kind === 'warning' ? 'alert' : 'status'"
+        [attr.aria-live]="
+          toast.kind === 'error' || toast.kind === 'warning' ? 'assertive' : 'polite'
+        "
+        aria-atomic="true"
+      >
+        <span class="material-symbols-outlined toast__icon" aria-hidden="true">
+          {{ iconFor(toast) }}
+        </span>
+        <p class="toast__message">{{ toast.message }}</p>
+        <button
+          type="button"
+          class="toast__dismiss"
+          aria-label="Dismiss notification"
+          (click)="dismiss(toast)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+    }
+  </aside>
+}

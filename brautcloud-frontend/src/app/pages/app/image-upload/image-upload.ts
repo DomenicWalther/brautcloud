@@ -3,6 +3,7 @@ import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { RouterLink } from '@angular/router';
 import { AppShell } from '../../../components/app-shell/app-shell';
+import { ToastService } from '../../../services/toast-service';
 
 export interface SelectedFile {
   file: File;
@@ -23,6 +24,7 @@ export interface UploadedImage {
 export class ImageUpload {
   userService = inject(UserService);
   imageService = inject(ImageService);
+  private readonly toastService = inject(ToastService);
 
   user = this.userService.user;
   readonly event = computed(() => this.user()?.events?.[0]);
@@ -94,20 +96,24 @@ export class ImageUpload {
         });
 
         const failed = results.filter((r) => !r.success);
+        const uploadedCount = results.length - failed.length;
         if (failed.length > 0) {
-          this.uploadError.set(
-            `${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could not be uploaded. Please try again.`,
+          const message = `${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could not be uploaded. Please try again.`;
+          this.uploadError.set(message);
+          this.toastService.show(message, 'error');
+        } else if (uploadedCount > 0) {
+          this.toastService.show(
+            `${uploadedCount} ${uploadedCount === 1 ? 'photo' : 'photos'} uploaded successfully.`,
+            'success',
           );
-          console.error('Some uploads failed:', failed);
         }
         this.clearAllSelected();
         this.isUploading.set(false);
       },
-      error: (err) => {
-        this.uploadError.set(
-          'The upload could not be completed. Check your connection and try again.',
-        );
-        console.error('Upload failed:', err);
+      error: () => {
+        const message = 'The upload could not be completed. Check your connection and try again.';
+        this.uploadError.set(message);
+        this.toastService.show(message, 'error');
         this.isUploading.set(false);
       },
     });
@@ -119,10 +125,12 @@ export class ImageUpload {
       next: () => {
         URL.revokeObjectURL(image.url);
         this.uploadedImages.update((images) => images.filter((_, i) => i !== index));
+        this.toastService.show('Photo deleted successfully.', 'success');
       },
-      error: (err) => {
-        this.uploadError.set('That photo could not be removed. Please try again.');
-        console.error('Failed to delete image:', err);
+      error: () => {
+        const message = 'That photo could not be removed. Please try again.';
+        this.uploadError.set(message);
+        this.toastService.show(message, 'error');
       },
     });
   }

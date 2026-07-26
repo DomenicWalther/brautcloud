@@ -6,6 +6,7 @@ import { OnboardingResponse } from '../../../core/models/onboarding.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
 import { OnboardingService } from '../../../services/onboarding-service';
+import { ToastService } from '../../../services/toast-service';
 import { Onboarding } from './onboarding';
 
 describe('Onboarding accessibility', () => {
@@ -48,6 +49,7 @@ describe('Onboarding submission', () => {
   let onboardingService: { submitOnboarding: ReturnType<typeof vi.fn> };
   let authService: { markOnboardingComplete: ReturnType<typeof vi.fn> };
   let router: Router;
+  let toastService: ToastService;
   let component: Onboarding;
   let fixture: ComponentFixture<Onboarding>;
 
@@ -85,6 +87,8 @@ describe('Onboarding submission', () => {
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     fixture = TestBed.createComponent(Onboarding);
+    toastService = TestBed.inject(ToastService);
+    toastService.clear();
     component = fixture.componentInstance;
   });
 
@@ -138,6 +142,10 @@ describe('Onboarding submission', () => {
     expect(component.submissionError()).toBe('Venue is required');
     expect(component.model().firstName).toBe('Sophie');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'error',
+      message: 'Venue is required',
+    });
   });
 
   it('marks the session complete and navigates only after backend success', () => {
@@ -151,6 +159,10 @@ describe('Onboarding submission', () => {
     expect(router.navigateByUrl).toHaveBeenCalledOnce();
     const destination = vi.mocked(router.navigateByUrl).mock.calls[0][0] as UrlTree;
     expect(router.serializeUrl(destination)).toBe('/app/upload');
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: 'Your gallery was created successfully.',
+    });
   });
 });
 

@@ -7,6 +7,7 @@ import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
 import { authSchema } from '../schemas/auth.schema';
 import { AuthShell } from '../../../components/auth-shell/auth-shell';
+import { ToastService } from '../../../services/toast-service';
 
 @Component({
   selector: 'app-sign-in',
@@ -19,6 +20,7 @@ export class SignIn {
   private readonly authRouting = inject(AuthRoutingService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly toastService = inject(ToastService);
 
   readonly serverError = signal<string | null>(null);
   readonly submitting = signal(false);
@@ -53,15 +55,17 @@ export class SignIn {
     this.submitting.set(true);
     this.authService.login(credentials).subscribe({
       next: () => {
+        this.toastService.show('Signed in successfully.', 'success');
         const destination = this.authRouting.destinationAfterAuth(
           this.route.snapshot.queryParamMap.get('returnUrl'),
         );
         void this.router.navigateByUrl(destination);
       },
       error: (error: HttpErrorResponse) => {
-        this.serverError.set(
-          error.error?.message ?? 'Unable to sign in. Please check your details and try again.',
-        );
+        const message =
+          error.error?.message ?? 'Unable to sign in. Please check your details and try again.';
+        this.serverError.set(message);
+        this.toastService.show(message, 'error');
         this.submitting.set(false);
       },
     });
