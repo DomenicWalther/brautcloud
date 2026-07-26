@@ -1,19 +1,10 @@
-import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService } from '../../../services/auth-service';
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-authenticated-layout',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterOutlet],
   templateUrl: './authenticated-layout.html',
   styleUrl: './authenticated-layout.css',
 })
-export class AuthenticatedLayout {
-  private readonly authService = inject(AuthService);
-
-  protected readonly isSigningOut = this.authService.isLoggingOut;
-
-  protected signOut(): void {
-    this.authService.logout();
-  }
-}
+export class AuthenticatedLayout {}
