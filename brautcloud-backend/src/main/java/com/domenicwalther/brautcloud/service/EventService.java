@@ -5,6 +5,7 @@ import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
+import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
@@ -16,6 +17,7 @@ import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -41,13 +43,17 @@ public class EventService {
 
 	private final EventGuestVisitRepository eventGuestVisitRepository;
 
+	private final PasswordEncoder passwordEncoder;
+
 	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
-			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository) {
+			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
+			PasswordEncoder passwordEncoder) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
 		this.eventGuestVisitRepository = eventGuestVisitRepository;
+		this.passwordEncoder = passwordEncoder;
 	}
 
 	public List<EventResponse> getEvents() {
@@ -115,6 +121,15 @@ public class EventService {
 		event.setFirstNameCoupleTwo(request.firstNameCoupleTwo().trim());
 		event.setLocation(request.location().trim());
 		event.setDate(request.date());
+		if (request.password() == null) {
+			// null → leave existing password untouched
+		}
+		else if (request.password().isBlank()) {
+			event.setPassword(null);
+		}
+		else {
+			event.setPassword(passwordEncoder.encode(request.password()));
+		}
 		return toEventResponse(eventRepository.save(event));
 	}
 
@@ -128,8 +143,13 @@ public class EventService {
 		return getEventImages(eventID);
 	}
 
-	public List<EventImageDTO> getPublicEventImages(UUID eventID) {
-		findEvent(eventID);
+	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword) {
+		Event event = findEvent(eventID);
+		if (event.getPassword() != null && !event.getPassword().isBlank()) {
+			if (galleryPassword == null || !passwordEncoder.matches(galleryPassword, event.getPassword())) {
+				throw new GalleryPasswordRequiredException("Gallery password required");
+			}
+		}
 		return getEventImages(eventID);
 	}
 

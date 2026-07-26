@@ -6,6 +6,7 @@ export interface OnboardingDto {
   familyName: string;
   venue: string;
   date: string;
+  password?: string;
 }
 
 export interface OnboardingResponse {

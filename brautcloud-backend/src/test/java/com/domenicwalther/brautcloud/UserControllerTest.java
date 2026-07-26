@@ -312,7 +312,7 @@ class UserControllerTest {
 
 		assertThrows(RuntimeException.class,
 				() -> onboardingService.complete(user.getEmail(), new OnboardingRequest("Sophie", "Marcus",
-						oversizedFamilyName, "Venue", java.time.LocalDateTime.of(2030, 6, 15, 0, 0))));
+						oversizedFamilyName, "Venue", java.time.LocalDateTime.of(2030, 6, 15, 0, 0), null)));
 
 		entityManager.clear();
 		assertEquals(0, eventRepository.count());

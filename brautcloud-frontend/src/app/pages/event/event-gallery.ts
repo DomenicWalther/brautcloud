@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PublicEventDto } from '../../core/models/event.dto';
 import { EventService } from '../../services/event-service';
+import { ImageService } from '../../services/image-service';
 import { Gallery } from '../app/image-gallery/gallery/gallery';
 
 const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
@@ -15,6 +16,7 @@ const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
 })
 export class EventGallery {
   private readonly eventService = inject(EventService);
+  private readonly imageService = inject(ImageService);
   private readonly eventId = inject(ActivatedRoute).snapshot.paramMap.get('eventId');
 
   readonly loading = signal(true);
@@ -32,6 +34,11 @@ export class EventGallery {
       : new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(parsedDate);
   });
 
+  readonly enteredPassword = signal('');
+  readonly passwordError = signal<string | null>(null);
+  readonly verifiedPassword = signal<string | null>(null);
+  readonly verifyingPassword = signal(false);
+
   constructor() {
     if (!this.eventId) {
       this.error.set('This event link is missing its event identifier.');
@@ -43,7 +50,9 @@ export class EventGallery {
       next: (event) => {
         this.event.set(event);
         this.loading.set(false);
-        this.registerView(event.id);
+        if (!event.passwordProtected) {
+          this.registerView(event.id);
+        }
       },
       error: (response: HttpErrorResponse) => {
         this.error.set(
@@ -54,6 +63,37 @@ export class EventGallery {
         this.loading.set(false);
       },
     });
+  }
+
+  submitPassword(event: Event): void {
+    event.preventDefault();
+    if (this.verifyingPassword() || !this.eventId || !this.enteredPassword()) {
+      return;
+    }
+
+    const password = this.enteredPassword();
+    this.verifyingPassword.set(true);
+    this.passwordError.set(null);
+
+    this.imageService.getPublicEventImages(this.eventId, password).subscribe({
+      next: () => {
+        this.verifiedPassword.set(password);
+        this.verifyingPassword.set(false);
+        this.registerView(this.eventId!);
+      },
+      error: (response: HttpErrorResponse) => {
+        if (response.status === 401) {
+          this.passwordError.set('Incorrect password. Please try again.');
+        } else {
+          this.passwordError.set('We could not verify the password. Please try again.');
+        }
+        this.verifyingPassword.set(false);
+      },
+    });
+  }
+
+  onPasswordInput(event: Event): void {
+    this.enteredPassword.set((event.target as HTMLInputElement).value);
   }
 
   private registerView(eventId: string): void {

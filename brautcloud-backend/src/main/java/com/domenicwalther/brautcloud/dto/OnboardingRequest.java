@@ -15,5 +15,6 @@ public record OnboardingRequest(
 				message = "Family name must not exceed 255 characters") String familyName,
 		@NotBlank(message = "Venue is required") @Size(max = 255,
 				message = "Venue must not exceed 255 characters") String venue,
-		@NotNull(message = "Event date is required") LocalDateTime date) {
+		@NotNull(message = "Event date is required") LocalDateTime date,
+		@Size(max = 72, message = "Password must not exceed 72 characters") String password) {
 }

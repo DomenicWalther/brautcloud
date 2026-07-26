@@ -140,6 +140,43 @@
           <p class="settings-card__error" role="alert">{{ error }}</p>
         }
       </form>
+
+      <form class="bc-surface bc-card settings-card" novalidate (submit)="savePassword($event)">
+        <header class="settings-section-header">
+          <h2 class="bc-heading">Gallery password</h2>
+          <p class="bc-muted">
+            Set or change the password guests must enter to view your gallery. Leave the field blank
+            and save to remove an existing password.
+          </p>
+          @if (event()?.hasPassword) {
+            <p class="settings-password-status">
+              <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+              A password is currently set.
+            </p>
+          }
+        </header>
+        <div class="bc-form settings-form">
+          <label class="bc-field">
+            <span class="bc-field-label">New password</span>
+            <input
+              class="bc-input"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Leave blank to remove"
+              [value]="passwordValue()"
+              (input)="onPasswordInput($event)"
+            />
+          </label>
+        </div>
+        <div class="settings-card__actions">
+          <button type="submit" class="bc-button bc-button--primary" [disabled]="savingPassword()">
+            {{ savingPassword() ? 'Saving…' : 'Save password' }}
+          </button>
+        </div>
+        @if (savePasswordError(); as error) {
+          <p class="settings-card__error" role="alert">{{ error }}</p>
+        }
+      </form>
     } @else {
       <section class="bc-empty-state" role="status">
         <div class="bc-empty-state__inner">

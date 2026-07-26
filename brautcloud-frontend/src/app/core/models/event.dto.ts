@@ -5,6 +5,7 @@ export interface PublicEventDto {
   firstNameCoupleTwo: string;
   id: string;
   location: string;
+  passwordProtected: boolean;
 }
 
 export interface EventUpdateDto {
@@ -13,6 +14,7 @@ export interface EventUpdateDto {
   firstNameCoupleOne: string;
   firstNameCoupleTwo: string;
   location: string;
+  password?: string;
 }
 
 export interface EventDto {
@@ -25,4 +27,5 @@ export interface EventDto {
   userId: string;
   viewCount: number;
   guestCount: number;
+  hasPassword: boolean;
 }

@@ -36,6 +36,7 @@ function eventFixture(overrides: Partial<EventDto> = {}): EventDto {
     userId: 'user-1',
     viewCount: 0,
     guestCount: 0,
+    hasPassword: false,
     ...overrides,
   };
 }
@@ -591,6 +592,7 @@ const event: EventDto = {
   userId: 'user-1',
   viewCount: 0,
   guestCount: 0,
+  hasPassword: false,
 };
 
 const image1: EventImageDto = { id: 'image-1', url: 'https://cdn.test/image-1.jpg' };

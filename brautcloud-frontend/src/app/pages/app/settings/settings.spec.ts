@@ -18,6 +18,7 @@ const eventFixture: EventDto = {
   location: 'Eichenfürst',
   viewCount: 4,
   guestCount: 2,
+  hasPassword: false,
 };
 
 function userFixture(event: EventDto = eventFixture) {

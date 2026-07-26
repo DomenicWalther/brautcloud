@@ -1,7 +1,10 @@
 package com.domenicwalther.brautcloud.service;
 
+import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
+import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
@@ -19,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -54,6 +58,9 @@ class EventServiceTest {
 	@Mock
 	private S3Service s3Service;
 
+	@Mock
+	private PasswordEncoder passwordEncoder;
+
 	private EventService eventService;
 
 	@BeforeEach
@@ -61,7 +68,7 @@ class EventServiceTest {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
 		eventService = new EventService(eventRepository, userRepository, imageRepository, resourceOwnershipService,
-				eventGuestVisitRepository);
+				eventGuestVisitRepository, passwordEncoder);
 		ReflectionTestUtils.setField(eventService, "s3Service", s3Service);
 	}
 
@@ -267,6 +274,96 @@ class EventServiceTest {
 		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
 
 		assertThat(eventService.streamEventImagesAsZip(user.getEmail(), eventId)).isNull();
+	}
+
+	@Test
+	void updateEventWithNonBlankPasswordHashesAndPersistsIt() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(passwordEncoder.encode("new-secret")).thenReturn("$2a$hashed");
+		when(eventRepository.save(event)).thenReturn(event);
+		when(eventGuestVisitRepository.countByEventId(eventId)).thenReturn(0L);
+
+		EventUpdateRequest request = new EventUpdateRequest("Wedding", "Alex", "Sam", "Berlin",
+				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "new-secret");
+		eventService.updateEvent(user.getEmail(), eventId, request);
+
+		assertThat(event.getPassword()).isEqualTo("$2a$hashed");
+		verify(passwordEncoder).encode("new-secret");
+	}
+
+	@Test
+	void updateEventWithEmptyPasswordRemovesIt() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setPassword("$2a$existing");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(eventRepository.save(event)).thenReturn(event);
+		when(eventGuestVisitRepository.countByEventId(eventId)).thenReturn(0L);
+
+		EventUpdateRequest request = new EventUpdateRequest("Wedding", "Alex", "Sam", "Berlin",
+				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "");
+		eventService.updateEvent(user.getEmail(), eventId, request);
+
+		assertThat(event.getPassword()).isNull();
+		verify(passwordEncoder, never()).encode(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void updateEventWithNullPasswordLeavesExistingPasswordUnchanged() {
+		User user = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setPassword("$2a$existing");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(eventRepository.save(event)).thenReturn(event);
+		when(eventGuestVisitRepository.countByEventId(eventId)).thenReturn(0L);
+
+		EventUpdateRequest request = new EventUpdateRequest("Wedding", "Alex", "Sam", "Berlin",
+				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), null);
+		eventService.updateEvent(user.getEmail(), eventId, request);
+
+		assertThat(event.getPassword()).isEqualTo("$2a$existing");
+		verify(passwordEncoder, never()).encode(org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void publicImagesRequirePasswordWhenGalleryIsProtected() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		event.setPassword("hashed");
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
+
+		assertThatThrownBy(() -> eventService.getPublicEventImages(eventId, null))
+			.isInstanceOf(GalleryPasswordRequiredException.class)
+			.hasMessage("Gallery password required");
+		assertThatThrownBy(() -> eventService.getPublicEventImages(eventId, "wrong"))
+			.isInstanceOf(GalleryPasswordRequiredException.class)
+			.hasMessage("Gallery password required");
+	}
+
+	@Test
+	void publicImagesAreReturnedWithCorrectPasswordOnProtectedGallery() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		event.setPassword("hashed");
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(passwordEncoder.matches("correct", "hashed")).thenReturn(true);
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+
+		List<EventImageDTO> result = eventService.getPublicEventImages(eventId, "correct");
+		assertThat(result).isEmpty();
 	}
 
 	private static EventRequest request(UUID userId) {
