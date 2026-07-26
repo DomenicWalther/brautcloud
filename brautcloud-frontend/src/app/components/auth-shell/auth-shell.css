@@ -116,6 +116,43 @@
   min-width: 0;
 }
 
+:host(.auth-shell--registration) .auth-panel {
+  padding: clamp(1.5rem, 2.75vw, 2.5rem) clamp(1.25rem, 5vw, 3.5rem);
+}
+
+:host(.auth-shell--registration) .auth-panel__header {
+  gap: var(--bc-space-xs);
+  margin-bottom: var(--bc-space-md);
+}
+
+:host(.auth-shell--registration) .auth-panel__header .bc-eyebrow {
+  margin-bottom: 0;
+}
+
+:host(.auth-shell--registration) .auth-panel__header .bc-display {
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+}
+
+@media (max-height: 50rem) and (min-width: 52.01rem) {
+  .auth-story {
+    padding: var(--bc-space-lg);
+  }
+
+  .auth-story__copy {
+    padding-block: var(--bc-space-2xl);
+  }
+
+  .auth-story__quote {
+    font-size: clamp(2.5rem, 4.5vw, 4rem);
+  }
+}
+
+@media (max-height: 40rem) and (min-width: 52.01rem) {
+  :host(.auth-shell--registration) .auth-panel {
+    padding-block: var(--bc-space-xs);
+  }
+}
+
 @media (max-width: 52rem) {
   .auth-shell {
     grid-template-columns: 1fr;
@@ -133,6 +170,23 @@
     display: inline-flex;
     align-self: flex-start;
   }
+
+  :host(.auth-shell--registration) .auth-panel {
+    padding: var(--bc-space-md);
+  }
+
+  :host(.auth-shell--registration) .auth-panel__brand {
+    margin-bottom: var(--bc-space-md);
+  }
+
+  :host(.auth-shell--registration) .auth-panel__header {
+    gap: var(--bc-space-2xs);
+    margin-bottom: var(--bc-space-md);
+  }
+
+  :host(.auth-shell--registration) .auth-panel__header .bc-display {
+    font-size: 2.5rem;
+  }
 }
 
 @media (max-width: 30rem) {
@@ -143,5 +197,13 @@
 
   .auth-panel__brand {
     margin-bottom: var(--bc-space-2xl);
+  }
+
+  :host(.auth-shell--registration) .auth-panel {
+    padding-top: var(--bc-space-md);
+  }
+
+  :host(.auth-shell--registration) .auth-panel__brand {
+    margin-bottom: var(--bc-space-md);
   }
 }

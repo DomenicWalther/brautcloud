@@ -183,6 +183,15 @@
   gap: var(--bc-space-lg);
 }
 
+.auth-form--registration {
+  gap: var(--bc-space-md);
+}
+
+.auth-form--registration .bc-input {
+  min-height: 3rem;
+  padding-block: 0.6rem;
+}
+
 .bc-form-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -276,6 +285,15 @@
 .bc-auth-terms {
   margin-top: var(--bc-space-lg);
   font-size: var(--bc-font-size-xs);
+}
+
+.auth-terms--registration,
+.auth-switch--registration {
+  margin-top: var(--bc-space-md);
+}
+
+.auth-server-error {
+  margin: 0;
 }
 
 .bc-auth-terms span {
@@ -425,6 +443,12 @@
   height: 0.36rem;
   background: var(--bc-color-accent);
   content: '';
+}
+
+@media (max-height: 40rem) and (min-width: 52.01rem) {
+  .auth-form--registration {
+    gap: var(--bc-space-sm);
+  }
 }
 
 @media (max-width: 42rem) {

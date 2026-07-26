@@ -55,7 +55,9 @@
       }
     </div>
     @if (serverError()) {
-      <p role="alert" class="text-red-300">{{ serverError() }}</p>
+      <p role="alert" aria-live="assertive" class="bc-field-error auth-server-error">
+        {{ serverError() }}
+      </p>
     }
 
     <button

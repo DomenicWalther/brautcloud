@@ -34,7 +34,7 @@ export class SignIn {
   });
 
   readonly loginForm = form(this.loginModel, (schemaPath) => {
-    authSchema(schemaPath, this.serverError);
+    authSchema(schemaPath);
   });
 
   onSubmit(event: Event): void {

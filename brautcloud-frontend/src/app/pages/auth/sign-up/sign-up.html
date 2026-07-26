@@ -1,9 +1,10 @@
 <app-auth-shell
+  class="auth-shell--registration"
   eyebrow="Your story starts here"
   title="Create your gallery"
   description="Set up the private space where every guest's perspective will come together."
 >
-  <form class="bc-form" (submit)="onSubmit($event)" novalidate>
+  <form class="bc-form auth-form--registration" (submit)="onSubmit($event)" novalidate>
     <div class="bc-field">
       <label class="bc-field-label" for="sign-up-email">Email address</label>
       <input
@@ -84,7 +85,9 @@
       }
     </div>
     @if (serverError()) {
-      <p role="alert" class="text-red-300">{{ serverError() }}</p>
+      <p role="alert" aria-live="assertive" class="bc-field-error auth-server-error">
+        {{ serverError() }}
+      </p>
     }
 
     <button
@@ -96,10 +99,10 @@
     </button>
   </form>
 
-  <p class="bc-auth-terms">
+  <p class="bc-auth-terms auth-terms--registration">
     By joining, you agree to our <span>Terms of Service</span> and <span>Privacy Policy</span>.
   </p>
-  <p class="bc-auth-switch">
+  <p class="bc-auth-switch auth-switch--registration">
     Already have an account?
     <a routerLink="/auth/sign-in" [queryParams]="returnUrl ? { returnUrl: returnUrl } : null"
       >Sign in</a
