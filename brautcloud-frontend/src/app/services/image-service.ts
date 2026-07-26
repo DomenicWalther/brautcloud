@@ -1,11 +1,15 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, forkJoin, switchMap, of, map } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, switchMap, throwError } from 'rxjs';
 import { API_URL } from '../core/tokens';
 import { EventImageDto } from '../core/models/event-image.dto';
 
 interface PresignedUrlRequest {
   eventId: string;
+  fileNames: string[];
+}
+
+interface PublicPresignedUrlRequest {
   fileNames: string[];
 }
 
@@ -19,7 +23,7 @@ interface PresignedUrlResponse {
   uploadUrl: string;
 }
 
-interface UploadResult {
+export interface UploadResult {
   imageId: string;
   success: boolean;
   error?: string;
@@ -51,15 +55,48 @@ export class ImageService {
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {
     const fileNames = files.map((f) => f.file.name);
 
+    return this.uploadImagesWithEndpoints(
+      `${this.API_URL}/image/presigned-url`,
+      `${this.API_URL}/image/uploaded`,
+      { eventId, fileNames } as PresignedUrlRequest,
+      files,
+      true,
+    );
+  }
+
+  uploadPublicImages(
+    eventId: string,
+    files: SelectedFile[],
+    galleryPassword?: string,
+  ): Observable<UploadResult[]> {
+    const headers: { [name: string]: string } = {};
+    if (galleryPassword) {
+      headers['X-Gallery-Password'] = galleryPassword;
+    }
+
+    return this.uploadImagesWithEndpoints(
+      `${this.API_URL}/events/${eventId}/public/images/presigned-url`,
+      `${this.API_URL}/events/${eventId}/public/images/uploaded`,
+      { fileNames: files.map((f) => f.file.name) } as PublicPresignedUrlRequest,
+      files,
+      false,
+      headers,
+    );
+  }
+
+  private uploadImagesWithEndpoints(
+    presignedUrlEndpoint: string,
+    uploadedEndpoint: string,
+    request: PresignedUrlRequest | PublicPresignedUrlRequest,
+    files: SelectedFile[],
+    withCredentials: boolean,
+    headers: { [name: string]: string } = {},
+  ): Observable<UploadResult[]> {
     return this.http
-      .post<PresignedUrlResponse[]>(
-        `${this.API_URL}/image/presigned-url`,
-        {
-          eventId,
-          fileNames,
-        } as PresignedUrlRequest,
-        { withCredentials: true },
-      )
+      .post<PresignedUrlResponse[]>(presignedUrlEndpoint, request, {
+        headers,
+        withCredentials,
+      })
       .pipe(
         switchMap((presignedUrls) => {
           const uploads = presignedUrls.map((presigned, index) => {
@@ -68,7 +105,16 @@ export class ImageService {
               return of({ imageId: presigned.imageId, success: false, error: 'File not found' });
             }
             return this.uploadToS3(presigned.uploadUrl, selectedFile.file).pipe(
-              switchMap(() => this.notifyBackend(presigned.imageId)),
+              switchMap(() =>
+                this.notifyBackend(uploadedEndpoint, presigned.imageId, headers, withCredentials),
+              ),
+              catchError((error: unknown) => {
+                if (error instanceof HttpErrorResponse && error.status === 401) {
+                  return throwError(() => error);
+                }
+                const message = error instanceof Error ? error.message : 'Upload failed';
+                return of({ imageId: presigned.imageId, success: false, error: message });
+              }),
             );
           });
 
@@ -99,9 +145,14 @@ export class ImageService {
     });
   }
 
-  private notifyBackend(imageId: string): Observable<UploadResult> {
+  private notifyBackend(
+    uploadedEndpoint: string,
+    imageId: string,
+    headers: { [name: string]: string },
+    withCredentials: boolean,
+  ): Observable<UploadResult> {
     return this.http
-      .post<void>(`${this.API_URL}/image/uploaded`, [imageId], { withCredentials: true })
+      .post<void>(uploadedEndpoint, [imageId], { headers, withCredentials })
       .pipe(map(() => ({ imageId, success: true })));
   }
 
