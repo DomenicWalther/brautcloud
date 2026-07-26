@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { form, FormField, required, validate } from '@angular/forms/signals';
+import { form, FormField, minLength, required, validate } from '@angular/forms/signals';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthDTO } from '../../../core/models/auth.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
@@ -39,13 +39,17 @@ export class SignUp {
   });
 
   readonly registerForm = form(this.registerModel, (schemaPath) => {
-    authSchema(schemaPath, this.serverError);
+    authSchema(schemaPath);
+    minLength(schemaPath.password, 8, {
+      message: 'Password must be at least 8 characters long',
+    });
     required(schemaPath.confirmPassword, { message: 'Please confirm your Password' });
     validate(schemaPath.confirmPassword, ({ value, valueOf }) => {
-      if (value() !== valueOf(schemaPath.password)) {
-        return { kind: 'passwordMismatch', message: 'Passwords do not match' };
+      if (!value() || value() === valueOf(schemaPath.password)) {
+        return null;
       }
-      return null;
+
+      return { kind: 'passwordMismatch', message: 'Passwords do not match' };
     });
   });
 

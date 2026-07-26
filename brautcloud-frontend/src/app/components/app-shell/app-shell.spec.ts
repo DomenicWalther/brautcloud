@@ -43,6 +43,9 @@ describe('AppShell', () => {
 
     expect(desktopLinks).toEqual(expectedWorkspaceRoutes);
     expect(mobileLinks).toEqual(expectedWorkspaceRoutes);
+    expect(root.querySelector<HTMLAnchorElement>('.bc-brand-lockup')?.getAttribute('href')).toBe(
+      '/app/home',
+    );
     expect(root.querySelectorAll('nav').length).toBe(2);
     expect(root.querySelector<HTMLButtonElement>('.workspace-signout')?.textContent).toContain(
       'Sign out',

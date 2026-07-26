@@ -36,6 +36,9 @@ describe('Onboarding accessibility', () => {
     const continueButton = root.querySelector<HTMLButtonElement>('app-form-button button');
 
     expect(skipLink?.getAttribute('href')).toBe('#onboarding-form');
+    expect(root.querySelector<HTMLAnchorElement>('.bc-brand-lockup')?.getAttribute('href')).toBe(
+      '/app/home',
+    );
     expect(panel?.getAttribute('tabindex')).toBe('-1');
     expect(root.textContent).toContain('Step 1 of 3');
     expect(root.querySelectorAll('input[required]').length).toBe(3);

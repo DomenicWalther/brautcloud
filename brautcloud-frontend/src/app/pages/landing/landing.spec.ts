@@ -27,6 +27,7 @@ describe('Landing', () => {
     expect(footerNav).toBeTruthy();
     expect(main).toBeTruthy();
     expect(primaryNav?.querySelectorAll('a').length).toBe(3);
+    expect(root.querySelector<HTMLAnchorElement>('.brand')?.getAttribute('href')).toBe('#top');
   });
 
   it('preserves sign-in and sign-up routes across the landing page calls to action', () => {
