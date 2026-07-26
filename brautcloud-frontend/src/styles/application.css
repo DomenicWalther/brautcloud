@@ -360,6 +360,176 @@
   transform: scale(1.012);
 }
 
+.gallery-photo__button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gallery-photo__button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline-offset: -3px;
+}
+
+.gallery-photo__fallback {
+  display: grid;
+  min-height: 12rem;
+  place-content: center;
+  gap: var(--bc-space-xs);
+  padding: var(--bc-space-lg);
+  color: var(--bc-color-text-muted);
+  background: var(--bc-color-surface-muted);
+  font-size: var(--bc-font-size-sm);
+  text-align: center;
+}
+
+.gallery-lightbox {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  overflow: auto;
+  padding: var(--bc-space-md);
+  color: var(--bc-color-text-inverse);
+  background: var(--bc-color-scrim);
+}
+
+.gallery-lightbox__panel {
+  display: flex;
+  min-height: calc(100svh - 2rem);
+  flex-direction: column;
+  width: min(100%, 90rem);
+  margin-inline: auto;
+  padding: var(--bc-space-md);
+  background: var(--bc-color-surface-inverse-strong);
+  border: 1px solid var(--bc-color-border-inverse);
+  box-shadow: var(--bc-shadow-inverse);
+}
+
+.gallery-lightbox__header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--bc-space-md);
+}
+
+.gallery-lightbox__header h2 {
+  margin: 0;
+  color: var(--bc-color-text-inverse);
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-size-xl);
+  font-weight: 400;
+}
+
+.gallery-lightbox__position {
+  margin: 0;
+  color: var(--bc-color-text-inverse-muted);
+  font-size: var(--bc-font-size-sm);
+}
+
+.gallery-lightbox__close {
+  justify-self: end;
+  color: var(--bc-color-text-inverse);
+  border-color: rgb(248 245 239 / 34%);
+}
+
+.gallery-lightbox__close:hover:not(:disabled) {
+  background: rgb(248 245 239 / 10%);
+  border-color: var(--bc-color-accent);
+}
+
+.gallery-lightbox__viewer {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(2.75rem, 1fr) minmax(0, 16fr) minmax(2.75rem, 1fr);
+  align-items: center;
+  gap: var(--bc-space-md);
+  padding-block: var(--bc-space-md);
+}
+
+.gallery-lightbox__image-wrap {
+  display: grid;
+  min-width: 0;
+  min-height: 18rem;
+  place-items: center;
+  background: var(--bc-color-surface-inverse);
+}
+
+.gallery-lightbox__image {
+  width: 100%;
+  max-height: min(68svh, 50rem);
+  object-fit: contain;
+}
+
+.gallery-lightbox__nav {
+  justify-self: center;
+  color: var(--bc-color-text-inverse);
+  border-color: rgb(248 245 239 / 34%);
+}
+
+.gallery-lightbox__nav:hover:not(:disabled) {
+  background: rgb(248 245 239 / 10%);
+  border-color: var(--bc-color-accent);
+}
+
+.gallery-lightbox__error {
+  display: grid;
+  place-items: center;
+  gap: var(--bc-space-sm);
+  min-height: 18rem;
+  margin: 0;
+  padding: var(--bc-space-xl);
+  color: var(--bc-color-text-inverse-muted);
+  text-align: center;
+}
+
+.gallery-lightbox__error .material-symbols-outlined {
+  color: var(--bc-color-accent-soft);
+  font-size: 2.5rem;
+}
+
+.gallery-lightbox__filmstrip {
+  display: flex;
+  gap: var(--bc-space-sm);
+  max-width: 100%;
+  padding: var(--bc-space-xs);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-color: var(--bc-color-accent) var(--bc-color-surface-inverse);
+}
+
+.gallery-lightbox__thumbnail {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: 0 0 4.5rem;
+  place-items: center;
+  padding: 0;
+  overflow: hidden;
+  color: var(--bc-color-text-inverse-muted);
+  background: var(--bc-color-surface-inverse-raised);
+  border: 2px solid transparent;
+  border-radius: var(--bc-radius-sm);
+  cursor: pointer;
+}
+
+.gallery-lightbox__thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-lightbox__thumbnail--active,
+.gallery-lightbox__thumbnail[aria-current='true'] {
+  border-color: var(--bc-color-accent);
+  box-shadow: 0 0 0 1px var(--bc-color-accent-soft);
+}
+
 /* Focused onboarding flow: inverse palette with a clear, compact form surface. */
 .bc-onboarding {
   min-height: 100svh;

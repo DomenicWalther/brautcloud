@@ -20,7 +20,30 @@
     <div class="gallery-masonry" aria-label="Wedding photographs">
       @for (img of images(); track img.id; let i = $index) {
         <figure class="gallery-photo">
-          <img [src]="img.url" loading="lazy" [alt]="'Wedding gallery moment ' + (i + 1)" />
+          @if (isImageFailed(img.id)) {
+            <div
+              class="gallery-photo__fallback"
+              role="img"
+              [attr.aria-label]="'Wedding gallery moment ' + (i + 1)"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">broken_image</span>
+              <span>Photo unavailable</span>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="gallery-photo__button"
+              [attr.aria-label]="'Open wedding gallery moment ' + (i + 1)"
+              (click)="openLightbox(i)"
+            >
+              <img
+                [src]="img.url"
+                loading="lazy"
+                [alt]="'Wedding gallery moment ' + (i + 1)"
+                (error)="onGalleryImageError(img.id)"
+              />
+            </button>
+          }
         </figure>
       }
     </div>
@@ -43,4 +66,95 @@
       <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
     </div>
   </section>
+}
+
+@if (lightboxOpen()) {
+  <div
+    class="gallery-lightbox"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="gallery-lightbox-title"
+    (click)="closeLightbox()"
+  >
+    <div class="gallery-lightbox__panel" (click)="$event.stopPropagation()">
+      <header class="gallery-lightbox__header">
+        <h2 id="gallery-lightbox-title">Gallery photograph</h2>
+        <p class="gallery-lightbox__position" aria-live="polite">Photo {{ selectedPosition() }}</p>
+        <button
+          #closeButton
+          type="button"
+          class="bc-button bc-button--icon gallery-lightbox__close"
+          aria-label="Close gallery photograph"
+          (click)="closeLightbox()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </header>
+
+      <div class="gallery-lightbox__viewer">
+        <button
+          type="button"
+          class="bc-button bc-button--icon gallery-lightbox__nav gallery-lightbox__nav--previous"
+          aria-label="Previous photograph"
+          (click)="navigate(-1)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        </button>
+
+        <div class="gallery-lightbox__image-wrap">
+          @if (selectedImage(); as image) {
+            @if (selectedImageFailed()) {
+              <div class="gallery-lightbox__error" role="alert">
+                <span class="material-symbols-outlined" aria-hidden="true">broken_image</span>
+                <p>This photograph could not be displayed.</p>
+              </div>
+            } @else {
+              <img
+                class="gallery-lightbox__image"
+                [src]="image.url"
+                [alt]="'Wedding gallery moment ' + (selectedIndex() + 1)"
+                (error)="onSelectedImageError()"
+              />
+            }
+          } @else {
+            <p class="gallery-lightbox__error" role="alert">Photograph unavailable.</p>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="bc-button bc-button--icon gallery-lightbox__nav gallery-lightbox__nav--next"
+          aria-label="Next photograph"
+          (click)="navigate(1)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+        </button>
+      </div>
+
+      <nav class="gallery-lightbox__filmstrip" aria-label="Gallery photographs">
+        @for (img of images(); track img.id; let i = $index) {
+          <button
+            type="button"
+            class="gallery-lightbox__thumbnail"
+            [class.gallery-lightbox__thumbnail--active]="i === selectedIndex()"
+            [attr.aria-current]="i === selectedIndex() ? 'true' : null"
+            [attr.aria-label]="'View wedding gallery moment ' + (i + 1)"
+            (click)="selectImage(i)"
+          >
+            @if (isImageFailed(img.id)) {
+              <span class="material-symbols-outlined" aria-hidden="true">broken_image</span>
+            } @else {
+              <img
+                [src]="img.url"
+                loading="lazy"
+                alt=""
+                aria-hidden="true"
+                (error)="onGalleryImageError(img.id)"
+              />
+            }
+          </button>
+        }
+      </nav>
+    </div>
+  </div>
 }
