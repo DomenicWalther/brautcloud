@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
-import { form, required } from '@angular/forms/signals';
+import { form, required, validate } from '@angular/forms/signals';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OnboardingDto } from '../../../core/models/onboarding.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
@@ -34,6 +34,7 @@ export class Onboarding {
     partnerFirstName: '',
     familyName: '',
     venue: '',
+    date: '',
   });
 
   readonly onboardingForm = form(this.model, (schema) => {
@@ -41,6 +42,14 @@ export class Onboarding {
     required(schema.partnerFirstName, { message: 'Please enter your partner first name' });
     required(schema.familyName, { message: 'Please enter your family name' });
     required(schema.venue, { message: 'Please enter your Venues name' });
+    required(schema.date, { message: 'Please enter your event date' });
+    validate(schema.date, ({ value }) => {
+      if (!value() || /^\d{4}-\d{2}-\d{2}$/.test(value())) {
+        return null;
+      }
+
+      return { kind: 'invalidDate', message: 'Please enter a valid event date' };
+    });
   });
 
   readonly stepOneValid = computed(
@@ -50,7 +59,9 @@ export class Onboarding {
       this.onboardingForm.familyName().valid(),
   );
 
-  readonly stepTwoValid = computed(() => this.onboardingForm.venue().valid());
+  readonly stepTwoValid = computed(
+    () => this.onboardingForm.venue().valid() && this.onboardingForm.date().valid(),
+  );
   readonly stepThreeValid = computed(() => this.stepOneValid() && this.stepTwoValid());
 
   submit(): void {

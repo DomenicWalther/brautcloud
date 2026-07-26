@@ -114,7 +114,7 @@
     left: 0;
     z-index: 35;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     padding: 0.45rem max(0.5rem, env(safe-area-inset-right))
       calc(0.45rem + env(safe-area-inset-bottom, 0)) max(0.5rem, env(safe-area-inset-left));
     color: var(--bc-color-text-inverse-muted);

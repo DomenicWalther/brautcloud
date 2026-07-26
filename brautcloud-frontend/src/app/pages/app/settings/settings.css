@@ -1,0 +1,37 @@
+.settings-page {
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+.settings-card {
+  display: grid;
+  gap: var(--bc-space-2xl);
+}
+
+.settings-form {
+  gap: var(--bc-space-xl);
+}
+
+.settings-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-lg);
+  padding-top: var(--bc-space-lg);
+  border-top: 1px solid var(--bc-color-border);
+}
+
+.settings-card__error {
+  margin: 0;
+  padding: var(--bc-space-md);
+  color: var(--bc-color-danger);
+  background: color-mix(in srgb, var(--bc-color-danger) 7%, var(--bc-color-surface));
+  border-left: 3px solid var(--bc-color-danger);
+  font-size: var(--bc-font-size-sm);
+  font-weight: 500;
+}
+
+@media (max-width: 42rem) {
+  .settings-card__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

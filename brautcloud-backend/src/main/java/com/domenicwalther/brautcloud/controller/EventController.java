@@ -3,7 +3,9 @@ package com.domenicwalther.brautcloud.controller;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.EventViewRequest;
+import com.domenicwalther.brautcloud.dto.PublicEventResponse;
 import com.domenicwalther.brautcloud.service.EventService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +34,16 @@ public class EventController {
 		return eventService.getEventsByUserEmail(authenticatedUser.getUsername());
 	}
 
+	@GetMapping("/{eventID}/public")
+	public PublicEventResponse getPublicEvent(@PathVariable UUID eventID) {
+		return eventService.getPublicEvent(eventID);
+	}
+
+	@GetMapping("/{eventID}/public/images")
+	public List<EventImageDTO> getPublicEventImages(@PathVariable UUID eventID) {
+		return eventService.getPublicEventImages(eventID);
+	}
+
 	@GetMapping("/{eventID}/images")
 	public List<EventImageDTO> getEventImages(@AuthenticationPrincipal UserDetails authenticatedUser,
 			@PathVariable UUID eventID) {
@@ -57,9 +69,20 @@ public class EventController {
 		eventService.addEvent(authenticatedUser.getUsername(), request);
 	}
 
+	@PutMapping("/{eventID}")
+	public EventResponse updateEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @PathVariable UUID eventID,
+			@Valid @RequestBody EventUpdateRequest request) {
+		return eventService.updateEvent(authenticatedUser.getUsername(), eventID, request);
+	}
+
 	@DeleteMapping("{eventID}")
 	public void deleteEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @PathVariable UUID eventID) {
 		eventService.deleteEvent(authenticatedUser.getUsername(), eventID);
+	}
+
+	@PostMapping("/{eventID}/public/view")
+	public void registerPublicView(@PathVariable UUID eventID, @Valid @RequestBody EventViewRequest request) {
+		eventService.registerPublicView(eventID, request.visitorId());
 	}
 
 	@PostMapping("/{eventID}/view")

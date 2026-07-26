@@ -36,6 +36,14 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'event',
+    loadComponent: () => import('./pages/event/event-gallery').then((m) => m.EventGallery),
+  },
+  {
+    path: 'event/:eventId',
+    loadComponent: () => import('./pages/event/event-gallery').then((m) => m.EventGallery),
+  },
+  {
     path: 'app',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -64,6 +72,11 @@ export const routes: Routes = [
         path: 'onboarding',
         canActivate: [onboardingPageGuard],
         loadComponent: () => import('./pages/app/onboarding/onboarding').then((m) => m.Onboarding),
+      },
+      {
+        path: 'settings',
+        canActivate: [onboardingRequiredGuard],
+        loadComponent: () => import('./pages/app/settings/settings').then((m) => m.Settings),
       },
       {
         path: '**',

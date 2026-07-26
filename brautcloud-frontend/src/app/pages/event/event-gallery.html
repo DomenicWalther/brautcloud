@@ -1,0 +1,56 @@
+<main class="bc-public-event">
+  <header class="bc-public-event__header">
+    <a class="bc-brand-lockup" routerLink="/" aria-label="BrautCloud home">
+      <span class="bc-brand-mark" aria-hidden="true"></span>
+      <span>BrautCloud</span>
+    </a>
+    <a class="bc-button bc-button--secondary" routerLink="/auth/sign-in">Owner sign in</a>
+  </header>
+
+  @if (loading()) {
+    <section class="bc-loading-state bc-public-event__state" aria-live="polite" aria-busy="true">
+      <div class="bc-loading-state__inner">
+        <span class="bc-spinner" aria-hidden="true"></span>
+        <h1>Preparing this gallery</h1>
+        <p>Gathering the celebration details and shared moments.</p>
+      </div>
+    </section>
+  } @else if (error(); as message) {
+    <section class="bc-empty-state bc-public-event__state" role="alert">
+      <div class="bc-empty-state__inner">
+        <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
+        <h1>Event link unavailable</h1>
+        <p>{{ message }}</p>
+        <a class="bc-button bc-button--primary" routerLink="/">Back to BrautCloud</a>
+      </div>
+    </section>
+  } @else if (event(); as activeEvent) {
+    <div class="bc-page bc-public-event__content">
+      <header class="bc-page-header bc-public-event__intro">
+        <p class="bc-eyebrow">Private wedding gallery</p>
+        <h1 class="bc-display">
+          {{ activeEvent.firstNameCoupleOne }} &amp; <em>{{ activeEvent.firstNameCoupleTwo }}</em>
+        </h1>
+        <p class="bc-lede">{{ activeEvent.eventName }}</p>
+        @if (eventDate(); as formattedDate) {
+          <p class="bc-public-event__details">
+            <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+            {{ formattedDate }}
+            @if (activeEvent.location) {
+              <span aria-hidden="true">·</span>
+              <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
+              {{ activeEvent.location }}
+            }
+          </p>
+        } @else if (activeEvent.location) {
+          <p class="bc-public-event__details">
+            <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
+            {{ activeEvent.location }}
+          </p>
+        }
+      </header>
+
+      <app-gallery [publicMode]="true" [publicEvent]="activeEvent" />
+    </div>
+  }
+</main>

@@ -3,6 +3,8 @@ package com.domenicwalther.brautcloud.controller;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
+import com.domenicwalther.brautcloud.dto.PublicEventResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.EventService;
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -64,6 +67,61 @@ class EventControllerWebMvcTest {
 			.andExpect(jsonPath("$[0].userId").value(userId.toString()))
 			.andExpect(jsonPath("$[0].viewCount").value(5))
 			.andExpect(jsonPath("$[0].guestCount").value(2));
+	}
+
+	@Test
+	void publicEventDetailsDoNotRequireOwnerIdentity() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		when(eventService.getPublicEvent(eventId)).thenReturn(new PublicEventResponse(eventId, "Wedding", "Berlin",
+				LocalDateTime.of(2030, 6, 15, 0, 0), "Alex", "Sam"));
+
+		mockMvc.perform(get("/api/events/{eventId}/public", eventId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(eventId.toString()))
+			.andExpect(jsonPath("$.eventName").value("Wedding"))
+			.andExpect(jsonPath("$.firstNameCoupleOne").value("Alex"))
+			.andExpect(jsonPath("$.userId").doesNotExist());
+	}
+
+	@Test
+	void publicImagesAndViewUsePublicServiceMethods() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+		UUID visitorId = UUID.randomUUID();
+		when(eventService.getPublicEventImages(eventId))
+			.thenReturn(List.of(new EventImageDTO(imageId, "https://files.test/photo")));
+
+		mockMvc.perform(get("/api/events/{eventId}/public/images", eventId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].id").value(imageId.toString()));
+		mockMvc
+			.perform(post("/api/events/{eventId}/public/view", eventId).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"visitorId\":\"%s\"}".formatted(visitorId)))
+			.andExpect(status().isOk());
+
+		verify(eventService).registerPublicView(eventId, visitorId);
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void updateEventUsesAuthenticatedIdentityAndReturnsUpdatedDetails() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		EventUpdateRequest request = new EventUpdateRequest("Updated wedding", "Alex", "Sam", "Berlin",
+				LocalDateTime.of(2030, 6, 15, 0, 0));
+		EventResponse response = new EventResponse(eventId, "Updated wedding", "Berlin", request.date(),
+				UUID.randomUUID(), "Alex", "Sam", 0L, 0L);
+		when(eventService.updateEvent("owner@example.com", eventId, request)).thenReturn(response);
+
+		mockMvc
+			.perform(put("/api/events/{eventId}", eventId).contentType(MediaType.APPLICATION_JSON)
+				.content(
+						"""
+								{"eventName":"Updated wedding","firstNameCoupleOne":"Alex","firstNameCoupleTwo":"Sam","location":"Berlin","date":"2030-06-15T00:00:00"}
+								"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.eventName").value("Updated wedding"));
+
+		verify(eventService).updateEvent("owner@example.com", eventId, request);
 	}
 
 	@Test

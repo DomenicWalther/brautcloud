@@ -211,7 +211,7 @@ class UserControllerTest {
 		Response completion = given().contentType(ContentType.JSON)
 			.header(HttpHeaders.AUTHORIZATION, "Bearer " + actorToken)
 			.body(Map.of("firstName", "Sophie", "partnerFirstName", "Marcus", "familyName", "Müller-Weber", "venue",
-					"Eichenfürst", "userId", victimId))
+					"Eichenfürst", "date", "2030-06-15T00:00:00", "userId", victimId))
 			.when()
 			.post("/api/onboarding");
 
@@ -310,8 +310,9 @@ class UserControllerTest {
 		userRepository.saveAndFlush(user);
 		String oversizedFamilyName = "x".repeat(300);
 
-		assertThrows(RuntimeException.class, () -> onboardingService.complete(user.getEmail(),
-				new OnboardingRequest("Sophie", "Marcus", oversizedFamilyName, "Venue")));
+		assertThrows(RuntimeException.class,
+				() -> onboardingService.complete(user.getEmail(), new OnboardingRequest("Sophie", "Marcus",
+						oversizedFamilyName, "Venue", java.time.LocalDateTime.of(2030, 6, 15, 0, 0))));
 
 		entityManager.clear();
 		assertEquals(0, eventRepository.count());
@@ -340,7 +341,7 @@ class UserControllerTest {
 
 	private Map<String, String> onboardingPayload() {
 		return Map.of("firstName", "Sophie", "partnerFirstName", "Marcus", "familyName", "Müller-Weber", "venue",
-				"Eichenfürst");
+				"Eichenfürst", "date", "2030-06-15T00:00:00");
 	}
 
 }

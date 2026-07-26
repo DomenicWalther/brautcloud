@@ -1,0 +1,153 @@
+<app-shell>
+  <div class="bc-page bc-page--narrow settings-page">
+    <header class="bc-page-header">
+      <p class="bc-eyebrow">Event settings</p>
+      <h1 class="bc-display">Keep your celebration details current.</h1>
+      <p class="bc-lede">These details appear in your guest gallery and event workspace.</p>
+    </header>
+
+    @if (loading()) {
+      <section class="bc-loading-state" aria-live="polite" aria-busy="true">
+        <div class="bc-loading-state__inner">
+          <span class="bc-spinner" aria-hidden="true"></span>
+          <h2>Loading event details</h2>
+        </div>
+      </section>
+    } @else if (loadError(); as error) {
+      <section class="bc-empty-state" role="alert">
+        <div class="bc-empty-state__inner">
+          <span class="material-symbols-outlined" aria-hidden="true">cloud_off</span>
+          <h2>Settings unavailable</h2>
+          <p>{{ error }}</p>
+        </div>
+      </section>
+    } @else if (event()) {
+      <form class="bc-surface bc-card settings-card" novalidate (submit)="save($event)">
+        <div class="bc-form settings-form">
+          <label class="bc-field">
+            <span class="bc-field-label">Event name</span>
+            <input
+              class="bc-input"
+              type="text"
+              autocomplete="organization"
+              [formField]="settingsForm.eventName"
+              [attr.aria-invalid]="
+                settingsForm.eventName().touched() && settingsForm.eventName().invalid()
+              "
+            />
+            @if (settingsForm.eventName().touched() && settingsForm.eventName().invalid()) {
+              @for (error of settingsForm.eventName().errors(); track error) {
+                <p class="bc-field-error" role="alert">{{ error.message }}</p>
+              }
+            }
+          </label>
+
+          <div class="bc-form-row">
+            <label class="bc-field">
+              <span class="bc-field-label">First name</span>
+              <input
+                class="bc-input"
+                type="text"
+                autocomplete="given-name"
+                [formField]="settingsForm.firstNameCoupleOne"
+                [attr.aria-invalid]="
+                  settingsForm.firstNameCoupleOne().touched() &&
+                  settingsForm.firstNameCoupleOne().invalid()
+                "
+              />
+              @if (
+                settingsForm.firstNameCoupleOne().touched() &&
+                settingsForm.firstNameCoupleOne().invalid()
+              ) {
+                @for (error of settingsForm.firstNameCoupleOne().errors(); track error) {
+                  <p class="bc-field-error" role="alert">{{ error.message }}</p>
+                }
+              }
+            </label>
+
+            <label class="bc-field">
+              <span class="bc-field-label">Partner's first name</span>
+              <input
+                class="bc-input"
+                type="text"
+                autocomplete="additional-name"
+                [formField]="settingsForm.firstNameCoupleTwo"
+                [attr.aria-invalid]="
+                  settingsForm.firstNameCoupleTwo().touched() &&
+                  settingsForm.firstNameCoupleTwo().invalid()
+                "
+              />
+              @if (
+                settingsForm.firstNameCoupleTwo().touched() &&
+                settingsForm.firstNameCoupleTwo().invalid()
+              ) {
+                @for (error of settingsForm.firstNameCoupleTwo().errors(); track error) {
+                  <p class="bc-field-error" role="alert">{{ error.message }}</p>
+                }
+              }
+            </label>
+          </div>
+
+          <div class="bc-form-row">
+            <label class="bc-field">
+              <span class="bc-field-label">Event date</span>
+              <input
+                class="bc-input"
+                type="date"
+                [formField]="settingsForm.date"
+                [attr.aria-invalid]="settingsForm.date().touched() && settingsForm.date().invalid()"
+              />
+              @if (settingsForm.date().touched() && settingsForm.date().invalid()) {
+                @for (error of settingsForm.date().errors(); track error) {
+                  <p class="bc-field-error" role="alert">{{ error.message }}</p>
+                }
+              }
+            </label>
+
+            <label class="bc-field">
+              <span class="bc-field-label">Location</span>
+              <input
+                class="bc-input"
+                type="text"
+                autocomplete="street-address"
+                [formField]="settingsForm.location"
+                [attr.aria-invalid]="
+                  settingsForm.location().touched() && settingsForm.location().invalid()
+                "
+              />
+              @if (settingsForm.location().touched() && settingsForm.location().invalid()) {
+                @for (error of settingsForm.location().errors(); track error) {
+                  <p class="bc-field-error" role="alert">{{ error.message }}</p>
+                }
+              }
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card__actions">
+          <button
+            type="submit"
+            class="bc-button bc-button--primary"
+            [disabled]="saving() || settingsForm().invalid()"
+          >
+            {{ saving() ? 'Saving…' : 'Save changes' }}
+          </button>
+          @if (saved()) {
+            <p class="bc-status" role="status">Changes saved</p>
+          }
+        </div>
+        @if (saveError(); as error) {
+          <p class="settings-card__error" role="alert">{{ error }}</p>
+        }
+      </form>
+    } @else {
+      <section class="bc-empty-state" role="status">
+        <div class="bc-empty-state__inner">
+          <span class="material-symbols-outlined" aria-hidden="true">event_busy</span>
+          <h2>No event details yet</h2>
+          <p>Complete event setup before editing these details.</p>
+        </div>
+      </section>
+    }
+  </div>
+</app-shell>

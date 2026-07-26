@@ -47,6 +47,57 @@ describe('Onboarding accessibility', () => {
   });
 });
 
+describe('Onboarding date field', () => {
+  it('requires event date before allowing step two', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Onboarding],
+      providers: [
+        provideRouter([]),
+        { provide: OnboardingService, useValue: { submitOnboarding: vi.fn() } },
+        { provide: AuthService, useValue: { markOnboardingComplete: vi.fn() } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
+        {
+          provide: AuthRoutingService,
+          useValue: { destinationAfterOnboarding: vi.fn() },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Onboarding);
+    const component = fixture.componentInstance;
+    component.model.set({
+      firstName: 'Sophie',
+      partnerFirstName: 'Marcus',
+      familyName: 'Müller-Weber',
+      venue: 'Eichenfürst',
+      date: '',
+    });
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const continueButton = root.querySelector<HTMLButtonElement>('app-form-button button');
+    expect(component.stepTwoValid()).toBe(false);
+    expect(continueButton?.disabled).toBe(false);
+
+    continueButton?.click();
+    fixture.detectChanges();
+
+    const stepTwoButton = root.querySelector<HTMLButtonElement>('app-form-button button');
+    expect(fixture.nativeElement.querySelector('input[type="date"]')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Where will you');
+    expect(component.stepTwoValid()).toBe(false);
+    expect(stepTwoButton?.disabled).toBe(true);
+
+    component.model.update((model) => ({ ...model, date: '2030-06-15' }));
+    fixture.detectChanges();
+    expect(component.stepTwoValid()).toBe(true);
+    expect(stepTwoButton?.disabled).toBe(false);
+  });
+});
+
 describe('Onboarding submission', () => {
   let responses: Subject<OnboardingResponse>;
   let onboardingService: { submitOnboarding: ReturnType<typeof vi.fn> };
@@ -175,5 +226,6 @@ function fillValidModel(component: Onboarding): void {
     partnerFirstName: 'Marcus',
     familyName: 'Müller-Weber',
     venue: 'Eichenfürst',
+    date: '2030-06-15',
   });
 }
