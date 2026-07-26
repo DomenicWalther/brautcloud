@@ -8,6 +8,7 @@ import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import com.domenicwalther.brautcloud.service.GuestSessionService;
 import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.support.FullStackIntegrationTest;
 import com.domenicwalther.brautcloud.support.TestFixtures;
@@ -17,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import jakarta.servlet.http.Cookie;
 
 import java.util.UUID;
 
@@ -123,7 +126,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		mockMvc.perform(get("/api/events/{id}/images", event.getId()).header("Authorization", bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(ceremony.getId().toString()))
-			.andExpect(jsonPath("$[0].url").value("https://files.test/ceremony"));
+			.andExpect(jsonPath("$[0].url").value("https://files.test/ceremony"))
+			.andExpect(jsonPath("$[0].canDelete").value(true));
 
 		mockMvc.perform(delete("/api/image/{id}", ceremony.getId()).header("Authorization", bearer(token)))
 			.andExpect(status().isNoContent());
@@ -153,7 +157,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(image.getId().toString()))
-			.andExpect(jsonPath("$[0].url").value("https://files.test/ceremony"));
+			.andExpect(jsonPath("$[0].url").value("https://files.test/ceremony"))
+			.andExpect(jsonPath("$[0].canDelete").value(false));
 		mockMvc
 			.perform(post("/api/events/{id}/public/view", event.getId()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"visitorId\":\"%s\"}".formatted(visitorId)))
@@ -179,12 +184,14 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		when(s3Service.getPresignedPutUrl(anyString()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
-		mockMvc
+		MvcResult presignResult = mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"]}".formatted(otherEvent.getId())))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1));
+			.andExpect(jsonPath("$.length()").value(1))
+			.andReturn();
+		Cookie guestCookie = presignResult.getResponse().getCookie(GuestSessionService.COOKIE_NAME);
 
 		Image image = imageRepository.findAll()
 			.stream()
@@ -192,22 +199,23 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.findFirst()
 			.orElseThrow();
 		assertThat(image.isUploaded()).isFalse();
-		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
+		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()).cookie(guestCookie))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$").isEmpty());
 		verify(s3Service, never()).getPresignedUrl(anyString());
 
 		mockMvc
-			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(guestCookie)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(image.getId())))
 			.andExpect(status().isNoContent());
 		assertThat(imageRepository.findById(image.getId()).orElseThrow().isUploaded()).isTrue();
 
 		when(s3Service.getPresignedUrl(image.getImageKey())).thenReturn("https://files.test/guest");
-		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
+		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()).cookie(guestCookie))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].id").value(image.getId().toString()));
+			.andExpect(jsonPath("$[0].id").value(image.getId().toString()))
+			.andExpect(jsonPath("$[0].canDelete").value(true));
 	}
 
 	@Test
@@ -236,12 +244,14 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isUnauthorized());
 		assertThat(imageRepository.findByEventIdAndIsUploadedTrue(event.getId())).isEmpty();
 
-		mockMvc
+		MvcResult protectedPresign = mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
 				.header("X-Gallery-Password", "guest-secret")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body))
-			.andExpect(status().isOk());
+			.andExpect(status().isOk())
+			.andReturn();
+		Cookie protectedGuestCookie = protectedPresign.getResponse().getCookie(GuestSessionService.COOKIE_NAME);
 		Image guestImage = imageRepository.findAll()
 			.stream()
 			.filter(image -> image.getEvent().getId().equals(protectedEventId))
@@ -249,13 +259,13 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.orElseThrow();
 
 		mockMvc
-			.perform(
-					post("/api/events/{id}/public/images/uploaded", event.getId()).header("X-Gallery-Password", "wrong")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("[\"%s\"]".formatted(guestImage.getId())))
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
+				.header("X-Gallery-Password", "wrong")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(guestImage.getId())))
 			.andExpect(status().isUnauthorized());
 		mockMvc
-			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
 				.header("X-Gallery-Password", "guest-secret")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(foreignImage.getId())))
@@ -263,12 +273,64 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		assertThat(imageRepository.findById(guestImage.getId()).orElseThrow().isUploaded()).isFalse();
 
 		mockMvc
-			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
 				.header("X-Gallery-Password", "guest-secret")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(guestImage.getId())))
 			.andExpect(status().isNoContent());
 		assertThat(imageRepository.findById(guestImage.getId()).orElseThrow().isUploaded()).isTrue();
+	}
+
+	@Test
+	void guestCanDeleteOwnUploadButNotForeignOrPreExistingImage() throws Exception {
+		User owner = persistUser("owner@example.com");
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Image preExisting = imageRepository.saveAndFlush(TestFixtures.image(event, "existing.jpg", true));
+		when(s3Service.getPresignedPutUrl(anyString()))
+			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
+
+		MvcResult presign = mockMvc
+			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"fileNames\":[\"guest.jpg\"]}"))
+			.andExpect(status().isOk())
+			.andReturn();
+		Cookie guestCookie = presign.getResponse().getCookie(GuestSessionService.COOKIE_NAME);
+		Image guestImage = imageRepository.findAll()
+			.stream()
+			.filter(image -> !image.getId().equals(preExisting.getId()))
+			.findFirst()
+			.orElseThrow();
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(guestCookie)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(guestImage.getId())))
+			.andExpect(status().isNoContent());
+
+		when(s3Service.getPresignedUrl(guestImage.getImageKey())).thenReturn("https://files.test/guest");
+		mockMvc
+			.perform(delete("/api/events/{eventId}/public/images/{imageId}", event.getId(), guestImage.getId())
+				.cookie(guestCookie))
+			.andExpect(status().isNoContent());
+		assertThat(imageRepository.findById(guestImage.getId())).isEmpty();
+		verify(s3Service).deleteFile(guestImage.getImageKey());
+		mockMvc
+			.perform(delete("/api/events/{eventId}/public/images/{imageId}", event.getId(), guestImage.getId())
+				.cookie(guestCookie))
+			.andExpect(status().isNotFound());
+
+		mockMvc
+			.perform(delete("/api/events/{eventId}/public/images/{imageId}", event.getId(), preExisting.getId())
+				.cookie(guestCookie))
+			.andExpect(status().isNotFound());
+		mockMvc
+			.perform(delete("/api/events/{eventId}/public/images/{imageId}", event.getId(), preExisting.getId())
+				.cookie(new Cookie(GuestSessionService.COOKIE_NAME, "different-session")))
+			.andExpect(status().isNotFound());
+		mockMvc
+			.perform(delete("/api/events/{eventId}/public/images/{imageId}", event.getId(), UUID.randomUUID())
+				.cookie(guestCookie))
+			.andExpect(status().isNotFound());
 	}
 
 	@Test

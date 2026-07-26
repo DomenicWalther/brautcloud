@@ -10,9 +10,12 @@ import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
 import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.EventService;
 import com.domenicwalther.brautcloud.service.ImageService;
+import com.domenicwalther.brautcloud.service.GuestSessionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,9 +33,13 @@ public class EventController {
 
 	private final ImageService imageService;
 
-	public EventController(EventService eventService, ImageService imageService) {
+	private final GuestSessionService guestSessionService;
+
+	public EventController(EventService eventService, ImageService imageService,
+			GuestSessionService guestSessionService) {
 		this.eventService = eventService;
 		this.imageService = imageService;
+		this.guestSessionService = guestSessionService;
 	}
 
 	@GetMapping
@@ -47,22 +54,40 @@ public class EventController {
 
 	@GetMapping("/{eventID}/public/images")
 	public List<EventImageDTO> getPublicEventImages(@PathVariable UUID eventID,
-			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword) {
-		return eventService.getPublicEventImages(eventID, galleryPassword);
+			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
+			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken) {
+		return eventService.getPublicEventImages(eventID, galleryPassword, guestSessionToken);
 	}
 
 	@PostMapping("/{eventID}/public/images/presigned-url")
-	public List<ImageUploadResponse> getPublicImagePresignedUrls(@PathVariable UUID eventID,
+	public ResponseEntity<List<ImageUploadResponse>> getPublicImagePresignedUrls(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
-			@RequestBody ImageUploadRequest request) {
-		return imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword, request.getFileNames());
+			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
+			HttpServletRequest servletRequest, @RequestBody ImageUploadRequest request) {
+		String sessionToken = guestSessionToken == null ? guestSessionService.createToken() : guestSessionToken;
+		ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+		if (guestSessionToken == null) {
+			response.header(HttpHeaders.SET_COOKIE,
+					guestSessionService.createCookie(sessionToken, servletRequest.isSecure()).toString());
+		}
+		return response.body(imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword,
+				request.getFileNames(), sessionToken));
 	}
 
 	@PostMapping("/{eventID}/public/images/uploaded")
 	public ResponseEntity<Void> markPublicImagesAsUploaded(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
+			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
 			@RequestBody List<UUID> imageIds) {
-		imageService.markPublicImagesAsUploaded(eventID, galleryPassword, imageIds);
+		imageService.markPublicImagesAsUploaded(eventID, galleryPassword, imageIds, guestSessionToken);
+		return ResponseEntity.noContent().build();
+	}
+
+	@DeleteMapping("/{eventID}/public/images/{imageID}")
+	public ResponseEntity<Void> deletePublicImage(@PathVariable UUID eventID, @PathVariable UUID imageID,
+			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
+			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken) {
+		imageService.deletePublicImage(eventID, galleryPassword, imageID, guestSessionToken);
 		return ResponseEntity.noContent().build();
 	}
 

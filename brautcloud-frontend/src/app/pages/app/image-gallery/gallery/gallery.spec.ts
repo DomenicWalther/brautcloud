@@ -12,6 +12,7 @@ describe('Gallery states', () => {
   const user = signal<{ events: EventDto[] } | null>(null);
   const imageService = {
     getEventImages: vi.fn<(eventId: string) => Observable<EventImageDto[]>>(),
+    deleteImage: vi.fn<(imageId: string) => Observable<void>>(),
   };
   let fixture: ComponentFixture<Gallery>;
 
@@ -103,6 +104,7 @@ describe('Gallery lightbox', () => {
   const user = signal<{ events: EventDto[] } | null>(null);
   const imageService = {
     getEventImages: vi.fn<(eventId: string) => Observable<EventImageDto[]>>(),
+    deleteImage: vi.fn<(imageId: string) => Observable<void>>(),
   };
   let fixture: ComponentFixture<Gallery>;
 
@@ -160,6 +162,40 @@ describe('Gallery lightbox', () => {
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(galleryButton);
     expect(document.body.style.overflow).toBe('');
+  });
+
+  it('keeps selected image decoded across close and immediate reopen', () => {
+    const galleryButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__button',
+    ) as HTMLButtonElement;
+    galleryButton.click();
+    fixture.detectChanges();
+    const loadedImage = fixture.nativeElement.querySelector('.gallery-lightbox__image');
+
+    (fixture.nativeElement.querySelector('.gallery-lightbox__close') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.gallery-lightbox__image')).toBe(loadedImage);
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+
+    galleryButton.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.gallery-lightbox__image')).toBe(loadedImage);
+  });
+
+  it('deletes an owner image after confirmation and updates gallery locally', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    imageService.deleteImage.mockReturnValue(of(undefined));
+
+    const deleteButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__delete',
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    fixture.detectChanges();
+
+    expect(imageService.deleteImage).toHaveBeenCalledWith(images[0].id);
+    expect(fixture.componentInstance.images()).toEqual(images.slice(1));
+    expect(fixture.nativeElement.querySelectorAll('.gallery-photo')).toHaveLength(2);
+    confirm.mockRestore();
   });
 
   it('navigates with arrows, wraps at boundaries, and selects filmstrip thumbnails', () => {

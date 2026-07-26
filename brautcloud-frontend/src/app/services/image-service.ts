@@ -49,6 +49,7 @@ export class ImageService {
     }
     return this.http.get<EventImageDto[]>(`${this.API_URL}/events/${eventId}/public/images`, {
       headers,
+      withCredentials: true,
     });
   }
 
@@ -79,7 +80,7 @@ export class ImageService {
       `${this.API_URL}/events/${eventId}/public/images/uploaded`,
       { fileNames: files.map((f) => f.file.name) } as PublicPresignedUrlRequest,
       files,
-      false,
+      true,
       headers,
     );
   }
@@ -158,5 +159,16 @@ export class ImageService {
 
   deleteImage(imageId: string): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/image/${imageId}`, { withCredentials: true });
+  }
+
+  deletePublicImage(eventId: string, imageId: string, galleryPassword?: string): Observable<void> {
+    const headers: { [name: string]: string } = {};
+    if (galleryPassword) {
+      headers['X-Gallery-Password'] = galleryPassword;
+    }
+    return this.http.delete<void>(`${this.API_URL}/events/${eventId}/public/images/${imageId}`, {
+      headers,
+      withCredentials: true,
+    });
   }
 }

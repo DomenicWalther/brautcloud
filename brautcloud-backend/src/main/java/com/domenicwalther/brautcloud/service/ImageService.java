@@ -41,18 +41,24 @@ public class ImageService {
 	}
 
 	public List<ImageUploadResponse> generatePublicPresignedUploadUrls(UUID eventID, String galleryPassword,
-			List<String> fileNames) {
+			List<String> fileNames, String guestSessionToken) {
 		Event event = eventService.requirePublicGalleryAccess(eventID, galleryPassword);
-		return generatePresignedUploadUrls(event, fileNames);
+		return generatePresignedUploadUrls(event, fileNames, GuestSessionService.hash(guestSessionToken));
 	}
 
 	private List<ImageUploadResponse> generatePresignedUploadUrls(Event event, List<String> fileNames) {
+		return generatePresignedUploadUrls(event, fileNames, null);
+	}
+
+	private List<ImageUploadResponse> generatePresignedUploadUrls(Event event, List<String> fileNames,
+			String guestSessionHash) {
 		validateFileNames(fileNames);
 		return fileNames.stream().map(fileName -> {
 			String key = UUID.randomUUID() + "-" + sanitizeFileName(fileName);
 			Image image = new Image();
 			image.setEvent(event);
 			image.setImageKey(key);
+			image.setGuestSessionHash(guestSessionHash);
 			image.setVisible(true);
 			image.setUploaded(false);
 			imageRepository.save(image);
@@ -67,12 +73,16 @@ public class ImageService {
 		markImagesAsUploaded(images);
 	}
 
-	public void markPublicImagesAsUploaded(UUID eventID, String galleryPassword, List<UUID> imageIds) {
+	public void markPublicImagesAsUploaded(UUID eventID, String galleryPassword, List<UUID> imageIds,
+			String guestSessionToken) {
 		Event event = eventService.requirePublicGalleryAccess(eventID, galleryPassword);
 		validateImageIds(imageIds);
+		String guestSessionHash = GuestSessionService.hash(guestSessionToken);
 		List<Image> images = imageRepository.findAllById(imageIds);
-		if (images.size() != imageIds.size()
-				|| images.stream().anyMatch(image -> !event.getId().equals(image.getEvent().getId()))) {
+		if (guestSessionHash == null || images.size() != imageIds.size()
+				|| images.stream()
+					.anyMatch(image -> !event.getId().equals(image.getEvent().getId())
+							|| !guestSessionHash.equals(image.getGuestSessionHash()))) {
 			throw new ResourceNotFoundException("Image not found");
 		}
 		markImagesAsUploaded(images);
@@ -102,9 +112,24 @@ public class ImageService {
 
 	public void deleteImageByImageID(String email, UUID imageID) {
 		Image image = resourceOwnershipService.requireOwnedImage(email, imageID);
-		imageRepository.deleteById(imageID);
-		String imageKey = image.getImageKey();
-		s3Service.deleteFile(imageKey);
+		deleteImage(image);
+	}
+
+	public void deletePublicImage(UUID eventID, String galleryPassword, UUID imageID, String guestSessionToken) {
+		Event event = eventService.requirePublicGalleryAccess(eventID, galleryPassword);
+		Image image = imageRepository.findById(imageID)
+			.orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+		String guestSessionHash = GuestSessionService.hash(guestSessionToken);
+		if (guestSessionHash == null || !event.getId().equals(image.getEvent().getId())
+				|| !guestSessionHash.equals(image.getGuestSessionHash())) {
+			throw new ResourceNotFoundException("Image not found");
+		}
+		deleteImage(image);
+	}
+
+	private void deleteImage(Image image) {
+		imageRepository.deleteById(image.getId());
+		s3Service.deleteFile(image.getImageKey());
 	}
 
 	@Scheduled(cron = "0 0 * * * *") // Every hour

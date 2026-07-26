@@ -52,6 +52,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/events/*/public/view",
 						"/api/events/*/public/images/presigned-url", "/api/events/*/public/images/uploaded")
 				.permitAll()
+				.requestMatchers(HttpMethod.DELETE, "/api/events/*/public/images/*")
+				.permitAll()
 				.anyRequest()
 				.authenticated())
 			.authenticationProvider(authenticationProvider())
