@@ -34,6 +34,9 @@ export class Gallery {
   private readonly failedImageIds = signal<Set<string>>(new Set());
   readonly selectedIndex = signal(0);
   readonly selectedImageFailed = signal(false);
+  readonly deletingImageId = signal<string | null>(null);
+  readonly deleteError = signal<string | null>(null);
+  private readonly preloadedImageUrls = new Set<string>();
   private previousBodyOverflow = '';
   private returnFocusElement: HTMLElement | null = null;
 
@@ -55,6 +58,7 @@ export class Gallery {
   readonly selectedPosition = computed(
     () => `${this.selectedIndex() + 1} of ${this.images().length}`,
   );
+  readonly visibleLightbox = computed(() => this.images().length > 0);
 
   private readonly eventId = computed(() => this.event()?.id);
 
@@ -112,8 +116,15 @@ export class Gallery {
       return;
     }
 
+    const image = this.images()[index];
+    this.preloadImage(image.url);
+    this.preloadImage(this.images()[(index + 1) % this.images().length]?.url);
+    this.preloadImage(
+      this.images()[(index - 1 + this.images().length) % this.images().length]?.url,
+    );
     this.selectedIndex.set(index);
     this.selectedImageFailed.set(false);
+    this.deleteError.set(null);
     this.returnFocusElement =
       this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
     this.previousBodyOverflow = this.document.body.style.overflow;
@@ -144,12 +155,65 @@ export class Gallery {
   }
 
   selectImage(index: number): void {
-    if (!this.images()[index]) {
+    const image = this.images()[index];
+    if (!image) {
       return;
     }
 
+    this.preloadImage(image.url);
     this.selectedIndex.set(index);
     this.selectedImageFailed.set(false);
+  }
+
+  onImageIntent(image: EventImageDto): void {
+    this.preloadImage(image.url);
+  }
+
+  canDelete(image: EventImageDto): boolean {
+    return !this.publicMode() || image.canDelete === true;
+  }
+
+  deleteImage(image: EventImageDto, index: number): void {
+    if (!this.canDelete(image) || this.deletingImageId()) {
+      return;
+    }
+
+    const confirmed =
+      this.document.defaultView?.confirm('Delete this photograph? This action cannot be undone.') ??
+      true;
+    if (!confirmed) {
+      return;
+    }
+
+    const eventId = this.eventId();
+    if (!eventId) {
+      return;
+    }
+
+    this.deletingImageId.set(image.id);
+    this.deleteError.set(null);
+    const deletion$ = this.publicMode()
+      ? this.imageService.deletePublicImage(eventId, image.id, this.galleryPassword())
+      : this.imageService.deleteImage(image.id);
+
+    deletion$.subscribe({
+      next: () => {
+        const wasSelected = this.selectedIndex() === index;
+        this.allImages.update((images) => images.filter((candidate) => candidate.id !== image.id));
+        const remainingCount = this.images().length;
+        if (!remainingCount) {
+          this.closeLightbox();
+        } else if (this.selectedIndex() > index || wasSelected) {
+          this.selectedIndex.set(Math.min(index, remainingCount - 1));
+          this.selectedImageFailed.set(false);
+        }
+        this.deletingImageId.set(null);
+      },
+      error: () => {
+        this.deletingImageId.set(null);
+        this.deleteError.set('This photograph could not be deleted. Please try again.');
+      },
+    });
   }
 
   isImageFailed(imageId: string): boolean {
@@ -162,6 +226,17 @@ export class Gallery {
 
   onSelectedImageError(): void {
     this.selectedImageFailed.set(true);
+  }
+
+  private preloadImage(url: string | undefined): void {
+    if (!url || this.preloadedImageUrls.has(url)) {
+      return;
+    }
+
+    this.preloadedImageUrls.add(url);
+    const image = new globalThis.Image();
+    image.decoding = 'async';
+    image.src = url;
   }
 
   private restoreBodyScroll(): void {
@@ -181,6 +256,7 @@ export class Gallery {
     images$.subscribe({
       next: (images) => {
         this.allImages.set(images);
+        images.slice(0, 1).forEach((image) => this.preloadImage(image.url));
         this.failedImageIds.set(new Set());
         this.selectedIndex.set(0);
         this.selectedImageFailed.set(false);

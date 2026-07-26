@@ -48,7 +48,7 @@ describe('ImageService public uploads', () => {
     expect(presign.request.method).toBe('POST');
     expect(presign.request.body).toEqual({ fileNames: ['guest.jpg'] });
     expect(presign.request.headers.get('X-Gallery-Password')).toBe('guest-secret');
-    expect(presign.request.withCredentials).toBe(false);
+    expect(presign.request.withCredentials).toBe(true);
     presign.flush([{ imageId: 'image-1', uploadUrl: 'https://s3.test/guest' }]);
 
     await Promise.resolve();
@@ -61,6 +61,16 @@ describe('ImageService public uploads', () => {
     confirmation.flush(null, { status: 204, statusText: 'No Content' });
 
     expect(result).toEqual([{ imageId: 'image-1', success: true }]);
+  });
+
+  it('deletes public image with gallery scope, password, and guest credentials', () => {
+    imageService.deletePublicImage('event-1', 'image-1', 'guest-secret').subscribe();
+
+    const request = http.expectOne('http://api.test/api/events/event-1/public/images/image-1');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.headers.get('X-Gallery-Password')).toBe('guest-secret');
+    expect(request.request.withCredentials).toBe(true);
+    request.flush(null, { status: 204, statusText: 'No Content' });
   });
 
   it('does not confirm failed S3 uploads as visible metadata', async () => {

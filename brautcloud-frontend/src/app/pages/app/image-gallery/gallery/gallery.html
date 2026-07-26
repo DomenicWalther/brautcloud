@@ -20,6 +20,12 @@
     </div>
   </section>
 } @else if (event()) {
+  @if (deleteError(); as message) {
+    <div class="bc-status bc-status--error gallery-delete-error" role="alert">
+      <span class="material-symbols-outlined" aria-hidden="true">error</span>
+      <span>{{ message }}</span>
+    </div>
+  }
   @if (images().length > 0) {
     <div class="gallery-masonry" aria-label="Wedding photographs">
       @for (img of images(); track img.id; let i = $index) {
@@ -39,6 +45,8 @@
               class="gallery-photo__button"
               [attr.aria-label]="'Open wedding gallery moment ' + (i + 1)"
               (click)="openLightbox(i)"
+              (pointerenter)="onImageIntent(img)"
+              (focus)="onImageIntent(img)"
             >
               <img
                 [src]="img.url"
@@ -46,6 +54,17 @@
                 [alt]="'Wedding gallery moment ' + (i + 1)"
                 (error)="onGalleryImageError(img.id)"
               />
+            </button>
+          }
+          @if (canDelete(img)) {
+            <button
+              type="button"
+              class="bc-button bc-button--icon bc-button--danger gallery-photo__delete"
+              [disabled]="deletingImageId() === img.id"
+              [attr.aria-label]="'Delete wedding gallery moment ' + (i + 1)"
+              (click)="deleteImage(img, i)"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">delete</span>
             </button>
           }
         </figure>
@@ -96,27 +115,45 @@
   </section>
 }
 
-@if (lightboxOpen()) {
+@if (visibleLightbox()) {
   <div
     class="gallery-lightbox"
-    role="dialog"
+    [class.gallery-lightbox--closed]="!lightboxOpen()"
+    [attr.role]="lightboxOpen() ? 'dialog' : null"
+    [attr.aria-hidden]="lightboxOpen() ? 'false' : 'true'"
     aria-modal="true"
     aria-labelledby="gallery-lightbox-title"
+    [attr.inert]="lightboxOpen() ? null : ''"
     (click)="closeLightbox()"
   >
     <div class="gallery-lightbox__panel" (click)="$event.stopPropagation()">
       <header class="gallery-lightbox__header">
         <h2 id="gallery-lightbox-title">Gallery photograph</h2>
         <p class="gallery-lightbox__position" aria-live="polite">Photo {{ selectedPosition() }}</p>
-        <button
-          #closeButton
-          type="button"
-          class="bc-button bc-button--icon gallery-lightbox__close"
-          aria-label="Close gallery photograph"
-          (click)="closeLightbox()"
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">close</span>
-        </button>
+        <div class="gallery-lightbox__actions">
+          @if (selectedImage(); as image) {
+            @if (canDelete(image)) {
+              <button
+                type="button"
+                class="bc-button bc-button--icon bc-button--danger gallery-lightbox__delete"
+                [disabled]="deletingImageId() === image.id"
+                [attr.aria-label]="'Delete wedding gallery moment ' + (selectedIndex() + 1)"
+                (click)="deleteImage(image, selectedIndex())"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+              </button>
+            }
+          }
+          <button
+            #closeButton
+            type="button"
+            class="bc-button bc-button--icon gallery-lightbox__close"
+            aria-label="Close gallery photograph"
+            (click)="closeLightbox()"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
       </header>
 
       <div class="gallery-lightbox__viewer">
@@ -141,6 +178,8 @@
                 class="gallery-lightbox__image"
                 [src]="image.url"
                 [alt]="'Wedding gallery moment ' + (selectedIndex() + 1)"
+                fetchpriority="high"
+                decoding="async"
                 (error)="onSelectedImageError()"
               />
             }
@@ -168,6 +207,8 @@
             [attr.aria-current]="i === selectedIndex() ? 'true' : null"
             [attr.aria-label]="'View wedding gallery moment ' + (i + 1)"
             (click)="selectImage(i)"
+            (pointerenter)="onImageIntent(img)"
+            (focus)="onImageIntent(img)"
           >
             @if (isImageFailed(img.id)) {
               <span class="material-symbols-outlined" aria-hidden="true">broken_image</span>

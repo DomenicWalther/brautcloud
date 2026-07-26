@@ -354,6 +354,14 @@
   content: '';
 }
 
+.bc-status--error {
+  color: var(--bc-color-danger);
+}
+
+.bc-status--error::before {
+  background: var(--bc-color-danger);
+}
+
 .bc-empty-state,
 .bc-loading-state {
   display: grid;

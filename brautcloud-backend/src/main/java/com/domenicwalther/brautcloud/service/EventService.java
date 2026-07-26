@@ -153,16 +153,27 @@ public class EventService {
 	}
 
 	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword) {
+		return getPublicEventImages(eventID, galleryPassword, null);
+	}
+
+	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword, String guestSessionToken) {
 		requirePublicGalleryAccess(eventID, galleryPassword);
-		return getEventImages(eventID);
+		String guestSessionHash = GuestSessionService.hash(guestSessionToken);
+		return getEventImages(eventID, false, guestSessionHash);
 	}
 
 	private List<EventImageDTO> getEventImages(UUID eventID) {
+		return getEventImages(eventID, true, null);
+	}
+
+	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
 		return images.stream().map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
-			return new EventImageDTO(image.getId(), url);
+			boolean canDelete = ownerView
+					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
+			return new EventImageDTO(image.getId(), url, canDelete);
 		}).toList();
 	}
 

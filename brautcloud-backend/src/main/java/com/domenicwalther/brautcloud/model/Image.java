@@ -21,6 +21,11 @@ public class Image {
 
 	private String imageKey;
 
+	/**
+	 * SHA-256 hash of server-issued guest browser session token, null for owner uploads.
+	 */
+	private String guestSessionHash;
+
 	private boolean isUploaded;
 
 	private boolean isVisible;

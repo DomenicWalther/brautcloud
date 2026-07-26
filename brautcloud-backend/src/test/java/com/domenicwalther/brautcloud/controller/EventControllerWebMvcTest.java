@@ -10,6 +10,7 @@ import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.EventService;
+import com.domenicwalther.brautcloud.service.GuestSessionService;
 import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.JwtService;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
@@ -51,6 +53,9 @@ class EventControllerWebMvcTest {
 
 	@MockitoBean
 	private ImageService imageService;
+
+	@MockitoBean
+	private GuestSessionService guestSessionService;
 
 	@MockitoBean
 	private JwtService jwtService;
@@ -94,7 +99,7 @@ class EventControllerWebMvcTest {
 		UUID eventId = UUID.randomUUID();
 		UUID imageId = UUID.randomUUID();
 		UUID visitorId = UUID.randomUUID();
-		when(eventService.getPublicEventImages(eventId, null))
+		when(eventService.getPublicEventImages(eventId, null, null))
 			.thenReturn(List.of(new EventImageDTO(imageId, "https://files.test/photo")));
 
 		mockMvc.perform(get("/api/events/{eventId}/public/images", eventId))
@@ -112,8 +117,11 @@ class EventControllerWebMvcTest {
 	void publicGuestUploadRoutesUseEventScopeAndGalleryPassword() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		UUID imageId = UUID.randomUUID();
+		when(guestSessionService.createToken()).thenReturn("guest-session-token");
+		when(guestSessionService.createCookie("guest-session-token", false))
+			.thenReturn(ResponseCookie.from("brautcloud-guest-session", "guest-session-token").build());
 		when(imageService.generatePublicPresignedUploadUrls(eq(eventId), eq("secret"),
-				argThat(fileNames -> fileNames.equals(List.of("guest.jpg")))))
+				argThat(fileNames -> fileNames.equals(List.of("guest.jpg"))), eq("guest-session-token")))
 			.thenReturn(List.of(new ImageUploadResponse(imageId, "https://uploads.test/guest")));
 
 		mockMvc
@@ -131,13 +139,27 @@ class EventControllerWebMvcTest {
 						.content("[\"%s\"]".formatted(imageId)))
 			.andExpect(status().isNoContent());
 
-		verify(imageService).markPublicImagesAsUploaded(eventId, "secret", List.of(imageId));
+		verify(imageService).markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), null);
+	}
+
+	@Test
+	void publicDeleteUsesGalleryScopeAndGuestSessionCookie() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+
+		mockMvc
+			.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.delete("/api/events/{eventId}/public/images/{imageId}", eventId, imageId)
+				.cookie(new jakarta.servlet.http.Cookie("brautcloud-guest-session", "guest-session-token")))
+			.andExpect(status().isNoContent());
+
+		verify(imageService).deletePublicImage(eventId, null, imageId, "guest-session-token");
 	}
 
 	@Test
 	void publicImagesWithMissingPasswordOnProtectedGalleryReturns401() throws Exception {
 		UUID eventId = UUID.randomUUID();
-		when(eventService.getPublicEventImages(eventId, null))
+		when(eventService.getPublicEventImages(eventId, null, null))
 			.thenThrow(new GalleryPasswordRequiredException("Gallery password required"));
 
 		mockMvc.perform(get("/api/events/{eventId}/public/images", eventId))
