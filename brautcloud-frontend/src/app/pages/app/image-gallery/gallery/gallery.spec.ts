@@ -18,6 +18,7 @@ describe('Gallery states', () => {
   beforeEach(async () => {
     user.set(null);
     imageService.getEventImages.mockReset();
+    document.body.style.overflow = '';
 
     await TestBed.configureTestingModule({
       imports: [Gallery],
@@ -32,6 +33,11 @@ describe('Gallery states', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(Gallery);
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+    document.body.style.overflow = '';
   });
 
   it('announces loading while moments are being gathered', () => {
@@ -93,6 +99,141 @@ describe('Gallery states', () => {
   });
 });
 
+describe('Gallery lightbox', () => {
+  const user = signal<{ events: EventDto[] } | null>(null);
+  const imageService = {
+    getEventImages: vi.fn<(eventId: string) => Observable<EventImageDto[]>>(),
+  };
+  let fixture: ComponentFixture<Gallery>;
+
+  beforeEach(async () => {
+    user.set({ events: [event] });
+    imageService.getEventImages.mockReset().mockReturnValue(of(images));
+    document.body.style.overflow = '';
+
+    await TestBed.configureTestingModule({
+      imports: [Gallery],
+      providers: [
+        provideRouter([]),
+        {
+          provide: UserService,
+          useValue: { user: user.asReadonly() },
+        },
+        { provide: ImageService, useValue: imageService },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(Gallery);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+    document.body.style.overflow = '';
+  });
+
+  it('opens selected image and closes without leaving page scrolling locked', async () => {
+    const galleryButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__button',
+    ) as HTMLButtonElement;
+    galleryButton.focus();
+    galleryButton.click();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.activeElement).toBe(
+      fixture.nativeElement.querySelector('.gallery-lightbox__close'),
+    );
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__image')?.getAttribute('src'),
+    ).toBe(images[0].url);
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__position')?.textContent,
+    ).toContain('Photo 1 of 3');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    (fixture.nativeElement.querySelector('.gallery-lightbox__close') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(galleryButton);
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('navigates with arrows, wraps at boundaries, and selects filmstrip thumbnails', () => {
+    (
+      fixture.nativeElement.querySelectorAll('.gallery-photo__button')[2] as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const nextButton = fixture.nativeElement.querySelector(
+      '.gallery-lightbox__nav--next',
+    ) as HTMLButtonElement;
+    nextButton.click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__image')?.getAttribute('src'),
+    ).toBe(images[0].url);
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__thumbnail[aria-current="true"]'),
+    ).toBe(fixture.nativeElement.querySelectorAll('.gallery-lightbox__thumbnail')[0]);
+
+    (
+      fixture.nativeElement.querySelectorAll('.gallery-lightbox__thumbnail')[1] as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__image')?.getAttribute('src'),
+    ).toBe(images[1].url);
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__position')?.textContent,
+    ).toContain('Photo 2 of 3');
+  });
+
+  it('uses Escape and arrow keys while lightbox is open', () => {
+    (
+      fixture.nativeElement.querySelectorAll('.gallery-photo__button')[0] as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__image')?.getAttribute('src'),
+    ).toBe(images[1].url);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('.gallery-lightbox__image')?.getAttribute('src'),
+    ).toBe(images[0].url);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('renders selected image failure state without closing lightbox', () => {
+    (fixture.nativeElement.querySelector('.gallery-photo__button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const image = fixture.nativeElement.querySelector(
+      '.gallery-lightbox__image',
+    ) as HTMLImageElement;
+    image.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.gallery-lightbox__error')?.textContent).toContain(
+      'could not be displayed',
+    );
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
+  });
+});
+
 const event: EventDto = {
   id: 'event-1',
   date: null,
@@ -109,3 +250,9 @@ const image: EventImageDto = {
   id: 'image-1',
   url: 'https://cdn.test/image-1.jpg',
 };
+
+const images: EventImageDto[] = [
+  image,
+  { id: 'image-2', url: 'https://cdn.test/image-2.jpg' },
+  { id: 'image-3', url: 'https://cdn.test/image-3.jpg' },
+];
