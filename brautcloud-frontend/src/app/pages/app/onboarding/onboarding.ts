@@ -10,6 +10,7 @@ import { MultiStepForm } from './multi-step-form';
 import { FormLabel } from './onboarding-components/form-label/form-label';
 import { StepHeader } from './onboarding-components/step-header/step-header';
 import { StepComponent } from './step';
+import { ToastService } from '../../../services/toast-service';
 
 @Component({
   selector: 'app-onboarding',
@@ -23,6 +24,7 @@ export class Onboarding {
   private readonly authRouting = inject(AuthRoutingService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly toastService = inject(ToastService);
 
   readonly submitting = signal(false);
   readonly submissionError = signal<string | null>(null);
@@ -60,6 +62,7 @@ export class Onboarding {
     this.submissionError.set(null);
     this.onboardingService.submitOnboarding(this.model()).subscribe({
       next: () => {
+        this.toastService.show('Your gallery was created successfully.', 'success');
         this.authService.markOnboardingComplete();
         const destination = this.authRouting.destinationAfterOnboarding(
           this.route.snapshot.queryParamMap.get('returnUrl'),
@@ -67,9 +70,10 @@ export class Onboarding {
         void this.router.navigateByUrl(destination);
       },
       error: (error: HttpErrorResponse) => {
-        this.submissionError.set(
-          error.error?.message ?? 'We could not create your gallery. Please try again.',
-        );
+        const message =
+          error.error?.message ?? 'We could not create your gallery. Please try again.';
+        this.submissionError.set(message);
+        this.toastService.show(message, 'error');
         this.submitting.set(false);
       },
     });

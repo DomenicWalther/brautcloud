@@ -1,9 +1,16 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
+import { ToastService } from '../../../services/toast-service';
 import { ImageUpload } from './image-upload';
+
+const imageService = {
+  uploadImages: vi.fn(),
+  deleteImage: vi.fn(),
+};
 
 const user = signal({
   id: 'user-1',
@@ -26,12 +33,14 @@ const user = signal({
 
 describe('ImageUpload', () => {
   beforeEach(async () => {
+    imageService.uploadImages.mockReset();
+    imageService.deleteImage.mockReset();
     await TestBed.configureTestingModule({
       imports: [ImageUpload],
       providers: [
         provideRouter([]),
         { provide: UserService, useValue: { user } },
-        { provide: ImageService, useValue: {} },
+        { provide: ImageService, useValue: imageService },
       ],
     }).compileComponents();
   });
@@ -61,5 +70,43 @@ describe('ImageUpload', () => {
       'The upload could not be completed.',
     );
     expect(root.querySelector('label[for="file-input"]')).toBeTruthy();
+  });
+
+  it('shows completion feedback after uploading photographs', () => {
+    imageService.uploadImages.mockReturnValue(of([{ success: true, imageId: 'image-1' }]));
+    const fixture = TestBed.createComponent(ImageUpload);
+    const toastService = TestBed.inject(ToastService);
+    toastService.clear();
+    fixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'moment.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:preview',
+      },
+    ]);
+    (URL as unknown as { createObjectURL: unknown }).createObjectURL = vi
+      .fn()
+      .mockReturnValue('blob:uploaded');
+
+    fixture.componentInstance.uploadSelected();
+
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: '1 photo uploaded successfully.',
+    });
+  });
+
+  it('shows failure feedback when deleting a photograph fails', () => {
+    imageService.deleteImage.mockReturnValue(throwError(() => new Error('network error')));
+    const fixture = TestBed.createComponent(ImageUpload);
+    const toastService = TestBed.inject(ToastService);
+    toastService.clear();
+    fixture.componentInstance.uploadedImages.set([{ id: 'image-1', url: 'blob:image' }]);
+
+    fixture.componentInstance.deleteUploadedImage(0);
+
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'error',
+      message: 'That photo could not be removed. Please try again.',
+    });
   });
 });

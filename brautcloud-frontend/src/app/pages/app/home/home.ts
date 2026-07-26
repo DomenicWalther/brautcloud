@@ -9,6 +9,7 @@ import { EventService } from '../../../services/event-service';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { HomeStats } from './home-stats/home-stats';
+import { ToastService } from '../../../services/toast-service';
 
 const GALLERY_PREVIEW_SLOTS = 3;
 const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
@@ -24,6 +25,7 @@ export class Home {
   private readonly eventService = inject(EventService);
   private readonly imageService = inject(ImageService);
   private readonly APP_URL = inject(APP_URL);
+  private readonly toastService = inject(ToastService);
 
   readonly user = this.userService.user;
   readonly loading = this.userService.loading;
@@ -101,8 +103,23 @@ export class Home {
 
   readonly eventUrl = computed(() => {
     const eventId = this.event()?.id;
-    return eventId ? `${this.APP_URL}/event/${eventId}` : null;
+    return eventId ? `${this.APP_URL.replace(/\/$/, '')}/event/${eventId}` : null;
   });
+
+  async copyGalleryLink(): Promise<void> {
+    const url = this.eventUrl();
+    if (!url) {
+      this.toastService.show('Gallery link is not available yet.', 'warning');
+      return;
+    }
+
+    try {
+      await this.copyToClipboard(url);
+      this.toastService.show('Gallery link copied.', 'success');
+    } catch {
+      this.toastService.show('Could not copy gallery link. Please try again.', 'error');
+    }
+  }
 
   readonly stats = computed(() => ({
     photos: String(this.allImages().length),
@@ -126,7 +143,9 @@ export class Home {
       next: (response) => {
         this.downloadingAllPhotos.set(false);
         if (response.status === 204 || !response.body) {
-          this.downloadAllPhotosError.set('No photos to download yet.');
+          const message = 'No photos to download yet.';
+          this.downloadAllPhotosError.set(message);
+          this.toastService.show(message, 'warning');
           return;
         }
 
@@ -136,12 +155,42 @@ export class Home {
         link.download = `${this.slugify(activeEvent.eventName)}-photos.zip`;
         link.click();
         URL.revokeObjectURL(downloadUrl);
+        this.toastService.show('Photos downloaded successfully.', 'success');
       },
       error: () => {
         this.downloadingAllPhotos.set(false);
-        this.downloadAllPhotosError.set('We could not download your photos. Please try again.');
+        const message = 'We could not download your photos. Please try again.';
+        this.downloadAllPhotosError.set(message);
+        this.toastService.show(message, 'error');
       },
     });
+  }
+
+  private async copyToClipboard(value: string): Promise<void> {
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return;
+      } catch {
+        // Continue to the legacy path when clipboard permission is unavailable.
+      }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.setAttribute('aria-hidden', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      if (!document.execCommand('copy')) {
+        throw new Error('Clipboard fallback failed');
+      }
+    } finally {
+      textarea.remove();
+    }
   }
 
   private slugify(value: string): string {

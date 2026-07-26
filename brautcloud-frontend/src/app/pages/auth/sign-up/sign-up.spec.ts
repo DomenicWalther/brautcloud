@@ -5,11 +5,13 @@ import { of, Subject, throwError } from 'rxjs';
 import { AuthResponse } from '../../../core/models/auth.dto';
 import { AuthRoutingService } from '../../../services/auth-routing-service';
 import { AuthService } from '../../../services/auth-service';
+import { ToastService } from '../../../services/toast-service';
 import { SignUp } from './sign-up';
 
 describe('SignUp registration lifecycle', () => {
   const authService = { register: vi.fn() };
   let router: Router;
+  let toastService: ToastService;
 
   beforeEach(() => {
     authService.register.mockReset();
@@ -32,6 +34,8 @@ describe('SignUp registration lifecycle', () => {
       ],
     });
     router = TestBed.inject(Router);
+    toastService = TestBed.inject(ToastService);
+    toastService.clear();
     vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
   });
 
@@ -46,6 +50,10 @@ describe('SignUp registration lifecycle', () => {
     expect(authService.register).toHaveBeenCalledOnce();
     const destination = vi.mocked(router.navigateByUrl).mock.calls[0][0] as UrlTree;
     expect(router.serializeUrl(destination)).toBe('/app/onboarding');
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: 'Account created successfully.',
+    });
   });
 
   it('shows a structured duplicate-registration failure without navigating', () => {
@@ -65,6 +73,10 @@ describe('SignUp registration lifecycle', () => {
     expect(component.serverError()).toBe('Email already used!');
     expect(component.submitting()).toBe(false);
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'error',
+      message: 'Email already used!',
+    });
   });
 
   it('suppresses duplicate registration submits while the request is pending', () => {

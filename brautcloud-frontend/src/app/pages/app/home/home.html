@@ -92,7 +92,14 @@
           </div>
           <div class="dashboard-qr__actions">
             <button type="button" class="bc-button bc-button--primary">Download for print</button>
-            <button type="button" class="bc-button bc-button--inverse">Copy gallery link</button>
+            <button
+              type="button"
+              class="bc-button bc-button--inverse"
+              (click)="copyGalleryLink()"
+              [disabled]="!eventUrl()"
+            >
+              Copy gallery link
+            </button>
           </div>
         </section>
       </div>

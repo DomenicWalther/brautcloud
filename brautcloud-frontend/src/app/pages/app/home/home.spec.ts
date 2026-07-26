@@ -11,6 +11,7 @@ import { UserDto } from '../../../core/models/user.dto';
 import { EventService } from '../../../services/event-service';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
+import { ToastService } from '../../../services/toast-service';
 import { Home } from './home';
 
 @Component({
@@ -122,6 +123,7 @@ describe('Home gallery preview and photos stat', () => {
     getEventImages: vi.fn(),
   };
   let fixture: ComponentFixture<Home>;
+  let toastService: ToastService;
 
   beforeEach(async () => {
     user.set(null);
@@ -153,6 +155,8 @@ describe('Home gallery preview and photos stat', () => {
       })
       .compileComponents();
     fixture = TestBed.createComponent(Home);
+    toastService = TestBed.inject(ToastService);
+    toastService.clear();
   });
 
   it('shows a loading state for the gallery preview until images resolve', () => {
@@ -214,6 +218,45 @@ describe('Home gallery preview and photos stat', () => {
     expect(fixture.componentInstance.imagesLoading()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('No photos yet');
     expect(fixture.componentInstance.stats().photos).toBe('0');
+  });
+
+  it('copies canonical gallery URL through secure clipboard and reports success', async () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([]));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    fixture.detectChanges();
+    await fixture.componentInstance.copyGalleryLink();
+
+    expect(writeText).toHaveBeenCalledWith('http://app.test/event/event-1');
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'success',
+      message: 'Gallery link copied.',
+    });
+  });
+
+  it('reports copy failure without attempting an unsafe URL', async () => {
+    user.set({ ...userTemplate, events: [event] });
+    imageService.getEventImages.mockReturnValue(of([]));
+    const writeText = vi.fn().mockRejectedValue(new Error('permission denied'));
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    fixture.detectChanges();
+    await fixture.componentInstance.copyGalleryLink();
+
+    expect(toastService.toasts()[0]).toMatchObject({
+      kind: 'error',
+      message: 'Could not copy gallery link. Please try again.',
+    });
   });
 });
 
