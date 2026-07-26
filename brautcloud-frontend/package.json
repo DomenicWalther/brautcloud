@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:ci": "ng test --watch=false",
-    "format:check": "prettier --check 'src/**/*.{ts,html,css}'"
+    "format:check": "prettier --check 'src/**/*.{ts,html,css}'",
+    "prepare": "husky"
   },
   "prettier": {
     "printWidth": 100,
@@ -41,11 +42,16 @@
     "@angular/cli": "^21.1.1",
     "@angular/compiler-cli": "^21.1.0",
     "@tailwindcss/postcss": "^4.1.12",
+    "husky": "^9.1.7",
     "jsdom": "^27.1.0",
+    "lint-staged": "^17.2.0",
     "postcss": "^8.5.3",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.12",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,html,css}": "prettier --write"
   }
 }
