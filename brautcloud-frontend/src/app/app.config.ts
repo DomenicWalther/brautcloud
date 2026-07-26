@@ -12,7 +12,7 @@ import { authInterceptor } from './services/auth-interceptor';
 import { AuthService } from './services/auth-service';
 import { UserService } from './services/user-service';
 import { environment } from '../environments/environment';
-import { API_URL, APP_URL } from './core/tokens';
+import { API_URL, APP_URL, AUTH_SERVICE } from './core/tokens';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -35,6 +35,10 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_URL,
       useValue: environment.appUrl,
+    },
+    {
+      provide: AUTH_SERVICE,
+      useExisting: AuthService,
     },
   ],
 };

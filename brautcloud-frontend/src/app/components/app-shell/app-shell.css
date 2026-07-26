@@ -26,10 +26,20 @@
   backdrop-filter: blur(16px);
 }
 
+.workspace-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-lg);
+}
+
 .workspace-nav {
   display: flex;
   align-items: center;
   gap: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.workspace-signout {
+  flex: 0 0 auto;
 }
 
 .workspace-nav a {
@@ -87,6 +97,10 @@
 
   .workspace-nav {
     display: none;
+  }
+
+  .workspace-header__actions {
+    gap: var(--bc-space-sm);
   }
 
   .workspace-content {

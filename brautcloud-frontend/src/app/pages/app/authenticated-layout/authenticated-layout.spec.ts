@@ -1,46 +1,25 @@
-import { signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { routes } from '../../../app.routes';
-import { AuthService } from '../../../services/auth-service';
 import { AuthenticatedLayout } from './authenticated-layout';
 
 describe('AuthenticatedLayout', () => {
-  let fixture: ComponentFixture<AuthenticatedLayout>;
-  const logout = vi.fn();
-
   beforeEach(async () => {
-    logout.mockClear();
-
     await TestBed.configureTestingModule({
       imports: [AuthenticatedLayout],
-      providers: [
-        provideRouter([]),
-        {
-          provide: AuthService,
-          useValue: {
-            isLoggingOut: signal(false).asReadonly(),
-            logout,
-          },
-        },
-      ],
+      providers: [provideRouter([])],
     }).compileComponents();
-
-    fixture = TestBed.createComponent(AuthenticatedLayout);
-    fixture.detectChanges();
   });
 
-  it('makes the sign-out control accessible from the shared authenticated UI', () => {
+  it('only projects the active route so child shells own their navigation', () => {
+    const fixture = TestBed.createComponent(AuthenticatedLayout);
+    fixture.detectChanges();
+
     const element = fixture.nativeElement as HTMLElement;
-    const button = element.querySelector<HTMLButtonElement>('button');
-
     expect(element.querySelector('router-outlet')).toBeTruthy();
-    expect(button).toBeTruthy();
-    expect(button?.type).toBe('button');
-    expect(button?.textContent).toContain('Sign out');
-
-    button?.click();
-    expect(logout).toHaveBeenCalledOnce();
+    expect(element.querySelector('header')).toBeNull();
+    expect(element.querySelector('nav')).toBeNull();
+    expect(element.querySelector('button')).toBeNull();
   });
 
   it('is the layout used by the authenticated route', async () => {

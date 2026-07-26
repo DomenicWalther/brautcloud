@@ -7,11 +7,23 @@
       <span>BrautCloud</span>
     </a>
 
-    <nav class="workspace-nav" aria-label="Gallery workspace">
-      <a routerLink="/app/home" routerLinkActive="is-active">Overview</a>
-      <a routerLink="/app/gallery" routerLinkActive="is-active">Gallery</a>
-      <a routerLink="/app/upload" routerLinkActive="is-active">Upload</a>
-    </nav>
+    <div class="workspace-header__actions">
+      <nav class="workspace-nav" aria-label="Gallery workspace">
+        <a routerLink="/app/home" routerLinkActive="is-active">Overview</a>
+        <a routerLink="/app/gallery" routerLinkActive="is-active">Gallery</a>
+        <a routerLink="/app/upload" routerLinkActive="is-active">Upload</a>
+      </nav>
+
+      <button
+        type="button"
+        class="bc-button bc-button--inverse workspace-signout"
+        (click)="signOut()"
+        [disabled]="isSigningOut()"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+        <span>{{ isSigningOut() ? 'Signing out…' : 'Sign out' }}</span>
+      </button>
+    </div>
   </header>
 
   <main id="workspace-content" class="workspace-content" tabindex="-1">
