@@ -169,11 +169,7 @@
           </label>
         </div>
         <div class="settings-card__actions">
-          <button
-            type="submit"
-            class="bc-button bc-button--primary"
-            [disabled]="savingPassword()"
-          >
+          <button type="submit" class="bc-button bc-button--primary" [disabled]="savingPassword()">
             {{ savingPassword() ? 'Saving…' : 'Save password' }}
           </button>
         </div>

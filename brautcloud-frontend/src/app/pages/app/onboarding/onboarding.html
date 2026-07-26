@@ -106,7 +106,11 @@
                   (input)="onConfirmPasswordInput($event)"
                 />
               </label>
-              @if (passwordInput() && confirmPasswordInput() && passwordInput() !== confirmPasswordInput()) {
+              @if (
+                passwordInput() &&
+                confirmPasswordInput() &&
+                passwordInput() !== confirmPasswordInput()
+              ) {
                 <p class="bc-field-error" role="alert">Passwords do not match.</p>
               }
             }
