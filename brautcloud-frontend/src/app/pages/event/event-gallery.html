@@ -25,32 +25,70 @@
       </div>
     </section>
   } @else if (event(); as activeEvent) {
-    <div class="bc-page bc-public-event__content">
-      <header class="bc-page-header bc-public-event__intro">
-        <p class="bc-eyebrow">Private wedding gallery</p>
-        <h1 class="bc-display">
-          {{ activeEvent.firstNameCoupleOne }} &amp; <em>{{ activeEvent.firstNameCoupleTwo }}</em>
-        </h1>
-        <p class="bc-lede">{{ activeEvent.eventName }}</p>
-        @if (eventDate(); as formattedDate) {
-          <p class="bc-public-event__details">
-            <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
-            {{ formattedDate }}
-            @if (activeEvent.location) {
-              <span aria-hidden="true">·</span>
+    @if (activeEvent.passwordProtected && verifiedPassword() === null) {
+      <section class="bc-public-event__state bc-public-event__password" role="main">
+        <div class="bc-public-event__password-inner">
+          <span class="material-symbols-outlined bc-public-event__password-icon" aria-hidden="true"
+            >lock</span
+          >
+          <h1 class="bc-display">This gallery is protected</h1>
+          <p class="bc-lede">Enter the password to view photos from this event.</p>
+          <form class="bc-public-event__password-form" (submit)="submitPassword($event)" novalidate>
+            <label class="bc-field">
+              <span class="bc-field-label">Gallery password</span>
+              <input
+                class="bc-input"
+                type="password"
+                autocomplete="current-password"
+                [value]="enteredPassword()"
+                (input)="onPasswordInput($event)"
+              />
+            </label>
+            @if (passwordError(); as err) {
+              <p class="bc-field-error" role="alert">{{ err }}</p>
+            }
+            <button
+              type="submit"
+              class="bc-button bc-button--primary"
+              [disabled]="verifyingPassword() || !enteredPassword()"
+            >
+              {{ verifyingPassword() ? 'Checking…' : 'Enter gallery' }}
+            </button>
+          </form>
+        </div>
+      </section>
+    } @else {
+      <div class="bc-page bc-public-event__content">
+        <header class="bc-page-header bc-public-event__intro">
+          <p class="bc-eyebrow">Private wedding gallery</p>
+          <h1 class="bc-display">
+            {{ activeEvent.firstNameCoupleOne }} &amp; <em>{{ activeEvent.firstNameCoupleTwo }}</em>
+          </h1>
+          <p class="bc-lede">{{ activeEvent.eventName }}</p>
+          @if (eventDate(); as formattedDate) {
+            <p class="bc-public-event__details">
+              <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+              {{ formattedDate }}
+              @if (activeEvent.location) {
+                <span aria-hidden="true">·</span>
+                <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
+                {{ activeEvent.location }}
+              }
+            </p>
+          } @else if (activeEvent.location) {
+            <p class="bc-public-event__details">
               <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
               {{ activeEvent.location }}
-            }
-          </p>
-        } @else if (activeEvent.location) {
-          <p class="bc-public-event__details">
-            <span class="material-symbols-outlined" aria-hidden="true">location_on</span>
-            {{ activeEvent.location }}
-          </p>
-        }
-      </header>
+            </p>
+          }
+        </header>
 
-      <app-gallery [publicMode]="true" [publicEvent]="activeEvent" />
-    </div>
+        <app-gallery
+          [publicMode]="true"
+          [publicEvent]="activeEvent"
+          [galleryPassword]="verifiedPassword() ?? undefined"
+        />
+      </div>
+    }
   }
 </main>

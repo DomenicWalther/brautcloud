@@ -40,8 +40,9 @@ public class EventController {
 	}
 
 	@GetMapping("/{eventID}/public/images")
-	public List<EventImageDTO> getPublicEventImages(@PathVariable UUID eventID) {
-		return eventService.getPublicEventImages(eventID);
+	public List<EventImageDTO> getPublicEventImages(@PathVariable UUID eventID,
+			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword) {
+		return eventService.getPublicEventImages(eventID, galleryPassword);
 	}
 
 	@GetMapping("/{eventID}/images")

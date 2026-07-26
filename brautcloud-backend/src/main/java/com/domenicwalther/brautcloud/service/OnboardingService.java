@@ -8,6 +8,7 @@ import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +21,13 @@ public class OnboardingService {
 
 	private final EventRepository eventRepository;
 
-	public OnboardingService(UserRepository userRepository, EventRepository eventRepository) {
+	private final PasswordEncoder passwordEncoder;
+
+	public OnboardingService(UserRepository userRepository, EventRepository eventRepository,
+			PasswordEncoder passwordEncoder) {
 		this.userRepository = userRepository;
 		this.eventRepository = eventRepository;
+		this.passwordEncoder = passwordEncoder;
 	}
 
 	@Transactional
@@ -36,6 +41,11 @@ public class OnboardingService {
 				.orElseGet(() -> new OnboardingResponse(true, null));
 		}
 
+		String hashedPassword = null;
+		if (request.password() != null && !request.password().isBlank()) {
+			hashedPassword = passwordEncoder.encode(request.password());
+		}
+
 		Event event = Event.builder()
 			.eventName(request.familyName().trim())
 			.lastName(request.familyName().trim())
@@ -43,6 +53,7 @@ public class OnboardingService {
 			.firstNameCoupleTwo(request.partnerFirstName().trim())
 			.location(request.venue().trim())
 			.date(request.date())
+			.password(hashedPassword)
 			.user(user)
 			.build();
 

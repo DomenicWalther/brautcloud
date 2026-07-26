@@ -75,14 +75,52 @@
           </section>
         </app-step>
 
+        <app-step stepRegisterLabel="step3" [isStepInputValid]="stepThreeValid()">
+          <app-step-header
+            stepCount="3"
+            description="Protect your gallery (optional). Leave blank to keep your gallery open."
+          >
+            Protect your<br /><span>gallery.</span>
+          </app-step-header>
+          <section class="bc-form onboarding-form-fields">
+            <label class="bc-field bc-field--inverse onboarding-field">
+              <span class="bc-field-label">Gallery password</span>
+              <input
+                class="bc-input"
+                type="password"
+                placeholder="Leave blank for an open gallery"
+                autocomplete="new-password"
+                [value]="passwordInput()"
+                (input)="onPasswordInput($event)"
+              />
+            </label>
+            @if (passwordInput()) {
+              <label class="bc-field bc-field--inverse onboarding-field">
+                <span class="bc-field-label">Confirm password</span>
+                <input
+                  class="bc-input"
+                  type="password"
+                  placeholder="Re-enter password"
+                  autocomplete="new-password"
+                  [value]="confirmPasswordInput()"
+                  (input)="onConfirmPasswordInput($event)"
+                />
+              </label>
+              @if (passwordInput() && confirmPasswordInput() && passwordInput() !== confirmPasswordInput()) {
+                <p class="bc-field-error" role="alert">Passwords do not match.</p>
+              }
+            }
+          </section>
+        </app-step>
+
         <app-step
-          stepRegisterLabel="step3"
-          [isStepInputValid]="stepThreeValid()"
+          stepRegisterLabel="step4"
+          [isStepInputValid]="stepFourValid()"
           [isSubmitting]="submitting()"
           (complete)="submit()"
         >
           <app-step-header
-            stepCount="3"
+            stepCount="4"
             description="Review your details before creating your shared gallery."
           >
             Create your<br /><span>gallery.</span>
@@ -94,6 +132,9 @@
             </p>
             <p class="bc-muted"><strong>Event date:</strong> {{ model().date }}</p>
             <p class="bc-muted"><strong>Venue:</strong> {{ model().venue }}</p>
+            @if (passwordInput()) {
+              <p class="bc-muted"><strong>Gallery password:</strong> Set</p>
+            }
             @if (submissionError()) {
               <p role="alert" aria-live="assertive" class="text-red-300">
                 {{ submissionError() }}

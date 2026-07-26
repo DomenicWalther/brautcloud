@@ -41,7 +41,7 @@ describe('Onboarding accessibility', () => {
       '/app/home',
     );
     expect(panel?.getAttribute('tabindex')).toBe('-1');
-    expect(root.textContent).toContain('Step 1 of 3');
+    expect(root.textContent).toContain('Step 1 of 4');
     expect(root.querySelectorAll('input[required]').length).toBe(3);
     expect(continueButton?.disabled).toBe(true);
   });
@@ -146,7 +146,7 @@ describe('Onboarding submission', () => {
     component = fixture.componentInstance;
   });
 
-  it('renders and reaches Step 3 before submitting onboarding', () => {
+  it('renders and reaches Step 4 before submitting onboarding', () => {
     fillValidModel(component);
     fixture.detectChanges();
 
@@ -158,6 +158,11 @@ describe('Onboarding submission', () => {
     buttons()[buttons().length - 1].click();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Where will you');
+    expect(onboardingService.submitOnboarding).not.toHaveBeenCalled();
+
+    buttons()[buttons().length - 1].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Protect your');
     expect(onboardingService.submitOnboarding).not.toHaveBeenCalled();
 
     buttons()[buttons().length - 1].click();

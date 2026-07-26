@@ -64,6 +64,13 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}
 
+	@ExceptionHandler(GalleryPasswordRequiredException.class)
+	public ResponseEntity<Map<String, String>> handleGalleryPasswordRequired(GalleryPasswordRequiredException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("message", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+	}
+
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
 		Map<String, String> error = new HashMap<>();

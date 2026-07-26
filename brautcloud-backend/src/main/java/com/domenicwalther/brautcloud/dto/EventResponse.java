@@ -29,6 +29,8 @@ public class EventResponse {
 
 	private long guestCount;
 
+	private boolean hasPassword;
+
 	public static EventResponse fromEvent(Event event) {
 		return fromEvent(event, 0L);
 	}
@@ -36,7 +38,7 @@ public class EventResponse {
 	public static EventResponse fromEvent(Event event, long guestCount) {
 		return new EventResponse(event.getId(), event.getEventName(), event.getLocation(), event.getDate(),
 				event.getUser().getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo(),
-				event.getViewCount(), guestCount);
+				event.getViewCount(), guestCount, event.getPassword() != null && !event.getPassword().isBlank());
 	}
 
 }

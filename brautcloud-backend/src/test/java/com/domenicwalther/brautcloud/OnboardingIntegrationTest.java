@@ -69,6 +69,43 @@ class OnboardingIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void onboardingWithPasswordHashesAndPersistsIt() throws Exception {
+		User owner = persistUser("owner@example.com");
+		String token = jwtService.generateToken(owner.getEmail());
+
+		mockMvc
+			.perform(post("/api/onboarding").header("Authorization", bearer(token))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(
+						"""
+								{"firstName":"Sophie","partnerFirstName":"Marcus","familyName":"Müller-Weber","venue":"Eichenfürst","date":"2030-06-15T00:00:00","password":"secret"}
+								"""))
+			.andExpect(status().isOk());
+
+		Event event = eventRepository.findByUser(owner).getFirst();
+		assertThat(event.getPassword()).isNotNull();
+		assertThat(passwordEncoder.matches("secret", event.getPassword())).isTrue();
+	}
+
+	@Test
+	void onboardingWithoutPasswordCreatesOpenGallery() throws Exception {
+		User owner = persistUser("owner@example.com");
+		String token = jwtService.generateToken(owner.getEmail());
+
+		mockMvc
+			.perform(post("/api/onboarding").header("Authorization", bearer(token))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(
+						"""
+								{"firstName":"Sophie","partnerFirstName":"Marcus","familyName":"Müller-Weber","venue":"Eichenfürst","date":"2030-06-15T00:00:00"}
+								"""))
+			.andExpect(status().isOk());
+
+		Event event = eventRepository.findByUser(owner).getFirst();
+		assertThat(event.getPassword()).isNull();
+	}
+
+	@Test
 	void onboardingRejectsMissingEventDateBeforeCreatingEvent() throws Exception {
 		User owner = persistUser("owner@example.com");
 		String token = jwtService.generateToken(owner.getEmail());

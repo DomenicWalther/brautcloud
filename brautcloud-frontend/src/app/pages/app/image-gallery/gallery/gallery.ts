@@ -39,6 +39,7 @@ export class Gallery {
 
   readonly publicMode = input(false);
   readonly publicEvent = input<PublicEventDto | null>(null);
+  readonly galleryPassword = input<string | undefined>(undefined);
 
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
@@ -172,7 +173,7 @@ export class Gallery {
     this.loadError.set(null);
 
     const images$ = this.publicMode()
-      ? this.imageService.getPublicEventImages(eventId)
+      ? this.imageService.getPublicEventImages(eventId, this.galleryPassword())
       : this.imageService.getEventImages(eventId);
 
     images$.subscribe({

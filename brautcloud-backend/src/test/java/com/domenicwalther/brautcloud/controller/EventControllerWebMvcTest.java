@@ -5,6 +5,7 @@ import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
+import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.EventService;
@@ -58,7 +59,7 @@ class EventControllerWebMvcTest {
 		UUID eventId = UUID.randomUUID();
 		UUID userId = UUID.randomUUID();
 		when(eventService.getEventsByUserEmail("owner@example.com")).thenReturn(List.of(new EventResponse(eventId,
-				"Wedding", "Berlin", LocalDateTime.of(2030, 6, 15, 14, 0), userId, "Alex", "Sam", 5L, 2L)));
+				"Wedding", "Berlin", LocalDateTime.of(2030, 6, 15, 14, 0), userId, "Alex", "Sam", 5L, 2L, false)));
 
 		mockMvc.perform(get("/api/events"))
 			.andExpect(status().isOk())
@@ -73,7 +74,7 @@ class EventControllerWebMvcTest {
 	void publicEventDetailsDoNotRequireOwnerIdentity() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		when(eventService.getPublicEvent(eventId)).thenReturn(new PublicEventResponse(eventId, "Wedding", "Berlin",
-				LocalDateTime.of(2030, 6, 15, 0, 0), "Alex", "Sam"));
+				LocalDateTime.of(2030, 6, 15, 0, 0), "Alex", "Sam", false));
 
 		mockMvc.perform(get("/api/events/{eventId}/public", eventId))
 			.andExpect(status().isOk())
@@ -88,7 +89,7 @@ class EventControllerWebMvcTest {
 		UUID eventId = UUID.randomUUID();
 		UUID imageId = UUID.randomUUID();
 		UUID visitorId = UUID.randomUUID();
-		when(eventService.getPublicEventImages(eventId))
+		when(eventService.getPublicEventImages(eventId, null))
 			.thenReturn(List.of(new EventImageDTO(imageId, "https://files.test/photo")));
 
 		mockMvc.perform(get("/api/events/{eventId}/public/images", eventId))
@@ -103,13 +104,24 @@ class EventControllerWebMvcTest {
 	}
 
 	@Test
+	void publicImagesWithMissingPasswordOnProtectedGalleryReturns401() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		when(eventService.getPublicEventImages(eventId, null))
+			.thenThrow(new GalleryPasswordRequiredException("Gallery password required"));
+
+		mockMvc.perform(get("/api/events/{eventId}/public/images", eventId))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("Gallery password required"));
+	}
+
+	@Test
 	@WithMockUser(username = "owner@example.com")
 	void updateEventUsesAuthenticatedIdentityAndReturnsUpdatedDetails() throws Exception {
 		UUID eventId = UUID.randomUUID();
 		EventUpdateRequest request = new EventUpdateRequest("Updated wedding", "Alex", "Sam", "Berlin",
-				LocalDateTime.of(2030, 6, 15, 0, 0));
+				LocalDateTime.of(2030, 6, 15, 0, 0), null);
 		EventResponse response = new EventResponse(eventId, "Updated wedding", "Berlin", request.date(),
-				UUID.randomUUID(), "Alex", "Sam", 0L, 0L);
+				UUID.randomUUID(), "Alex", "Sam", 0L, 0L, false);
 		when(eventService.updateEvent("owner@example.com", eventId, request)).thenReturn(response);
 
 		mockMvc

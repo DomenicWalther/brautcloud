@@ -15,6 +15,7 @@ const eventFixture: PublicEventDto = {
   firstNameCoupleTwo: 'Marcus',
   date: '2030-06-15T00:00:00',
   location: 'Eichenfürst',
+  passwordProtected: false,
 };
 
 describe('EventGallery', () => {
@@ -36,7 +37,7 @@ describe('EventGallery', () => {
     };
     imageService = {
       getPublicEventImages: vi.fn(() => of([])),
-      getEventImages: vi.fn(),
+      getEventImages: vi.fn(() => of([])),
     };
 
     TestBed.configureTestingModule({
@@ -60,7 +61,7 @@ describe('EventGallery', () => {
   it('loads public event details and public images without owner gallery requests', () => {
     expect(eventService.getPublicEvent).toHaveBeenCalledWith('event-1');
     expect(eventService.registerPublicView).toHaveBeenCalledWith('event-1');
-    expect(imageService.getPublicEventImages).toHaveBeenCalledWith('event-1');
+    expect(imageService.getPublicEventImages).toHaveBeenCalledWith('event-1', undefined);
     expect(imageService.getEventImages).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Sophie & Marcus');
     expect(fixture.nativeElement.textContent).toContain(

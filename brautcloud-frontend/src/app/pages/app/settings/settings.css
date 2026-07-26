@@ -35,3 +35,21 @@
     flex-direction: column;
   }
 }
+
+.settings-section-header {
+  display: grid;
+  gap: var(--bc-space-sm);
+}
+
+.settings-password-status {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-xs);
+  margin: 0;
+  color: var(--bc-color-text-muted);
+  font-size: var(--bc-font-size-sm);
+}
+
+.settings-password-status .material-symbols-outlined {
+  font-size: 1rem;
+}

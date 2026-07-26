@@ -28,6 +28,8 @@ export class Onboarding {
 
   readonly submitting = signal(false);
   readonly submissionError = signal<string | null>(null);
+  readonly passwordInput = signal('');
+  readonly confirmPasswordInput = signal('');
 
   readonly model = signal<OnboardingDto>({
     firstName: '',
@@ -62,7 +64,15 @@ export class Onboarding {
   readonly stepTwoValid = computed(
     () => this.onboardingForm.venue().valid() && this.onboardingForm.date().valid(),
   );
-  readonly stepThreeValid = computed(() => this.stepOneValid() && this.stepTwoValid());
+
+  readonly stepThreeValid = computed(() => {
+    const pw = this.passwordInput();
+    const confirm = this.confirmPasswordInput();
+    if (!pw) return true;
+    return pw === confirm;
+  });
+
+  readonly stepFourValid = computed(() => this.stepOneValid() && this.stepTwoValid());
 
   submit(): void {
     if (this.onboardingForm().invalid() || this.submitting()) {
@@ -71,7 +81,14 @@ export class Onboarding {
 
     this.submitting.set(true);
     this.submissionError.set(null);
-    this.onboardingService.submitOnboarding(this.model()).subscribe({
+
+    const payload: OnboardingDto = { ...this.model() };
+    const pw = this.passwordInput();
+    if (pw) {
+      payload.password = pw;
+    }
+
+    this.onboardingService.submitOnboarding(payload).subscribe({
       next: () => {
         this.toastService.show('Your gallery was created successfully.', 'success');
         this.authService.markOnboardingComplete();
@@ -88,5 +105,13 @@ export class Onboarding {
         this.submitting.set(false);
       },
     });
+  }
+
+  onPasswordInput(event: Event): void {
+    this.passwordInput.set((event.target as HTMLInputElement).value);
+  }
+
+  onConfirmPasswordInput(event: Event): void {
+    this.confirmPasswordInput.set((event.target as HTMLInputElement).value);
   }
 }

@@ -38,8 +38,14 @@ export class ImageService {
     });
   }
 
-  getPublicEventImages(eventId: string): Observable<EventImageDto[]> {
-    return this.http.get<EventImageDto[]>(`${this.API_URL}/events/${eventId}/public/images`);
+  getPublicEventImages(eventId: string, password?: string): Observable<EventImageDto[]> {
+    const headers: { [name: string]: string } = {};
+    if (password) {
+      headers['X-Gallery-Password'] = password;
+    }
+    return this.http.get<EventImageDto[]>(`${this.API_URL}/events/${eventId}/public/images`, {
+      headers,
+    });
   }
 
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {

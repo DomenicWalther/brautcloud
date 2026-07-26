@@ -244,6 +244,7 @@ const event: EventDto = {
   userId: 'user-1',
   viewCount: 0,
   guestCount: 0,
+  hasPassword: false,
 };
 
 const image: EventImageDto = {
