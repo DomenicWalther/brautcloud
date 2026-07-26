@@ -62,6 +62,12 @@
           </app-step-header>
           <section class="bc-form onboarding-form-fields">
             <app-form-label
+              placeholder="2026-06-15"
+              label="Event date"
+              type="date"
+              [field]="onboardingForm.date"
+            />
+            <app-form-label
               placeholder="Eichenfürst"
               label="Venue name"
               [field]="onboardingForm.venue"
@@ -86,6 +92,7 @@
               <strong>Couple:</strong> {{ model().firstName }} & {{ model().partnerFirstName }}
               {{ model().familyName }}
             </p>
+            <p class="bc-muted"><strong>Event date:</strong> {{ model().date }}</p>
             <p class="bc-muted"><strong>Venue:</strong> {{ model().venue }}</p>
             @if (submissionError()) {
               <p role="alert" aria-live="assertive" class="text-red-300">

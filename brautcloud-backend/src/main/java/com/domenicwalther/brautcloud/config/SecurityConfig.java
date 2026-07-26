@@ -3,9 +3,10 @@ package com.domenicwalther.brautcloud.config;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,6 +46,10 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**")
 				.permitAll()
 				.requestMatchers("/error")
+				.permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/events/*/public", "/api/events/*/public/images")
+				.permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/events/*/public/view")
 				.permitAll()
 				.anyRequest()
 				.authenticated())

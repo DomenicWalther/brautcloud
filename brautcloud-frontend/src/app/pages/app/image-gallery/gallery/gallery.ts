@@ -8,10 +8,12 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { EventImageDto } from '../../../../core/models/event-image.dto';
+import { PublicEventDto } from '../../../../core/models/event.dto';
 import { ImageService } from '../../../../services/image-service';
 import { UserService } from '../../../../services/user-service';
 
@@ -35,13 +37,18 @@ export class Gallery {
   private previousBodyOverflow = '';
   private returnFocusElement: HTMLElement | null = null;
 
+  readonly publicMode = input(false);
+  readonly publicEvent = input<PublicEventDto | null>(null);
+
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
   readonly lightboxOpen = signal(false);
 
   readonly images = this.allImages.asReadonly();
   readonly user = this.userService.user;
-  readonly event = computed(() => this.user()?.events?.[0]);
+  readonly event = computed(() =>
+    this.publicMode() ? this.publicEvent() : (this.user()?.events?.[0] ?? null),
+  );
   readonly selectedImage = computed(() => this.images()[this.selectedIndex()] ?? null);
   readonly selectedPosition = computed(
     () => `${this.selectedIndex() + 1} of ${this.images().length}`,
@@ -164,7 +171,11 @@ export class Gallery {
     this.loading.set(true);
     this.loadError.set(null);
 
-    this.imageService.getEventImages(eventId).subscribe({
+    const images$ = this.publicMode()
+      ? this.imageService.getPublicEventImages(eventId)
+      : this.imageService.getEventImages(eventId);
+
+    images$.subscribe({
       next: (images) => {
         this.allImages.set(images);
         this.failedImageIds.set(new Set());

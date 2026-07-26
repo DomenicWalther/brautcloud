@@ -5,6 +5,7 @@ export interface OnboardingDto {
   partnerFirstName: string;
   familyName: string;
   venue: string;
+  date: string;
 }
 
 export interface OnboardingResponse {

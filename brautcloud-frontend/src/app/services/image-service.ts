@@ -38,6 +38,10 @@ export class ImageService {
     });
   }
 
+  getPublicEventImages(eventId: string): Observable<EventImageDto[]> {
+    return this.http.get<EventImageDto[]>(`${this.API_URL}/events/${eventId}/public/images`);
+  }
+
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {
     const fileNames = files.map((f) => f.file.name);
 

@@ -12,6 +12,7 @@ export class FormLabel {
   label = input.required<string>();
   placeholder = input.required<string>();
   field = input.required<FieldTree<string, string>>();
+  type = input<'text' | 'date'>('text');
 
   protected fieldState = computed(() => this.field()());
 }

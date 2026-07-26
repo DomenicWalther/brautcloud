@@ -3,6 +3,8 @@ package com.domenicwalther.brautcloud.service;
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
+import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
+import com.domenicwalther.brautcloud.dto.PublicEventResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
@@ -62,9 +64,21 @@ public class EventService {
 		return EventResponse.fromEvent(event, eventGuestVisitRepository.countByEventId(event.getId()));
 	}
 
+	public PublicEventResponse getPublicEvent(UUID eventId) {
+		return PublicEventResponse.fromEvent(findEvent(eventId));
+	}
+
 	@Transactional
 	public void registerView(String email, UUID eventId, UUID visitorId) {
-		Event event = resourceOwnershipService.requireOwnedEvent(email, eventId);
+		registerView(resourceOwnershipService.requireOwnedEvent(email, eventId), visitorId);
+	}
+
+	@Transactional
+	public void registerPublicView(UUID eventId, UUID visitorId) {
+		registerView(findEvent(eventId), visitorId);
+	}
+
+	private void registerView(Event event, UUID visitorId) {
 		eventRepository.incrementViewCount(event.getId());
 		if (!eventGuestVisitRepository.existsByEventIdAndVisitorId(event.getId(), visitorId)) {
 			try {
@@ -93,6 +107,17 @@ public class EventService {
 		eventRepository.save(event);
 	}
 
+	@Transactional
+	public EventResponse updateEvent(String email, UUID eventId, EventUpdateRequest request) {
+		Event event = resourceOwnershipService.requireOwnedEvent(email, eventId);
+		event.setEventName(request.eventName().trim());
+		event.setFirstNameCoupleOne(request.firstNameCoupleOne().trim());
+		event.setFirstNameCoupleTwo(request.firstNameCoupleTwo().trim());
+		event.setLocation(request.location().trim());
+		event.setDate(request.date());
+		return toEventResponse(eventRepository.save(event));
+	}
+
 	public void deleteEvent(String email, UUID eventID) {
 		Event event = resourceOwnershipService.requireOwnedEvent(email, eventID);
 		eventRepository.deleteById(event.getId());
@@ -100,6 +125,15 @@ public class EventService {
 
 	public List<EventImageDTO> getEventImages(String email, UUID eventID) {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
+		return getEventImages(eventID);
+	}
+
+	public List<EventImageDTO> getPublicEventImages(UUID eventID) {
+		findEvent(eventID);
+		return getEventImages(eventID);
+	}
+
+	private List<EventImageDTO> getEventImages(UUID eventID) {
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
 		return images.stream().map(image -> {
@@ -125,6 +159,10 @@ public class EventService {
 				}
 			}
 		};
+	}
+
+	private Event findEvent(UUID eventId) {
+		return eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event not found"));
 	}
 
 	private User findUserByEmail(String email) {

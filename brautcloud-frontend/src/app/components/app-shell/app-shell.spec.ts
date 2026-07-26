@@ -5,7 +5,7 @@ import { AUTH_SERVICE } from '../../core/tokens';
 import { UserService } from '../../services/user-service';
 import { AppShell } from './app-shell';
 
-const expectedWorkspaceRoutes = ['/app/home', '/app/gallery', '/app/upload'];
+const expectedWorkspaceRoutes = ['/app/home', '/app/gallery', '/app/upload', '/app/settings'];
 const isLoggingOut = signal(false);
 const logout = vi.fn();
 const reload = vi.fn();

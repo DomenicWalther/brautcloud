@@ -3,6 +3,7 @@ package com.domenicwalther.brautcloud;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
+import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
@@ -43,6 +44,9 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	private EventRepository eventRepository;
 
 	@Autowired
+	private EventGuestVisitRepository eventGuestVisitRepository;
+
+	@Autowired
 	private ImageRepository imageRepository;
 
 	@Autowired
@@ -57,6 +61,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	@BeforeEach
 	void cleanDatabaseAndExternalDouble() {
 		refreshTokenRepository.deleteAll();
+		eventGuestVisitRepository.deleteAll();
 		imageRepository.deleteAll();
 		eventRepository.deleteAll();
 		userRepository.deleteAll();
@@ -132,6 +137,66 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void guestsCanLoadPublicGalleryAndTrackingWithoutOpeningOwnerEndpoints() throws Exception {
+		User owner = persistUser("owner@example.com");
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Image image = imageRepository.saveAndFlush(TestFixtures.image(event, "ceremony.jpg", true));
+		when(s3Service.getPresignedUrl(image.getImageKey())).thenReturn("https://files.test/ceremony");
+		UUID visitorId = UUID.randomUUID();
+
+		mockMvc.perform(get("/api/events/{id}/public", event.getId()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(event.getId().toString()))
+			.andExpect(jsonPath("$.eventName").value("Wedding"))
+			.andExpect(jsonPath("$.location").value("Berlin"))
+			.andExpect(jsonPath("$.userId").doesNotExist());
+		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].id").value(image.getId().toString()))
+			.andExpect(jsonPath("$[0].url").value("https://files.test/ceremony"));
+		mockMvc
+			.perform(post("/api/events/{id}/public/view", event.getId()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"visitorId\":\"%s\"}".formatted(visitorId)))
+			.andExpect(status().isOk());
+
+		assertThat(eventRepository.findById(event.getId()).orElseThrow().getViewCount()).isEqualTo(1);
+		assertThat(eventGuestVisitRepository.countByEventId(event.getId())).isEqualTo(1);
+		mockMvc.perform(get("/api/events/{id}/images", event.getId())).andExpect(status().isUnauthorized());
+		mockMvc
+			.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.put("/api/events/{id}", event.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void ownerCanUpdateSupportedEventDetails() throws Exception {
+		User owner = persistUser("owner@example.com");
+		String token = jwtService.generateToken(owner.getEmail());
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+
+		mockMvc
+			.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.put("/api/events/{id}", event.getId())
+				.header("Authorization", bearer(token))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(
+						"""
+								{"eventName":"Updated wedding","firstNameCoupleOne":"Sophie","firstNameCoupleTwo":"Marcus","location":"Munich","date":"2031-07-20T00:00:00"}
+								"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.eventName").value("Updated wedding"))
+			.andExpect(jsonPath("$.date").value("2031-07-20T00:00:00"));
+
+		Event updated = eventRepository.findById(event.getId()).orElseThrow();
+		assertThat(updated.getFirstNameCoupleOne()).isEqualTo("Sophie");
+		assertThat(updated.getFirstNameCoupleTwo()).isEqualTo("Marcus");
+		assertThat(updated.getLocation()).isEqualTo("Munich");
+		assertThat(updated.getDate()).isEqualTo(java.time.LocalDateTime.of(2031, 7, 20, 0, 0));
+	}
+
+	@Test
 	void eventListingIsScopedToAuthenticatedUser() throws Exception {
 		User owner = persistUser("owner@example.com");
 		User other = persistUser("other@example.com");
@@ -191,6 +256,17 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.message").value("Event not found"));
 		mockMvc.perform(delete("/api/events/{id}", event.getId()).header("Authorization", bearer(intruderToken)))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Event not found"));
+		mockMvc
+			.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.put("/api/events/{id}", event.getId())
+				.header("Authorization", bearer(intruderToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(
+						"""
+								{"eventName":"Stolen wedding","firstNameCoupleOne":"Intruder","firstNameCoupleTwo":"Name","location":"Unknown","date":"2031-07-20T00:00:00"}
+								"""))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.message").value("Event not found"));
 		mockMvc

@@ -42,6 +42,7 @@ public class OnboardingService {
 			.firstNameCoupleOne(request.firstName().trim())
 			.firstNameCoupleTwo(request.partnerFirstName().trim())
 			.location(request.venue().trim())
+			.date(request.date())
 			.user(user)
 			.build();
 

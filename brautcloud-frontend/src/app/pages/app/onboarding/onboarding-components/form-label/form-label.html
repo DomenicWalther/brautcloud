@@ -2,7 +2,7 @@
   <span class="bc-field-label">{{ label() }}</span>
   <input
     class="bc-input"
-    type="text"
+    [type]="type()"
     [placeholder]="placeholder()"
     [formField]="field()"
     [attr.aria-invalid]="fieldState().touched() && fieldState().invalid()"

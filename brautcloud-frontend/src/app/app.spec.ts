@@ -32,7 +32,13 @@ describe('App', () => {
 
     expect(routes.some((route) => route.path === '')).toBe(true);
     expect(authPaths).toEqual(['sign-in', 'sign-up', 'reset-password']);
-    expect(appPaths).toEqual(['home', 'upload', 'gallery', 'onboarding', '**']);
+    expect(appPaths).toEqual(['home', 'upload', 'gallery', 'onboarding', 'settings', '**']);
+    const publicEventRoutes = routes.filter(
+      (route) => route.path === 'event' || route.path === 'event/:eventId',
+    );
+    expect(publicEventRoutes).toHaveLength(2);
+    expect(publicEventRoutes.every((route) => route.loadComponent)).toBe(true);
+    expect(routes.indexOf(publicEventRoutes[0]!)).toBeLessThan(routes.length - 1);
     expect(routes.at(-1)?.path).toBe('**');
   });
 });

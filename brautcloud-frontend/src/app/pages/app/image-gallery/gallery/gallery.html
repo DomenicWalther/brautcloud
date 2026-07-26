@@ -11,8 +11,12 @@
     <div class="bc-empty-state__inner">
       <span class="material-symbols-outlined" aria-hidden="true">cloud_off</span>
       <h2>Gallery unavailable</h2>
-      <p>{{ error }}</p>
-      <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+      <p>{{ publicMode() ? 'Please return to the event link and try again.' : error }}</p>
+      @if (publicMode()) {
+        <a routerLink="/" class="bc-button bc-button--primary">Back to BrautCloud</a>
+      } @else {
+        <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+      }
     </div>
   </section>
 } @else if (event()) {
@@ -51,9 +55,23 @@
     <section class="bc-empty-state">
       <div class="bc-empty-state__inner">
         <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
-        <h2>Your first moments will appear here</h2>
-        <p>Share the gallery QR code with guests, then return as the collection grows.</p>
-        <a routerLink="/app/upload" class="bc-button bc-button--primary">Upload photos</a>
+        <h2>
+          {{
+            publicMode()
+              ? 'This gallery is ready for its first moments'
+              : 'Your first moments will appear here'
+          }}
+        </h2>
+        <p>
+          {{
+            publicMode()
+              ? 'The couple’s shared photographs will appear here as the celebration unfolds.'
+              : 'Share the gallery QR code with guests, then return as the collection grows.'
+          }}
+        </p>
+        @if (!publicMode()) {
+          <a routerLink="/app/upload" class="bc-button bc-button--primary">Upload photos</a>
+        }
       </div>
     </section>
   }
@@ -62,8 +80,18 @@
     <div class="bc-empty-state__inner">
       <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
       <h2>No gallery is available yet</h2>
-      <p>Complete your event setup from home to create a gallery.</p>
-      <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+      <p>
+        {{
+          publicMode()
+            ? 'This event link does not contain a gallery yet.'
+            : 'Complete your event setup from home to create a gallery.'
+        }}
+      </p>
+      @if (publicMode()) {
+        <a routerLink="/" class="bc-button bc-button--primary">Back to BrautCloud</a>
+      } @else {
+        <a routerLink="/app/home" class="bc-button bc-button--primary">Back to home</a>
+      }
     </div>
   </section>
 }
