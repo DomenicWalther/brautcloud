@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { QrCodeComponent } from 'ng-qrcode';
 import { catchError, of, switchMap, tap } from 'rxjs';
@@ -21,6 +21,8 @@ const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
   styles: ``,
 })
 export class Home {
+  @ViewChild('qrContainer') private readonly qrContainer?: ElementRef<HTMLElement>;
+
   private readonly userService = inject(UserService);
   private readonly eventService = inject(EventService);
   private readonly imageService = inject(ImageService);
@@ -191,6 +193,31 @@ export class Home {
     } finally {
       textarea.remove();
     }
+  }
+
+  downloadQrCode(): void {
+    const canvas = this.qrContainer?.nativeElement?.querySelector('canvas') as HTMLCanvasElement | null;
+
+    if (!canvas) {
+      this.toastService.show('QR code is not ready yet. Please try again.', 'warning');
+      return;
+    }
+
+    const size = 1200;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = size;
+    offscreen.height = size;
+    const ctx = offscreen.getContext('2d')!;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(canvas, 0, 0, size, size);
+
+    const dataUrl = offscreen.toDataURL('image/png');
+    const eventName = this.event()?.eventName ?? 'event';
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `${this.slugify(eventName)}-qr-code.png`;
+    link.click();
+    link.remove();
   }
 
   private slugify(value: string): string {

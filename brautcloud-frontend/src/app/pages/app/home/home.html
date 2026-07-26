@@ -17,7 +17,7 @@
         </div>
         @if (daysTillWedding() !== null) {
           <p class="bc-lede">
-            <strong>{{ daysTillWedding() }}</strong> days until your wedding. Everything your guests
+            <strong>{{ daysTillWedding() }}</strong> {{ daysTillWedding() === 1 ? 'day' : 'days' }} until your wedding. Everything your guests
             share will gather here.
           </p>
         }
@@ -87,11 +87,18 @@
             <h2 id="qr-title" class="bc-card-title">Event QR code</h2>
             <p class="bc-muted">Place it where guests can scan and share in moments.</p>
           </div>
-          <div class="dashboard-qr__code" aria-label="QR code for the event gallery">
+          <div #qrContainer class="dashboard-qr__code" aria-label="QR code for the event gallery">
             <qr-code [value]="eventUrl() ?? ''" size="220" errorCorrectionLevel="M" />
           </div>
           <div class="dashboard-qr__actions">
-            <button type="button" class="bc-button bc-button--primary">Download for print</button>
+            <button
+              type="button"
+              class="bc-button bc-button--primary"
+              (click)="downloadQrCode()"
+              [disabled]="!eventUrl()"
+            >
+              Download for print
+            </button>
             <button
               type="button"
               class="bc-button bc-button--inverse"

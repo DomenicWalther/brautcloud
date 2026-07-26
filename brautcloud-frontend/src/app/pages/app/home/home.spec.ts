@@ -468,6 +468,112 @@ describe('Home download all photos button', () => {
   });
 });
 
+describe('Home QR code download', () => {
+  const user = signal<UserDto | null>(null);
+  const eventService = {
+    downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
+  };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
+  let fixture: ComponentFixture<Home>;
+  let toastService: ToastService;
+
+  beforeEach(async () => {
+    user.set(null);
+    sessionStorage.clear();
+    eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
+    imageService.getEventImages.mockReset().mockReturnValue(of([]));
+
+    await TestBed.configureTestingModule({
+      imports: [Home],
+      providers: [
+        provideRouter([]),
+        { provide: APP_URL, useValue: 'http://app.test' },
+        {
+          provide: UserService,
+          useValue: {
+            user: user.asReadonly(),
+            loading: signal(false).asReadonly(),
+            error: signal<string | null>(null).asReadonly(),
+          },
+        },
+        { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
+      ],
+    })
+      .overrideComponent(Home, {
+        remove: { imports: [QrCodeComponent] },
+        add: { imports: [StubQrCode] },
+      })
+      .compileComponents();
+    fixture = TestBed.createComponent(Home);
+    toastService = TestBed.inject(ToastService);
+    toastService.clear();
+  });
+
+  it('shows a warning toast when QR code canvas is not available', () => {
+    user.set({ ...userTemplate, events: [event] });
+    fixture.detectChanges();
+    toastService.clear();
+
+    fixture.componentInstance.downloadQrCode();
+
+    expect(toastService.toasts()[0]).toMatchObject({ kind: 'warning' });
+  });
+
+  it('creates a high-resolution PNG download when the QR canvas is present', () => {
+    user.set({ ...userTemplate, events: [event] });
+    fixture.detectChanges();
+
+    const qrContainer = fixture.nativeElement.querySelector('.dashboard-qr__code');
+    const mockCanvas = document.createElement('canvas');
+    mockCanvas.width = 220;
+    mockCanvas.height = 220;
+    qrContainer.appendChild(mockCanvas);
+
+    const mockCtx = {
+      imageSmoothingEnabled: true,
+      drawImage: vi.fn(),
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      mockCtx as unknown as CanvasRenderingContext2D,
+    );
+    const toDataURLSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockReturnValue('data:image/png;base64,abc');
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+
+    fixture.componentInstance.downloadQrCode();
+
+    expect(mockCtx.imageSmoothingEnabled).toBe(false);
+    expect(mockCtx.drawImage).toHaveBeenCalledWith(mockCanvas, 0, 0, 1200, 1200);
+    expect(toDataURLSpy).toHaveBeenCalledWith('image/png');
+    expect(clickSpy).toHaveBeenCalled();
+    expect(toastService.toasts().length).toBe(0);
+
+    vi.restoreAllMocks();
+  });
+
+  it('disables the download-for-print button when the event has no id (no URL)', () => {
+    user.set({ ...userTemplate, events: [{ ...event, id: '' }] });
+    fixture.detectChanges();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
+    const printButton = buttons.find((b) =>
+      b.textContent?.toLowerCase().includes('download for print'),
+    );
+
+    expect(printButton?.disabled).toBe(true);
+  });
+});
+
 const userTemplate: UserDto = {
   createdAt: '2024-01-01T00:00:00Z',
   email: 'test@example.com',
