@@ -7,7 +7,8 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -40,8 +41,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Validate formatting
-        run: pnpm run format:check
+      - name: Fix formatting
+        run: pnpm run format
+
+      - name: Commit formatting fixes
+        uses: stefanzweifel/git-auto-commit-action@8621da0df03b4e76e7fca6a4f939f5e34cad8f8b # v5
+        with:
+          commit_message: "style: auto-fix Prettier formatting"
+          file_pattern: "brautcloud-frontend/src/**/*.{ts,html,css}"
+
 
       - name: Run unit tests
         run: pnpm run test:ci

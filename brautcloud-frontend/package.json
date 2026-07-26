@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:ci": "ng test --watch=false",
+    "format": "prettier --write 'src/**/*.{ts,html,css}'",
     "format:check": "prettier --check 'src/**/*.{ts,html,css}'",
     "prepare": "husky"
   },
