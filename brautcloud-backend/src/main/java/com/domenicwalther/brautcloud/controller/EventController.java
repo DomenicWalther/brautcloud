@@ -6,7 +6,10 @@ import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.EventViewRequest;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
+import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
+import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.EventService;
+import com.domenicwalther.brautcloud.service.ImageService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -25,8 +28,11 @@ public class EventController {
 
 	private final EventService eventService;
 
-	public EventController(EventService eventService) {
+	private final ImageService imageService;
+
+	public EventController(EventService eventService, ImageService imageService) {
 		this.eventService = eventService;
+		this.imageService = imageService;
 	}
 
 	@GetMapping
@@ -43,6 +49,21 @@ public class EventController {
 	public List<EventImageDTO> getPublicEventImages(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword) {
 		return eventService.getPublicEventImages(eventID, galleryPassword);
+	}
+
+	@PostMapping("/{eventID}/public/images/presigned-url")
+	public List<ImageUploadResponse> getPublicImagePresignedUrls(@PathVariable UUID eventID,
+			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
+			@RequestBody ImageUploadRequest request) {
+		return imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword, request.getFileNames());
+	}
+
+	@PostMapping("/{eventID}/public/images/uploaded")
+	public ResponseEntity<Void> markPublicImagesAsUploaded(@PathVariable UUID eventID,
+			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
+			@RequestBody List<UUID> imageIds) {
+		imageService.markPublicImagesAsUploaded(eventID, galleryPassword, imageIds);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/{eventID}/images")

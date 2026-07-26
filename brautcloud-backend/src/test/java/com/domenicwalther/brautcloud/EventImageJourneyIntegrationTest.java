@@ -171,6 +171,117 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	}
 
 	@Test
+	void unprotectedGuestsCanPresignAndConfirmImagesWithoutOwnerIdentity() throws Exception {
+		User owner = persistUser("owner@example.com");
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Event otherEvent = eventRepository.saveAndFlush(TestFixtures.event(owner, "Other wedding"));
+
+		when(s3Service.getPresignedPutUrl(anyString()))
+			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
+
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"]}".formatted(otherEvent.getId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(1));
+
+		Image image = imageRepository.findAll()
+			.stream()
+			.filter(candidate -> candidate.getEvent().getId().equals(event.getId()))
+			.findFirst()
+			.orElseThrow();
+		assertThat(image.isUploaded()).isFalse();
+		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$").isEmpty());
+		verify(s3Service, never()).getPresignedUrl(anyString());
+
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(image.getId())))
+			.andExpect(status().isNoContent());
+		assertThat(imageRepository.findById(image.getId()).orElseThrow().isUploaded()).isTrue();
+
+		when(s3Service.getPresignedUrl(image.getImageKey())).thenReturn("https://files.test/guest");
+		mockMvc.perform(get("/api/events/{id}/public/images", event.getId()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].id").value(image.getId().toString()));
+	}
+
+	@Test
+	void protectedGuestsNeedGalleryPasswordForBothUploadStepsAndCannotConfirmForeignImages() throws Exception {
+		User owner = persistUser("owner@example.com");
+		Event event = TestFixtures.event(owner, "Protected wedding");
+		event.setPassword(passwordEncoder.encode("guest-secret"));
+		event = eventRepository.saveAndFlush(event);
+		UUID protectedEventId = event.getId();
+		Event otherEvent = eventRepository.saveAndFlush(TestFixtures.event(owner, "Other wedding"));
+		Image foreignImage = imageRepository.saveAndFlush(TestFixtures.image(otherEvent, "foreign.jpg", false));
+		when(s3Service.getPresignedPutUrl(anyString()))
+			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
+
+		String body = "{\"fileNames\":[\"guest.jpg\"]}";
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+			.andExpect(status().isUnauthorized());
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+				.header("X-Gallery-Password", "wrong")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+			.andExpect(status().isUnauthorized());
+		assertThat(imageRepository.findByEventIdAndIsUploadedTrue(event.getId())).isEmpty();
+
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+				.header("X-Gallery-Password", "guest-secret")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+			.andExpect(status().isOk());
+		Image guestImage = imageRepository.findAll()
+			.stream()
+			.filter(image -> image.getEvent().getId().equals(protectedEventId))
+			.findFirst()
+			.orElseThrow();
+
+		mockMvc
+			.perform(
+					post("/api/events/{id}/public/images/uploaded", event.getId()).header("X-Gallery-Password", "wrong")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("[\"%s\"]".formatted(guestImage.getId())))
+			.andExpect(status().isUnauthorized());
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+				.header("X-Gallery-Password", "guest-secret")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(foreignImage.getId())))
+			.andExpect(status().isNotFound());
+		assertThat(imageRepository.findById(guestImage.getId()).orElseThrow().isUploaded()).isFalse();
+
+		mockMvc
+			.perform(post("/api/events/{id}/public/images/uploaded", event.getId())
+				.header("X-Gallery-Password", "guest-secret")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("[\"%s\"]".formatted(guestImage.getId())))
+			.andExpect(status().isNoContent());
+		assertThat(imageRepository.findById(guestImage.getId()).orElseThrow().isUploaded()).isTrue();
+	}
+
+	@Test
+	void publicGuestUploadRoutesDoNotExposeOwnerDeleteMutation() throws Exception {
+		User owner = persistUser("owner@example.com");
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Image image = imageRepository.saveAndFlush(TestFixtures.image(event, "guest.jpg", true));
+
+		mockMvc.perform(delete("/api/image/{id}", image.getId())).andExpect(status().isUnauthorized());
+		assertThat(imageRepository.findById(image.getId())).isPresent();
+	}
+
+	@Test
 	void ownerCanUpdateSupportedEventDetails() throws Exception {
 		User owner = persistUser("owner@example.com");
 		String token = jwtService.generateToken(owner.getEmail());

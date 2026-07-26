@@ -143,13 +143,17 @@ public class EventService {
 		return getEventImages(eventID);
 	}
 
-	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword) {
+	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword) {
 		Event event = findEvent(eventID);
-		if (event.getPassword() != null && !event.getPassword().isBlank()) {
-			if (galleryPassword == null || !passwordEncoder.matches(galleryPassword, event.getPassword())) {
-				throw new GalleryPasswordRequiredException("Gallery password required");
-			}
+		if (event.getPassword() != null && !event.getPassword().isBlank() && (galleryPassword == null
+				|| galleryPassword.isBlank() || !passwordEncoder.matches(galleryPassword, event.getPassword()))) {
+			throw new GalleryPasswordRequiredException("Gallery password required");
 		}
+		return event;
+	}
+
+	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword) {
+		requirePublicGalleryAccess(eventID, galleryPassword);
 		return getEventImages(eventID);
 	}
 

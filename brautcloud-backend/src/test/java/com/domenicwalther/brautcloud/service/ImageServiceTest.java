@@ -41,13 +41,16 @@ class ImageServiceTest {
 	@Mock
 	private S3Service s3Service;
 
+	@Mock
+	private EventService eventService;
+
 	private ImageService imageService;
 
 	@BeforeEach
 	void setUp() {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
-		imageService = new ImageService(imageRepository, resourceOwnershipService);
+		imageService = new ImageService(imageRepository, resourceOwnershipService, eventService);
 		ReflectionTestUtils.setField(imageService, "s3Service", s3Service);
 	}
 
@@ -95,6 +98,83 @@ class ImageServiceTest {
 		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls("owner@example.com", request))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Event not found");
+		verify(imageRepository, never()).save(any());
+		verify(s3Service, never()).getPresignedPutUrl(any());
+	}
+
+	@Test
+	void publicUploadUrlsUseEventLinkAccessAndCreatePendingImages() {
+		UUID eventId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(event);
+		when(imageRepository.save(any(Image.class))).thenAnswer(invocation -> {
+			Image image = invocation.getArgument(0);
+			image.setId(UUID.randomUUID());
+			return image;
+		});
+		when(s3Service.getPresignedPutUrl(any(String.class))).thenReturn("https://uploads.test/photo");
+
+		List<ImageUploadResponse> responses = imageService.generatePublicPresignedUploadUrls(eventId, null,
+				List.of("guest photo.jpg"));
+
+		assertThat(responses).singleElement().satisfies(response -> {
+			assertThat(response.getImageId()).isNotNull();
+			assertThat(response.getUploadUrl()).isEqualTo("https://uploads.test/photo");
+		});
+		ArgumentCaptor<Image> image = ArgumentCaptor.forClass(Image.class);
+		verify(imageRepository).save(image.capture());
+		assertThat(image.getValue().getEvent()).isSameAs(event);
+		assertThat(image.getValue().isUploaded()).isFalse();
+		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
+		verify(s3Service).getPresignedPutUrl(key.capture());
+		assertThat(key.getValue()).endsWith("-guest_photo.jpg");
+	}
+
+	@Test
+	void publicConfirmationRejectsImageFromAnotherEvent() {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		Image image = TestFixtures.image(TestFixtures.event(owner, "Other wedding"), "other.jpg", false);
+		image.setId(imageId);
+		when(eventService.requirePublicGalleryAccess(eventId, "secret")).thenReturn(event);
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+
+		assertThatThrownBy(() -> imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId)))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Image not found");
+		verify(imageRepository, never()).saveAll(any());
+	}
+
+	@Test
+	void publicConfirmationMarksOnlyConfirmedImagesAsUploaded() {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		Image image = TestFixtures.image(event, "guest.jpg", false);
+		image.setId(imageId);
+		when(eventService.requirePublicGalleryAccess(eventId, "secret")).thenReturn(event);
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+
+		imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId));
+
+		assertThat(image.isUploaded()).isTrue();
+		verify(imageRepository).saveAll(List.of(image));
+	}
+
+	@Test
+	void publicUploadRejectsInvalidFileNamesBeforeCreatingMetadata() {
+		UUID eventId = UUID.randomUUID();
+		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(new Event());
+
+		assertThatThrownBy(() -> imageService.generatePublicPresignedUploadUrls(eventId, null, List.of()))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
 		verify(imageRepository, never()).save(any());
 		verify(s3Service, never()).getPresignedPutUrl(any());
 	}

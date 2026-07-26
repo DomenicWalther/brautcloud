@@ -40,6 +40,7 @@ export class Gallery {
   readonly publicMode = input(false);
   readonly publicEvent = input<PublicEventDto | null>(null);
   readonly galleryPassword = input<string | undefined>(undefined);
+  readonly refreshToken = input(0);
 
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
@@ -60,6 +61,7 @@ export class Gallery {
   constructor() {
     effect(() => {
       const eventId = this.eventId();
+      this.refreshToken();
       if (eventId === undefined) {
         this.allImages.set([]);
         this.loadError.set(null);

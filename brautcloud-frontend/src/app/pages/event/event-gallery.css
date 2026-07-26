@@ -41,6 +41,47 @@
   margin-bottom: 0;
 }
 
+.bc-public-event__upload {
+  display: grid;
+  gap: var(--bc-space-lg);
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.bc-public-event__upload .bc-card-header {
+  margin-bottom: 0;
+}
+
+.bc-public-event__upload .bc-field-hint {
+  max-width: 34rem;
+  margin: var(--bc-space-xs) 0 0;
+}
+
+.bc-public-event__upload-success {
+  align-items: flex-start;
+  color: var(--bc-color-success);
+  font-size: var(--bc-font-size-sm);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.bc-public-event__selection {
+  display: grid;
+  gap: var(--bc-space-md);
+  padding-top: var(--bc-space-lg);
+  border-top: 1px solid var(--bc-color-border);
+}
+
+.bc-public-event__selection .bc-card-header {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+#guest-file-input:focus-visible + .upload-dropzone .upload-dropzone__label,
+#guest-file-input:focus + .upload-dropzone .upload-dropzone__label {
+  outline: 3px solid var(--bc-color-focus);
+  outline-offset: 3px;
+}
+
 .bc-public-event__details {
   display: flex;
   flex-wrap: wrap;

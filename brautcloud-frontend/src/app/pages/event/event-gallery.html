@@ -83,10 +83,112 @@
           }
         </header>
 
+        <section
+          class="bc-public-event__upload bc-surface bc-card"
+          aria-labelledby="guest-upload-title"
+        >
+          <header class="bc-card-header">
+            <div>
+              <p class="bc-eyebrow">Add to the story</p>
+              <h2 id="guest-upload-title" class="bc-card-title">Share your photographs</h2>
+              <p class="bc-field-hint">
+                Your photographs will appear in this gallery after sharing.
+              </p>
+            </div>
+            <span class="upload-count"
+              >{{ selectedFiles().length }} of {{ MAX_FILES }} selected</span
+            >
+          </header>
+
+          <input
+            type="file"
+            id="guest-file-input"
+            accept="image/*"
+            multiple
+            class="bc-sr-only"
+            (change)="onFilesSelected($event)"
+          />
+          <div class="upload-dropzone">
+            <label for="guest-file-input" class="upload-dropzone__label">
+              <span class="upload-dropzone__icon" aria-hidden="true">
+                <span class="material-symbols-outlined">add_photo_alternate</span>
+              </span>
+              <span class="upload-dropzone__title">Choose photographs</span>
+              <span class="upload-dropzone__hint"
+                >JPEG, PNG, WebP, GIF or HEIC · tap to browse</span
+              >
+            </label>
+          </div>
+
+          @if (uploadError(); as message) {
+            <div class="upload-error" role="alert">
+              <span class="material-symbols-outlined" aria-hidden="true">error</span>
+              <span>{{ message }}</span>
+            </div>
+          }
+          @if (uploadSuccess(); as message) {
+            <div class="bc-status bc-public-event__upload-success" role="status" aria-live="polite">
+              <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+              <span>{{ message }}</span>
+            </div>
+          }
+          <p class="bc-sr-only" aria-live="polite">
+            @if (isUploading()) {
+              Uploading {{ selectedFiles().length }} photographs
+            }
+          </p>
+
+          @if (selectedFiles().length > 0) {
+            <div class="bc-public-event__selection" aria-labelledby="guest-selected-title">
+              <div class="bc-card-header">
+                <h3 id="guest-selected-title" class="bc-card-title">Ready to share</h3>
+                <button
+                  type="button"
+                  class="bc-button bc-button--quiet"
+                  (click)="clearAllSelected()"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div class="upload-preview-grid">
+                @for (file of selectedFiles(); track file.preview; let i = $index) {
+                  <figure class="upload-preview">
+                    <img [src]="file.preview" [alt]="'Preview of ' + file.file.name" />
+                    <figcaption>{{ file.file.name }}</figcaption>
+                    <button
+                      type="button"
+                      class="bc-button bc-button--icon upload-preview__remove"
+                      [attr.aria-label]="'Remove ' + file.file.name"
+                      (click)="removeSelectedFile(i)"
+                    >
+                      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                    </button>
+                  </figure>
+                }
+              </div>
+              <button
+                type="button"
+                class="bc-button bc-button--primary bc-button--wide"
+                [disabled]="isUploading()"
+                (click)="uploadSelected()"
+              >
+                @if (isUploading()) {
+                  <span class="bc-spinner bc-button-spinner" aria-hidden="true"></span>
+                  Uploading {{ selectedFiles().length }} photographs
+                } @else {
+                  <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
+                  Share {{ selectedFiles().length }} photographs
+                }
+              </button>
+            </div>
+          }
+        </section>
+
         <app-gallery
           [publicMode]="true"
           [publicEvent]="activeEvent"
           [galleryPassword]="verifiedPassword() ?? undefined"
+          [refreshToken]="galleryRefreshToken()"
         />
       </div>
     }

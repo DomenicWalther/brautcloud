@@ -27,6 +27,7 @@ describe('EventGallery', () => {
   let imageService: {
     getPublicEventImages: ReturnType<typeof vi.fn>;
     getEventImages: ReturnType<typeof vi.fn>;
+    uploadPublicImages: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -38,6 +39,7 @@ describe('EventGallery', () => {
     imageService = {
       getPublicEventImages: vi.fn(() => of([])),
       getEventImages: vi.fn(() => of([])),
+      uploadPublicImages: vi.fn(() => of([])),
     };
 
     TestBed.configureTestingModule({
@@ -67,6 +69,94 @@ describe('EventGallery', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'This gallery is ready for its first moments',
     );
+  });
+
+  it('renders guest upload controls for an unlocked gallery', () => {
+    const input = fixture.nativeElement.querySelector('#guest-file-input') as HTMLInputElement;
+
+    expect(input).toBeTruthy();
+    expect(input.multiple).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Share your photographs');
+    expect(fixture.nativeElement.querySelector('.upload-preview-grid')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.uploaded-photo__delete')).toBeNull();
+  });
+
+  it('submits selected guest photographs and refreshes public gallery', () => {
+    imageService.uploadPublicImages.mockReturnValue(of([{ imageId: 'image-1', success: true }]));
+    fixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'guest.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:guest-preview',
+      },
+    ]);
+
+    fixture.componentInstance.uploadSelected();
+    fixture.detectChanges();
+
+    expect(imageService.uploadPublicImages).toHaveBeenCalledWith(
+      'event-1',
+      expect.any(Array),
+      undefined,
+    );
+    expect(fixture.nativeElement.textContent).toContain('1 photograph is now in the gallery.');
+    expect(fixture.componentInstance.selectedFiles()).toHaveLength(0);
+    expect(imageService.getPublicEventImages).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps selected photographs and announces guest upload failure', () => {
+    imageService.uploadPublicImages.mockReturnValue(
+      of([{ imageId: 'image-1', success: false, error: 'S3 upload failed' }]),
+    );
+    fixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'guest.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:guest-preview',
+      },
+    ]);
+
+    fixture.componentInstance.uploadSelected();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.selectedFiles()).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'photograph could not be shared',
+    );
+  });
+
+  it('does not expose guest upload controls before protected gallery verification', () => {
+    eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
+    const protectedFixture = TestBed.createComponent(EventGallery);
+    protectedFixture.detectChanges();
+
+    expect(protectedFixture.nativeElement.querySelector('#guest-file-input')).toBeNull();
+    expect(protectedFixture.nativeElement.textContent).toContain('This gallery is protected');
+    protectedFixture.destroy();
+  });
+
+  it('passes verified gallery password into guest upload submission', () => {
+    eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
+    const protectedFixture = TestBed.createComponent(EventGallery);
+    protectedFixture.detectChanges();
+    protectedFixture.componentInstance.enteredPassword.set('guest-secret');
+    imageService.getPublicEventImages.mockReturnValue(of([]));
+    protectedFixture.componentInstance.submitPassword(new Event('submit'));
+    protectedFixture.detectChanges();
+    protectedFixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'guest.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:guest-preview',
+      },
+    ]);
+    imageService.uploadPublicImages.mockReturnValue(of([{ imageId: 'image-1', success: true }]));
+
+    protectedFixture.componentInstance.uploadSelected();
+
+    expect(imageService.uploadPublicImages).toHaveBeenCalledWith(
+      'event-1',
+      expect.any(Array),
+      'guest-secret',
+    );
+    protectedFixture.destroy();
   });
 
   it('shows recovery state when event identifier is missing', () => {

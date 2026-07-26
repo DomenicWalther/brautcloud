@@ -4,11 +4,13 @@ import com.domenicwalther.brautcloud.dto.EventImageDTO;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
+import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
 import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.EventService;
+import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +48,9 @@ class EventControllerWebMvcTest {
 
 	@MockitoBean
 	private EventService eventService;
+
+	@MockitoBean
+	private ImageService imageService;
 
 	@MockitoBean
 	private JwtService jwtService;
@@ -101,6 +106,32 @@ class EventControllerWebMvcTest {
 			.andExpect(status().isOk());
 
 		verify(eventService).registerPublicView(eventId, visitorId);
+	}
+
+	@Test
+	void publicGuestUploadRoutesUseEventScopeAndGalleryPassword() throws Exception {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+		when(imageService.generatePublicPresignedUploadUrls(eq(eventId), eq("secret"),
+				argThat(fileNames -> fileNames.equals(List.of("guest.jpg")))))
+			.thenReturn(List.of(new ImageUploadResponse(imageId, "https://uploads.test/guest")));
+
+		mockMvc
+			.perform(post("/api/events/{eventId}/public/images/presigned-url", eventId)
+				.header("X-Gallery-Password", "secret")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"]}".formatted(UUID.randomUUID())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].imageId").value(imageId.toString()));
+
+		mockMvc
+			.perform(
+					post("/api/events/{eventId}/public/images/uploaded", eventId).header("X-Gallery-Password", "secret")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("[\"%s\"]".formatted(imageId)))
+			.andExpect(status().isNoContent());
+
+		verify(imageService).markPublicImagesAsUploaded(eventId, "secret", List.of(imageId));
 	}
 
 	@Test
