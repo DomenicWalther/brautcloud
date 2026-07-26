@@ -196,7 +196,9 @@ export class Home {
   }
 
   downloadQrCode(): void {
-    const canvas = this.qrContainer?.nativeElement?.querySelector('canvas') as HTMLCanvasElement | null;
+    const canvas = this.qrContainer?.nativeElement?.querySelector(
+      'canvas',
+    ) as HTMLCanvasElement | null;
 
     if (!canvas) {
       this.toastService.show('QR code is not ready yet. Please try again.', 'warning');

@@ -544,9 +544,7 @@ describe('Home QR code download', () => {
     const toDataURLSpy = vi
       .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
       .mockReturnValue('data:image/png;base64,abc');
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     fixture.componentInstance.downloadQrCode();
 
