@@ -15,6 +15,10 @@ public interface ImageRepository extends JpaRepository<Image, UUID> {
 
 	List<Image> findByEventIdAndIsUploadedTrue(UUID eventId);
 
+	List<Image> findByEventId(UUID eventId);
+
+	List<Image> findByDeletionRequestedTrue();
+
 	List<Image> findByIsUploadedFalseAndCreatedAtBefore(LocalDateTime dateTime);
 
 	long countByEventId(UUID eventId);

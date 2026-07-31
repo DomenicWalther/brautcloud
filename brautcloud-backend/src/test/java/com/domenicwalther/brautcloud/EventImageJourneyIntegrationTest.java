@@ -7,8 +7,10 @@ import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
+import com.domenicwalther.brautcloud.repository.StorageDeletionJobRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.service.GuestSessionService;
+import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.support.FullStackIntegrationTest;
 import com.domenicwalther.brautcloud.support.TestFixtures;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -26,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -57,6 +61,15 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	private RefreshTokenRepository refreshTokenRepository;
 
 	@Autowired
+	private StorageDeletionJobRepository storageDeletionJobRepository;
+
+	@Autowired
+	private ImageService imageService;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
 	private PasswordEncoder passwordEncoder;
 
 	@Autowired
@@ -64,6 +77,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 
 	@BeforeEach
 	void cleanDatabaseAndExternalDouble() {
+		storageDeletionJobRepository.deleteAll();
 		refreshTokenRepository.deleteAll();
 		eventGuestVisitRepository.deleteAll();
 		imageRepository.deleteAll();
@@ -144,6 +158,43 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isOk());
 		assertThat(eventRepository.findById(event.getId())).isEmpty();
 		assertThat(imageRepository.findAll()).isEmpty();
+	}
+
+	@Test
+	void eventDeletionDeletesObjectsBeforeReferencesAndRetriesStorageFailures() throws Exception {
+		User owner = persistUser("owner@example.com");
+		String token = jwtService.generateToken(owner.getEmail());
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Image image = imageRepository.saveAndFlush(TestFixtures.image(event, "photo.jpg", true));
+		doThrow(new IllegalStateException("object store unavailable")).when(s3Service).deleteFile("photo.jpg");
+
+		mockMvc.perform(delete("/api/events/{id}", event.getId()).header("Authorization", bearer(token)))
+			.andExpect(status().isServiceUnavailable());
+		assertThat(eventRepository.findById(event.getId()).orElseThrow().isDeletionRequested()).isTrue();
+		assertThat(imageRepository.findById(image.getId())).isPresent();
+		assertThat(storageDeletionJobRepository.findAll()).hasSize(2);
+
+		reset(s3Service);
+		mockMvc.perform(delete("/api/events/{id}", event.getId()).header("Authorization", bearer(token)))
+			.andExpect(status().isOk());
+		assertThat(eventRepository.findById(event.getId())).isEmpty();
+		assertThat(imageRepository.findById(image.getId())).isEmpty();
+		assertThat(storageDeletionJobRepository.findAll()).isEmpty();
+		verify(s3Service).deleteFile("photo.jpg");
+	}
+
+	@Test
+	void stalePendingUploadCleanupUsesStorageDeletionPath() {
+		User owner = persistUser("owner@example.com");
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
+		Image image = imageRepository.saveAndFlush(TestFixtures.image(event, "pending.jpg", false));
+		jdbcTemplate.update("UPDATE images SET created_at = ? WHERE id = ?",
+				java.time.LocalDateTime.of(2020, 1, 1, 0, 0), image.getId());
+
+		imageService.cleanupUnuploadedImages();
+
+		assertThat(imageRepository.findById(image.getId())).isEmpty();
+		verify(s3Service).deleteFile("pending.jpg");
 	}
 
 	@Test

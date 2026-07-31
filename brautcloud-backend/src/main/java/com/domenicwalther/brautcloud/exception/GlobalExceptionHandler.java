@@ -71,6 +71,14 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}
 
+	@ExceptionHandler(StorageLifecycleException.class)
+	public ResponseEntity<Map<String, String>> handleStorageLifecycle(StorageLifecycleException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Storage operation unavailable");
+		error.put("message", "Deletion is pending and will be retried. Please try again.");
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+	}
+
 	@ExceptionHandler(TooManyRequestsException.class)
 	public ResponseEntity<Map<String, String>> handleTooManyRequests(TooManyRequestsException ex) {
 		Map<String, String> error = new HashMap<>();

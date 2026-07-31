@@ -61,6 +61,9 @@ class EventServiceTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private StorageDeletionService storageDeletionService;
+
 	private EventService eventService;
 
 	@BeforeEach
@@ -68,7 +71,7 @@ class EventServiceTest {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
 		eventService = new EventService(eventRepository, userRepository, imageRepository, resourceOwnershipService,
-				eventGuestVisitRepository, passwordEncoder);
+				eventGuestVisitRepository, passwordEncoder, storageDeletionService);
 		ReflectionTestUtils.setField(eventService, "s3Service", s3Service);
 	}
 
@@ -248,6 +251,21 @@ class EventServiceTest {
 	}
 
 	@Test
+	void ownedEventDeletionUsesStorageLifecycleBeforeDatabaseDelete() {
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		UUID eventId = UUID.randomUUID();
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+		eventService.deleteEvent(owner.getEmail(), eventId);
+
+		verify(storageDeletionService).requestEventDeletion(event);
+		verify(storageDeletionService).processEventDeletion(eventId);
+		verify(eventRepository, never()).deleteById(eventId);
+	}
+
+	@Test
 	void foreignUserCannotReadOrDeleteAnotherUsersEvent() {
 		User owner = TestFixtures.user("owner@example.com");
 		Event event = TestFixtures.event(owner, "Wedding");
@@ -261,7 +279,8 @@ class EventServiceTest {
 		assertThatThrownBy(() -> eventService.deleteEvent("other@example.com", eventId))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Event not found");
-		verify(eventRepository, never()).deleteById(eventId);
+		verify(storageDeletionService, never()).requestEventDeletion(event);
+		verify(storageDeletionService, never()).processEventDeletion(eventId);
 	}
 
 	@Test
@@ -278,8 +297,8 @@ class EventServiceTest {
 		second.setImageKey("second.jpg");
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of(first, second));
-		when(s3Service.getObjectBytes("first.jpg")).thenReturn("first-bytes".getBytes());
-		when(s3Service.getObjectBytes("second.jpg")).thenReturn("second-bytes".getBytes());
+		when(s3Service.getObject("first.jpg")).thenReturn(new java.io.ByteArrayInputStream("first-bytes".getBytes()));
+		when(s3Service.getObject("second.jpg")).thenReturn(new java.io.ByteArrayInputStream("second-bytes".getBytes()));
 
 		StreamingResponseBody body = eventService.streamEventImagesAsZip(user.getEmail(), eventId);
 		assertThat(body).isNotNull();

@@ -15,6 +15,8 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
 	List<Event> findByUser(User user);
 
+	List<Event> findByDeletionRequestedTrue();
+
 	Optional<Event> findFirstByUserOrderByCreatedAtAsc(User user);
 
 	@Modifying

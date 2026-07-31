@@ -8,6 +8,8 @@ import com.domenicwalther.brautcloud.exception.TooManyRequestsException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 @Service
 public class ImageService {
 
+	private static final Logger log = LoggerFactory.getLogger(ImageService.class);
+
 	private static final Duration PRESIGN_RATE_WINDOW = Duration.ofMinutes(10);
 
 	private static final int MAX_PRESIGN_REQUESTS_PER_WINDOW = 10;
@@ -44,13 +48,16 @@ public class ImageService {
 
 	private final EventService eventService;
 
+	private final StorageDeletionService storageDeletionService;
+
 	private final ConcurrentMap<String, Deque<Instant>> presignAttempts = new ConcurrentHashMap<>();
 
 	public ImageService(ImageRepository imageRepository, ResourceOwnershipService resourceOwnershipService,
-			EventService eventService) {
+			EventService eventService, StorageDeletionService storageDeletionService) {
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
 		this.eventService = eventService;
+		this.storageDeletionService = storageDeletionService;
 	}
 
 	@Transactional
@@ -93,6 +100,9 @@ public class ImageService {
 		enforceRateLimit(rateLimitKey);
 		enforceQuota(event, specifications, guestSessionHash, publicUpload);
 
+		if (event.isDeletionRequested()) {
+			throw new ResourceNotFoundException("Event not found");
+		}
 		List<Image> savedImages = new ArrayList<>();
 		try {
 			return specifications.stream().map(specification -> {
@@ -141,15 +151,20 @@ public class ImageService {
 		validateImageIds(imageIds);
 		String guestSessionHash = requireGuestSessionHash(guestSessionToken);
 		List<Image> images = imageRepository.findAllById(imageIds);
-		if (images.size() != imageIds.size() || images.stream()
-			.anyMatch(image -> image.getEvent() == null || !event.getId().equals(image.getEvent().getId())
-					|| !guestSessionHash.equals(image.getGuestSessionHash()))) {
+		if (guestSessionHash == null || images.size() != imageIds.size()
+				|| images.stream()
+					.anyMatch(image -> image.isDeletionRequested() || image.getEvent() == null
+							|| !event.getId().equals(image.getEvent().getId())
+							|| !guestSessionHash.equals(image.getGuestSessionHash()))) {
 			throw new ResourceNotFoundException("Image not found");
 		}
 		markImagesAsUploaded(images);
 	}
 
 	private void markImagesAsUploaded(List<Image> images) {
+		if (images.stream().anyMatch(Image::isDeletionRequested)) {
+			throw new ResourceNotFoundException("Image not found");
+		}
 		List<Image> pendingImages = images.stream().filter(image -> !image.isUploaded()).toList();
 		List<Image> invalidImages = pendingImages.stream()
 			.filter(image -> !s3Service.verifyUploadedImage(image.getImageKey(), image.getContentType(),
@@ -299,28 +314,26 @@ public class ImageService {
 	}
 
 	private void deleteImage(Image image) {
-		try {
-			s3Service.deleteFile(image.getImageKey());
-		}
-		catch (RuntimeException exception) {
-			// Keep metadata when object deletion fails; callers can retry safely.
-			throw exception;
-		}
-		imageRepository.deleteById(image.getId());
+		storageDeletionService.requestImageDeletion(image);
+		storageDeletionService.processImageDeletion(image.getId());
 	}
 
 	@Scheduled(cron = "0 0 * * * *") // Every hour
 	public void cleanupUnuploadedImages() {
 		LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo).forEach(image -> {
-			try {
-				s3Service.deleteFile(image.getImageKey());
-			}
-			catch (RuntimeException ignored) {
-				// The row is still removed below; it must not become publishable later.
-			}
-			imageRepository.delete(image);
-		});
+		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo)
+			.stream()
+			.filter(image -> !image.isDeletionRequested())
+			.forEach(image -> {
+				try {
+					storageDeletionService.requestImageDeletion(image);
+					storageDeletionService.processImageDeletion(image.getId());
+				}
+				catch (RuntimeException ex) {
+					// Leave marker and outbox job for the retry/reconciliation worker.
+					log.warn("Pending upload cleanup queued for image {}: {}", image.getId(), ex.getMessage());
+				}
+			});
 	}
 
 	private record UploadSpec(String fileName, String contentType, Long sizeBytes) {
