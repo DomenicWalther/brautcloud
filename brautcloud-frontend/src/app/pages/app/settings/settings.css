@@ -7,6 +7,10 @@
   gap: var(--bc-space-2xl);
 }
 
+.settings-card--password {
+  margin-top: var(--bc-space-2xl);
+}
+
 .settings-form {
   gap: var(--bc-space-xl);
 }
