@@ -5,6 +5,7 @@ import { Observable, of, Subject, throwError } from 'rxjs';
 import { EventImageDto } from '../../../../core/models/event-image.dto';
 import { EventDto } from '../../../../core/models/event.dto';
 import { ImageService } from '../../../../services/image-service';
+import { ToastService } from '../../../../services/toast-service';
 import { UserService } from '../../../../services/user-service';
 import { Gallery } from './gallery';
 
@@ -111,6 +112,7 @@ describe('Gallery lightbox', () => {
   beforeEach(async () => {
     user.set({ events: [event] });
     imageService.getEventImages.mockReset().mockReturnValue(of(images));
+    imageService.deleteImage.mockReset();
     document.body.style.overflow = '';
 
     await TestBed.configureTestingModule({
@@ -131,6 +133,7 @@ describe('Gallery lightbox', () => {
 
   afterEach(() => {
     fixture.destroy();
+    TestBed.inject(ToastService).clear();
     document.body.style.overflow = '';
   });
 
@@ -182,20 +185,137 @@ describe('Gallery lightbox', () => {
     expect(fixture.nativeElement.querySelector('.gallery-lightbox__image')).toBe(loadedImage);
   });
 
-  it('deletes an owner image after confirmation and updates gallery locally', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    imageService.deleteImage.mockReturnValue(of(undefined));
-
+  it('opens delete confirmation without deleting before explicit confirmation', () => {
     const deleteButton = fixture.nativeElement.querySelector(
       '.gallery-photo__delete',
     ) as HTMLButtonElement;
     deleteButton.click();
     fixture.detectChanges();
 
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.gallery-delete-dialog')?.textContent).toContain(
+      'cannot be undone',
+    );
+    expect(imageService.deleteImage).not.toHaveBeenCalled();
+  });
+
+  it('cancels delete with Escape and restores focus', async () => {
+    const deleteButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__delete',
+    ) as HTMLButtonElement;
+    deleteButton.focus();
+    deleteButton.click();
+    fixture.detectChanges();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fixture.nativeElement.querySelector('.gallery-delete-dialog')).toBeNull();
+    expect(imageService.deleteImage).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it('keeps image pending and shows success toast only after server response', () => {
+    const deletion = new Subject<void>();
+    imageService.deleteImage.mockReturnValue(deletion);
+    const toastService = TestBed.inject(ToastService);
+    const deleteButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__delete',
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    fixture.detectChanges();
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-delete-dialog .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
     expect(imageService.deleteImage).toHaveBeenCalledWith(images[0].id);
+    expect(fixture.componentInstance.images()).toEqual(images);
+    expect(fixture.componentInstance.isImagePending(images[0].id)).toBe(true);
+    expect(toastService.toasts()).toEqual([]);
+    deletion.next();
+    deletion.complete();
     expect(fixture.componentInstance.images()).toEqual(images.slice(1));
-    expect(fixture.nativeElement.querySelectorAll('.gallery-photo')).toHaveLength(2);
-    confirm.mockRestore();
+    expect(toastService.toasts()[0]?.message).toContain('deleted successfully');
+  });
+
+  it('keeps failed image visible and shows error toast', () => {
+    imageService.deleteImage.mockReturnValue(throwError(() => new Error('request failed')));
+    const toastService = TestBed.inject(ToastService);
+    const deleteButton = fixture.nativeElement.querySelector(
+      '.gallery-photo__delete',
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    fixture.detectChanges();
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-delete-dialog .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.images()).toEqual(images);
+    expect(toastService.toasts()[0]?.kind).toBe('error');
+  });
+
+  it('confirms selected batch and removes images only after server confirmation', () => {
+    const batchDeletion = new Subject<void>();
+    imageService.deleteImage.mockReturnValue(batchDeletion);
+    const selectAll = fixture.nativeElement.querySelector(
+      '.gallery-selection-bar button',
+    ) as HTMLButtonElement;
+    selectAll.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.selectedImageCount()).toBe(3);
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-selection-bar .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.gallery-delete-dialog')).toBeTruthy();
+    expect(imageService.deleteImage).not.toHaveBeenCalled();
+
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-delete-dialog .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    expect(imageService.deleteImage).toHaveBeenCalledTimes(3);
+    expect(fixture.componentInstance.images()).toEqual(images);
+    expect(fixture.componentInstance.pendingDeleteIds().size).toBe(3);
+    batchDeletion.next();
+    batchDeletion.complete();
+    expect(fixture.componentInstance.images()).toEqual([]);
+  });
+
+  it('keeps failed images visible after partial batch deletion', () => {
+    imageService.deleteImage.mockImplementation((imageId) =>
+      imageId === images[1].id ? throwError(() => new Error('request failed')) : of(undefined),
+    );
+    (
+      fixture.nativeElement.querySelector('.gallery-selection-bar button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-selection-bar .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    (
+      fixture.nativeElement.querySelector(
+        '.gallery-delete-dialog .bc-button--danger',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.images()).toEqual([images[1]]);
+    expect(TestBed.inject(ToastService).toasts()[0]?.message).toContain('1 of 3');
   });
 
   it('navigates with arrows, wraps at boundaries, and selects filmstrip thumbnails', () => {
