@@ -18,9 +18,11 @@ The app serves at `http://localhost:4200/` and reloads when source files change.
 ## Available scripts
 
 ```bash
-pnpm start           # ng serve
+pnpm start                    # ng serve
 pnpm run build
 pnpm run format:check
+pnpm run typecheck
+pnpm run security:audit       # production dependencies; high/critical fail
 pnpm test
 pnpm run watch
 ```
@@ -31,7 +33,9 @@ pnpm run watch
 
 ## Validation
 
-`pnpm run format:check` checks source formatting. `pnpm test` runs the unit test suite with Angular's test runner and Vitest. `pnpm run build` creates the production bundle; the existing `ng-qrcode` CommonJS optimization warning is accepted.
+`pnpm run format:check` checks source formatting. `pnpm run typecheck` runs strict TypeScript checks. `pnpm test` runs the unit test suite with Angular's test runner and Vitest. `pnpm run build` creates the production bundle. `pnpm run security:audit` scans production dependencies and fails on high or critical advisories. Moderate advisories remain visible without blocking so they can be triaged without hiding production risk.
+
+Angular's build allowlist contains only `qrcode`: `ng-qrcode@21` uses this transitive CommonJS generator and has no ESM replacement in its Angular 21-compatible release. QR rendering is confined to the authenticated home route, so this narrow exception avoids an optimization warning without allowing arbitrary CommonJS dependencies. Revisit when a compatible ESM QR package is available.
 
 The test suite covers authentication, session lifecycle, and onboarding flows:
 
