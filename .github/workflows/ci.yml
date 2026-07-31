@@ -7,8 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,7 +15,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend
+    name: Frontend checks
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,15 +40,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Fix formatting
-        run: pnpm run format
-
-      - name: Commit formatting fixes
-        uses: stefanzweifel/git-auto-commit-action@8621da0df03b4e76e7fca6a4f939f5e34cad8f8b # v5
-        with:
-          commit_message: "style: auto-fix Prettier formatting"
-          file_pattern: "brautcloud-frontend/src/**/*.{ts,html,css}"
-
+      - name: Check formatting
+        run: pnpm run format:check
 
       - name: Run unit tests
         run: pnpm run test:ci
@@ -58,7 +50,7 @@ jobs:
         run: pnpm run build
 
   backend:
-    name: Backend
+    name: Backend checks
     runs-on: ubuntu-latest
     defaults:
       run:
