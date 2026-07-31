@@ -196,6 +196,38 @@ class EventServiceTest {
 	}
 
 	@Test
+	void eventCreationHashesGalleryPasswordBeforePersistence() {
+		User user = TestFixtures.user("owner@example.com");
+		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+		when(passwordEncoder.encode("guest-secret")).thenReturn("$2a$hashed-gallery-password");
+
+		eventService.addEvent(user.getEmail(), request(UUID.randomUUID()));
+
+		ArgumentCaptor<Event> event = ArgumentCaptor.forClass(Event.class);
+		verify(eventRepository).save(event.capture());
+		assertThat(event.getValue().getPassword()).isEqualTo("$2a$hashed-gallery-password");
+		assertThat(event.getValue().getPassword()).isNotEqualTo("guest-secret");
+	}
+
+	@Test
+	void legacyGalleryPasswordIsUpgradedWhenGuestAuthenticates() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		event.setPassword("legacy-secret");
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(passwordEncoder.matches("legacy-secret", "legacy-secret")).thenReturn(false);
+		when(passwordEncoder.encode("legacy-secret")).thenReturn("$2a$upgraded");
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+
+		assertThat(eventService.getPublicEventImages(eventId, "legacy-secret")).isEmpty();
+
+		assertThat(event.getPassword()).isEqualTo("$2a$upgraded");
+		verify(eventRepository).save(event);
+	}
+
+	@Test
 	void uploadedImagesAreMappedToPresignedDownloadUrls() {
 		User user = TestFixtures.user("owner@example.com");
 		user.setId(UUID.randomUUID());

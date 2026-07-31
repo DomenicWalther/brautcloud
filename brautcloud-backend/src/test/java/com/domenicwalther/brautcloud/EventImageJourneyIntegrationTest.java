@@ -28,6 +28,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -83,6 +84,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		eventRepository.deleteAll();
 		userRepository.deleteAll();
 		reset(s3Service);
+		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), nullable(Long.class))).thenReturn(true);
 	}
 
 	@Test
@@ -97,11 +99,15 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isOk());
 		Event event = eventRepository.findByUser(owner).getFirst();
 		assertThat(event.getEventName()).isEqualTo("Wedding");
+		assertThat(event.getPassword()).isNotEqualTo("guest-secret");
+		assertThat(passwordEncoder.matches("guest-secret", event.getPassword())).isTrue();
 
 		mockMvc.perform(get("/api/events").header("Authorization", bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(event.getId().toString()))
-			.andExpect(jsonPath("$[0].eventName").value("Wedding"));
+			.andExpect(jsonPath("$[0].eventName").value("Wedding"))
+			.andExpect(jsonPath("$[0].password").doesNotExist())
+			.andExpect(jsonPath("$[0].hasPassword").value(true));
 
 		when(s3Service.getPresignedPutUrl(anyString()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));

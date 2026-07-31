@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
@@ -121,7 +122,7 @@ class EventControllerWebMvcTest {
 		when(guestSessionService.createCookie("guest-session-token"))
 			.thenReturn(ResponseCookie.from("brautcloud-guest-session", "guest-session-token").build());
 		when(imageService.generatePublicPresignedUploadUrls(eq(eventId), eq("secret"),
-				argThat(fileNames -> fileNames.equals(List.of("guest.jpg"))), eq("guest-session-token")))
+				argThat(fileNames -> fileNames.equals(List.of("guest.jpg"))), eq("guest-session-token"), anyString()))
 			.thenReturn(List.of(new ImageUploadResponse(imageId, "https://uploads.test/guest")));
 
 		mockMvc

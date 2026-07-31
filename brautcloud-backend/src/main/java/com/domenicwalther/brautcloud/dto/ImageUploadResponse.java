@@ -13,4 +13,10 @@ public class ImageUploadResponse {
 
 	private String uploadUrl;
 
+	private String contentType;
+
+	public ImageUploadResponse(UUID imageId, String uploadUrl) {
+		this(imageId, uploadUrl, null);
+	}
+
 }
