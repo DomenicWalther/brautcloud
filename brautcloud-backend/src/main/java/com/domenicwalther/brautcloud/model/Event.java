@@ -44,6 +44,9 @@ public class Event {
 
 	private long viewCount;
 
+	@Column(name = "deletion_requested", nullable = false)
+	private boolean deletionRequested;
+
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 

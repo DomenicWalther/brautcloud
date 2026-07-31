@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -45,25 +46,36 @@ public class EventService {
 
 	private final PasswordEncoder passwordEncoder;
 
+	private final StorageDeletionService storageDeletionService;
+
 	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
 			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
-			PasswordEncoder passwordEncoder) {
+			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
 		this.eventGuestVisitRepository = eventGuestVisitRepository;
 		this.passwordEncoder = passwordEncoder;
+		this.storageDeletionService = storageDeletionService;
 	}
 
 	public List<EventResponse> getEvents() {
-		return eventRepository.findAll().stream().map(EventResponse::fromEvent).toList();
+		return eventRepository.findAll()
+			.stream()
+			.filter(event -> !event.isDeletionRequested())
+			.map(EventResponse::fromEvent)
+			.toList();
 	}
 
 	public List<EventResponse> getEventsByUserEmail(String email) {
 		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
-		return eventRepository.findByUser(user).stream().map(this::toEventResponse).toList();
+		return eventRepository.findByUser(user)
+			.stream()
+			.filter(event -> !event.isDeletionRequested())
+			.map(this::toEventResponse)
+			.toList();
 	}
 
 	public EventResponse toEventResponse(Event event) {
@@ -71,7 +83,7 @@ public class EventService {
 	}
 
 	public PublicEventResponse getPublicEvent(UUID eventId) {
-		return PublicEventResponse.fromEvent(findEvent(eventId));
+		return PublicEventResponse.fromEvent(requireAvailableEvent(eventId));
 	}
 
 	@Transactional
@@ -135,7 +147,8 @@ public class EventService {
 
 	public void deleteEvent(String email, UUID eventID) {
 		Event event = resourceOwnershipService.requireOwnedEvent(email, eventID);
-		eventRepository.deleteById(event.getId());
+		storageDeletionService.requestEventDeletion(event);
+		storageDeletionService.processEventDeletion(event.getId());
 	}
 
 	public List<EventImageDTO> getEventImages(String email, UUID eventID) {
@@ -144,7 +157,7 @@ public class EventService {
 	}
 
 	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword) {
-		Event event = findEvent(eventID);
+		Event event = requireAvailableEvent(eventID);
 		if (event.getPassword() != null && !event.getPassword().isBlank() && (galleryPassword == null
 				|| galleryPassword.isBlank() || !passwordEncoder.matches(galleryPassword, event.getPassword()))) {
 			throw new GalleryPasswordRequiredException("Gallery password required");
@@ -169,7 +182,7 @@ public class EventService {
 	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
-		return images.stream().map(image -> {
+		return images.stream().filter(image -> !image.isDeletionRequested()).map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			boolean canDelete = ownerView
 					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
@@ -179,7 +192,10 @@ public class EventService {
 
 	public StreamingResponseBody streamEventImagesAsZip(String email, UUID eventID) {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
-		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
+		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID)
+			.stream()
+			.filter(image -> !image.isDeletionRequested())
+			.toList();
 		if (images.isEmpty()) {
 			return null;
 		}
@@ -187,13 +203,22 @@ public class EventService {
 		return outputStream -> {
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
 				for (Image image : images) {
-					byte[] data = s3Service.getObjectBytes(image.getImageKey());
-					zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
-					zipOutputStream.write(data);
-					zipOutputStream.closeEntry();
+					try (InputStream inputStream = s3Service.getObject(image.getImageKey())) {
+						zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
+						inputStream.transferTo(zipOutputStream);
+						zipOutputStream.closeEntry();
+					}
 				}
 			}
 		};
+	}
+
+	private Event requireAvailableEvent(UUID eventId) {
+		Event event = findEvent(eventId);
+		if (event.isDeletionRequested()) {
+			throw new ResourceNotFoundException("Event not found");
+		}
+		return event;
 	}
 
 	private Event findEvent(UUID eventId) {

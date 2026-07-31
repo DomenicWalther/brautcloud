@@ -7,6 +7,8 @@ import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 @Service
 public class ImageService {
 
+	private static final Logger log = LoggerFactory.getLogger(ImageService.class);
+
 	@Autowired
 	private S3Service s3Service;
 
@@ -28,11 +32,14 @@ public class ImageService {
 
 	private final EventService eventService;
 
+	private final StorageDeletionService storageDeletionService;
+
 	public ImageService(ImageRepository imageRepository, ResourceOwnershipService resourceOwnershipService,
-			EventService eventService) {
+			EventService eventService, StorageDeletionService storageDeletionService) {
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
 		this.eventService = eventService;
+		this.storageDeletionService = storageDeletionService;
 	}
 
 	public List<ImageUploadResponse> generatePresignedUploadUrls(String email, ImageUploadRequest request) {
@@ -52,6 +59,9 @@ public class ImageService {
 
 	private List<ImageUploadResponse> generatePresignedUploadUrls(Event event, List<String> fileNames,
 			String guestSessionHash) {
+		if (event.isDeletionRequested()) {
+			throw new ResourceNotFoundException("Event not found");
+		}
 		validateFileNames(fileNames);
 		return fileNames.stream().map(fileName -> {
 			String key = UUID.randomUUID() + "-" + sanitizeFileName(fileName);
@@ -81,7 +91,7 @@ public class ImageService {
 		List<Image> images = imageRepository.findAllById(imageIds);
 		if (guestSessionHash == null || images.size() != imageIds.size()
 				|| images.stream()
-					.anyMatch(image -> !event.getId().equals(image.getEvent().getId())
+					.anyMatch(image -> image.isDeletionRequested() || !event.getId().equals(image.getEvent().getId())
 							|| !guestSessionHash.equals(image.getGuestSessionHash()))) {
 			throw new ResourceNotFoundException("Image not found");
 		}
@@ -89,6 +99,9 @@ public class ImageService {
 	}
 
 	private void markImagesAsUploaded(List<Image> images) {
+		if (images.stream().anyMatch(Image::isDeletionRequested)) {
+			throw new ResourceNotFoundException("Image not found");
+		}
 		images.forEach(image -> image.setUploaded(true));
 		imageRepository.saveAll(images);
 	}
@@ -128,14 +141,26 @@ public class ImageService {
 	}
 
 	private void deleteImage(Image image) {
-		imageRepository.deleteById(image.getId());
-		s3Service.deleteFile(image.getImageKey());
+		storageDeletionService.requestImageDeletion(image);
+		storageDeletionService.processImageDeletion(image.getId());
 	}
 
 	@Scheduled(cron = "0 0 * * * *") // Every hour
 	public void cleanupUnuploadedImages() {
 		LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo).forEach(imageRepository::delete);
+		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo)
+			.stream()
+			.filter(image -> !image.isDeletionRequested())
+			.forEach(image -> {
+				try {
+					storageDeletionService.requestImageDeletion(image);
+					storageDeletionService.processImageDeletion(image.getId());
+				}
+				catch (RuntimeException ex) {
+					// Leave marker and outbox job for the retry/reconciliation worker.
+					log.warn("Pending upload cleanup queued for image {}: {}", image.getId(), ex.getMessage());
+				}
+			});
 	}
 
 }

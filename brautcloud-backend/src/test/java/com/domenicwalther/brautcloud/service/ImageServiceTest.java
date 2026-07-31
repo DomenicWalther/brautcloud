@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,13 +45,17 @@ class ImageServiceTest {
 	@Mock
 	private EventService eventService;
 
+	@Mock
+	private StorageDeletionService storageDeletionService;
+
 	private ImageService imageService;
 
 	@BeforeEach
 	void setUp() {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
-		imageService = new ImageService(imageRepository, resourceOwnershipService, eventService);
+		imageService = new ImageService(imageRepository, resourceOwnershipService, eventService,
+				storageDeletionService);
 		ReflectionTestUtils.setField(imageService, "s3Service", s3Service);
 	}
 
@@ -246,8 +251,8 @@ class ImageServiceTest {
 
 		imageService.deleteImageByImageID(owner.getEmail(), imageId);
 
-		verify(imageRepository).deleteById(imageId);
-		verify(s3Service).deleteFile("event/photo.jpg");
+		verify(storageDeletionService).requestImageDeletion(image);
+		verify(storageDeletionService).processImageDeletion(imageId);
 	}
 
 	@Test
@@ -265,8 +270,8 @@ class ImageServiceTest {
 
 		imageService.deletePublicImage(eventId, null, imageId, "guest-session-token");
 
-		verify(imageRepository).deleteById(imageId);
-		verify(s3Service).deleteFile("guest.jpg");
+		verify(storageDeletionService).requestImageDeletion(image);
+		verify(storageDeletionService).processImageDeletion(imageId);
 	}
 
 	@Test
@@ -287,7 +292,8 @@ class ImageServiceTest {
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Image not found");
 		verify(imageRepository, never()).deleteById(any());
-		verify(s3Service, never()).deleteFile(any());
+		verify(storageDeletionService, never()).requestImageDeletion(any());
+		verify(storageDeletionService, never()).processImageDeletion(any());
 	}
 
 	@Test
@@ -299,7 +305,39 @@ class ImageServiceTest {
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Image not found");
 		verify(imageRepository, never()).deleteById(any());
-		verify(s3Service, never()).deleteFile(any());
+		verify(storageDeletionService, never()).requestImageDeletion(any());
+		verify(storageDeletionService, never()).processImageDeletion(any());
+	}
+
+	@Test
+	void uploadConfirmationDatabaseFailureLeavesPendingImageForStorageCleanup() {
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		Image image = TestFixtures.image(event, "pending.jpg", false);
+		image.setId(imageId);
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+		doThrow(new IllegalStateException("database unavailable")).when(imageRepository).saveAll(List.of(image));
+
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), List.of(imageId)))
+			.isInstanceOf(IllegalStateException.class);
+		assertThat(image.isUploaded()).isTrue();
+		verify(storageDeletionService, never()).requestImageDeletion(any());
+	}
+
+	@Test
+	void pendingCleanupUsesStorageDeletionOutboxInsteadOfDroppingReference() {
+		UUID imageId = UUID.randomUUID();
+		Image image = TestFixtures.image(TestFixtures.event(TestFixtures.user("owner@example.com"), "Wedding"),
+				"pending.jpg", false);
+		image.setId(imageId);
+		when(imageRepository.findByIsUploadedFalseAndCreatedAtBefore(any())).thenReturn(List.of(image));
+
+		imageService.cleanupUnuploadedImages();
+
+		verify(storageDeletionService).requestImageDeletion(image);
+		verify(storageDeletionService).processImageDeletion(imageId);
+		verify(imageRepository, never()).delete(image);
 	}
 
 	@Test
@@ -331,7 +369,8 @@ class ImageServiceTest {
 		verify(imageRepository, never()).saveAll(any());
 		verify(imageRepository, never()).deleteById(any());
 		verify(s3Service, never()).getPresignedPutUrl(any());
-		verify(s3Service, never()).deleteFile(any());
+		verify(storageDeletionService, never()).requestImageDeletion(any());
+		verify(storageDeletionService, never()).processImageDeletion(any());
 	}
 
 }

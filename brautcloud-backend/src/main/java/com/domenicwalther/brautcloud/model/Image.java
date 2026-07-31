@@ -30,6 +30,9 @@ public class Image {
 
 	private boolean isVisible;
 
+	@Column(name = "deletion_requested", nullable = false)
+	private boolean deletionRequested;
+
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 
