@@ -1,6 +1,44 @@
-import { afterNextRender, Component, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ToastHost } from './components/toast/toast-host';
+
+type LenisInstance = Pick<import('lenis').default, 'raf' | 'destroy'>;
+type LenisConstructor = new () => LenisInstance;
+type RequestFrame = (callback: FrameRequestCallback) => number;
+type CancelFrame = (handle: number) => void;
+
+export function startLenisLoop(
+  Lenis: LenisConstructor,
+  requestFrame: RequestFrame = requestAnimationFrame,
+  cancelFrame: CancelFrame = cancelAnimationFrame,
+): () => void {
+  const lenis = new Lenis();
+  let frameId: number | undefined;
+  let destroyed = false;
+
+  const raf: FrameRequestCallback = (time) => {
+    if (destroyed) {
+      return;
+    }
+
+    lenis.raf(time);
+    frameId = requestFrame(raf);
+  };
+
+  frameId = requestFrame(raf);
+
+  return () => {
+    if (destroyed) {
+      return;
+    }
+
+    destroyed = true;
+    if (frameId !== undefined) {
+      cancelFrame(frameId);
+    }
+    lenis.destroy();
+  };
+}
 
 @Component({
   selector: 'app-root',
@@ -12,6 +50,15 @@ export class App {
   protected readonly title = signal('brautcloud-frontend');
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    let stopLenis: (() => void) | undefined;
+    let destroyed = false;
+
+    destroyRef.onDestroy(() => {
+      destroyed = true;
+      stopLenis?.();
+    });
+
     afterNextRender(() => {
       if (
         typeof ResizeObserver === 'undefined' ||
@@ -21,13 +68,9 @@ export class App {
       }
 
       import('lenis').then(({ default: Lenis }) => {
-        const lenis = new Lenis({ duration: 1.2 });
-
-        const raf = (time: number) => {
-          lenis.raf(time);
-          requestAnimationFrame(raf);
-        };
-        requestAnimationFrame(raf);
+        if (!destroyed) {
+          stopLenis = startLenisLoop(Lenis);
+        }
       });
     });
   }

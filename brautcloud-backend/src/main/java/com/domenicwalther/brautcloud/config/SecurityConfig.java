@@ -3,6 +3,7 @@ package com.domenicwalther.brautcloud.config;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,16 +30,22 @@ public class SecurityConfig {
 
 	private final JwtAuthFilter jwtAuthFilter;
 
+	private final OriginProtectionFilter originProtectionFilter;
+
 	private final CustomUserDetailsService userDetailsService;
 
-	public SecurityConfig(JwtAuthFilter jwtAuthFilter, CustomUserDetailsService userDetailsService) {
+	public SecurityConfig(JwtAuthFilter jwtAuthFilter, OriginProtectionFilter originProtectionFilter,
+			CustomUserDetailsService userDetailsService) {
 		this.jwtAuthFilter = jwtAuthFilter;
+		this.originProtectionFilter = originProtectionFilter;
 		this.userDetailsService = userDetailsService;
 	}
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+			// Stateless bearer requests use Authorization; cookie mutations are guarded
+			// by OriginProtectionFilter.
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.exceptionHandling(exceptions -> exceptions
@@ -57,7 +64,8 @@ public class SecurityConfig {
 				.anyRequest()
 				.authenticated())
 			.authenticationProvider(authenticationProvider())
-			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+			.addFilterBefore(originProtectionFilter, JwtAuthFilter.class);
 		return http.build();
 	}
 
@@ -68,10 +76,14 @@ public class SecurityConfig {
 		return provider;
 	}
 
+	@Value("${app.security.allowed-origins:http://localhost:4200}")
+	private String allowedOrigins;
+
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(List.of("http://localhost:4200"));
+		config.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+		config.setAllowedOrigins(config.getAllowedOrigins().stream().map(String::trim).toList());
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

@@ -11,7 +11,6 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.EventService;
 import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.GuestSessionService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -63,12 +62,11 @@ public class EventController {
 	public ResponseEntity<List<ImageUploadResponse>> getPublicImagePresignedUrls(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
 			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
-			HttpServletRequest servletRequest, @RequestBody ImageUploadRequest request) {
+			@RequestBody ImageUploadRequest request) {
 		String sessionToken = guestSessionToken == null ? guestSessionService.createToken() : guestSessionToken;
 		ResponseEntity.BodyBuilder response = ResponseEntity.ok();
 		if (guestSessionToken == null) {
-			response.header(HttpHeaders.SET_COOKIE,
-					guestSessionService.createCookie(sessionToken, servletRequest.isSecure()).toString());
+			response.header(HttpHeaders.SET_COOKIE, guestSessionService.createCookie(sessionToken).toString());
 		}
 		return response.body(imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword,
 				request.getFileNames(), sessionToken));

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
+import { App, startLenisLoop } from './app';
 import { routes } from './app.routes';
 
 describe('App', () => {
@@ -7,6 +7,45 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
     }).compileComponents();
+  });
+
+  it('uses Lenis defaults and cleans up its RAF loop and instance', () => {
+    const lenis = {
+      raf: vi.fn(),
+      destroy: vi.fn(),
+    };
+    class MockLenis {
+      raf = lenis.raf;
+      destroy = lenis.destroy;
+    }
+    const Lenis = vi.fn(MockLenis) as unknown as new () => typeof lenis;
+    const callbacks = new Map<number, FrameRequestCallback>();
+    const requestFrame = vi.fn((callback: FrameRequestCallback) => {
+      const id = callbacks.size + 1;
+      callbacks.set(id, callback);
+      return id;
+    });
+    const cancelFrame = vi.fn();
+
+    const cleanup = startLenisLoop(Lenis, requestFrame, cancelFrame);
+
+    expect(Lenis).toHaveBeenCalledWith();
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+
+    callbacks.get(1)?.(123.4);
+    expect(lenis.raf).toHaveBeenCalledWith(123.4);
+    expect(requestFrame).toHaveBeenCalledTimes(2);
+
+    cleanup();
+    cleanup();
+
+    expect(cancelFrame).toHaveBeenCalledWith(2);
+    expect(cancelFrame).toHaveBeenCalledTimes(1);
+    expect(lenis.destroy).toHaveBeenCalledTimes(1);
+
+    callbacks.get(2)?.(456.7);
+    expect(lenis.raf).toHaveBeenCalledTimes(1);
+    expect(requestFrame).toHaveBeenCalledTimes(2);
   });
 
   it('should create the app shell', () => {

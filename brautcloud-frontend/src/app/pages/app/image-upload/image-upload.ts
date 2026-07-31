@@ -1,4 +1,14 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  ViewChild,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { RouterLink } from '@angular/router';
@@ -22,9 +32,14 @@ export interface UploadedImage {
   styles: ``,
 })
 export class ImageUpload {
+  @ViewChild('confirmationCancelButton')
+  private confirmationCancelButton?: ElementRef<HTMLButtonElement>;
+
   userService = inject(UserService);
   imageService = inject(ImageService);
   private readonly toastService = inject(ToastService);
+  private readonly document = inject(DOCUMENT);
+  private returnFocusElement: HTMLElement | null = null;
 
   user = this.userService.user;
   readonly event = computed(() => this.user()?.events?.[0]);
@@ -35,6 +50,30 @@ export class ImageUpload {
   uploadedImages = signal<UploadedImage[]>([]);
   isUploading = signal(false);
   uploadError = signal<string | null>(null);
+  readonly pendingDeletionId = signal<string | null>(null);
+  readonly deletingImageId = signal<string | null>(null);
+  readonly deleteError = signal<string | null>(null);
+  readonly deleteSuccess = signal<string | null>(null);
+  readonly pendingDeletion = computed(() => {
+    const imageId = this.pendingDeletionId();
+    return imageId ? (this.uploadedImages().find((image) => image.id === imageId) ?? null) : null;
+  });
+
+  constructor() {
+    effect(() => {
+      if (this.pendingDeletion() && !this.deletingImageId()) {
+        setTimeout(() => this.confirmationCancelButton?.nativeElement.focus());
+      }
+    });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent): void {
+    if (this.pendingDeletion() && !this.deletingImageId() && event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelDeleteUploadedImage();
+    }
+  }
 
   onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -121,17 +160,72 @@ export class ImageUpload {
 
   deleteUploadedImage(index: number): void {
     const image = this.uploadedImages()[index];
+    if (!image || this.pendingDeletionId() || this.deletingImageId()) {
+      return;
+    }
+
+    this.deleteError.set(null);
+    this.deleteSuccess.set(null);
+    this.returnFocusElement =
+      this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
+    this.pendingDeletionId.set(image.id);
+  }
+
+  cancelDeleteUploadedImage(): void {
+    if (!this.pendingDeletionId() || this.deletingImageId()) {
+      return;
+    }
+
+    this.pendingDeletionId.set(null);
+    this.deleteError.set(null);
+    this.restoreFocus();
+  }
+
+  confirmDeleteUploadedImage(): void {
+    const imageId = this.pendingDeletionId();
+    if (!imageId || this.deletingImageId()) {
+      return;
+    }
+
+    const image = this.uploadedImages().find((candidate) => candidate.id === imageId);
+    if (!image) {
+      this.pendingDeletionId.set(null);
+      return;
+    }
+
+    this.deleteError.set(null);
+    this.deleteSuccess.set(null);
+    this.deletingImageId.set(image.id);
     this.imageService.deleteImage(image.id).subscribe({
       next: () => {
         URL.revokeObjectURL(image.url);
-        this.uploadedImages.update((images) => images.filter((_, i) => i !== index));
+        this.uploadedImages.update((images) =>
+          images.filter((candidate) => candidate.id !== image.id),
+        );
+        this.pendingDeletionId.set(null);
+        this.deletingImageId.set(null);
+        this.deleteSuccess.set('Photo deleted successfully.');
         this.toastService.show('Photo deleted successfully.', 'success');
+        this.restoreFocus();
       },
       error: () => {
         const message = 'That photo could not be removed. Please try again.';
-        this.uploadError.set(message);
+        this.pendingDeletionId.set(null);
+        this.deletingImageId.set(null);
+        this.deleteError.set(message);
         this.toastService.show(message, 'error');
+        this.restoreFocus();
       },
+    });
+  }
+
+  private restoreFocus(): void {
+    const elementToFocus = this.returnFocusElement;
+    this.returnFocusElement = null;
+    setTimeout(() => {
+      if (elementToFocus?.isConnected) {
+        elementToFocus.focus();
+      }
     });
   }
 }

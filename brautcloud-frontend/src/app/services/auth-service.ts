@@ -143,6 +143,7 @@ export class AuthService {
       return;
     }
 
+    const accessTokenAtLogout = this.getAccessToken();
     const pendingRefresh$ = this.refreshRequest$
       ? this.refreshRequest$.pipe(
           take(1),
@@ -166,6 +167,9 @@ export class AuthService {
               {
                 withCredentials: true,
                 responseType: 'text',
+                ...(accessTokenAtLogout
+                  ? { headers: { Authorization: `Bearer ${accessTokenAtLogout}` } }
+                  : {}),
               },
             )
             .pipe(
