@@ -162,7 +162,7 @@ describe('AuthService logout', () => {
 
     const logout = http.expectOne(`${apiUrl}/auth/logout`);
     expect(logout.request.withCredentials).toBe(true);
-    expect(logout.request.headers.has('Authorization')).toBe(false);
+    expect(logout.request.headers.get('Authorization')).toBe('Bearer original-token');
     logout.flush('Logged out');
 
     expect(auth.getAccessToken()).toBeNull();

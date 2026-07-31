@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -97,24 +98,32 @@ public class AuthController {
 	@PostMapping("/refresh")
 	public ResponseEntity<AuthResponse> refresh(@CookieValue(name = "refresh_token") String refreshToken,
 			HttpServletResponse response) {
-		RefreshToken existing = refreshTokenService.validateRefreshToken(refreshToken);
-		return ResponseEntity.ok(authSessionService.issue(existing.getUser(), response));
+		RefreshToken rotated = refreshTokenService.rotate(refreshToken);
+		return ResponseEntity.ok(authSessionService.issue(rotated.getUser(), rotated, response));
 	}
 
 	@PostMapping("/logout")
 	public ResponseEntity<String> logout(@CookieValue(name = "refresh_token", required = false) String refreshToken,
 			HttpServletResponse response) {
-		if (refreshToken != null) {
-			refreshTokenService.deleteByToken(refreshToken);
+		boolean sessionRevoked = refreshToken != null && refreshTokenService.deleteByToken(refreshToken);
+		if (!sessionRevoked) {
+			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+			if (authentication != null && authentication.isAuthenticated()
+					&& authentication.getPrincipal() instanceof UserDetails userDetails) {
+				refreshTokenService.revokeAccessTokens(userDetails.getUsername());
+			}
 		}
 
-		ResponseCookie cookie = ResponseCookie.from("refresh_token", "")
-			.httpOnly(true)
-			.secure(false)
-			.sameSite("Strict")
-			.path("/api/auth")
-			.maxAge(0)
-			.build();
+		ResponseCookie cookie = authSessionService.expiredRefreshCookie();
+		if (cookie == null) {
+			cookie = ResponseCookie.from("refresh_token", "")
+				.httpOnly(true)
+				.secure(true)
+				.sameSite("Strict")
+				.path("/api/auth")
+				.maxAge(0)
+				.build();
+		}
 		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
 		return ResponseEntity.ok("Logged out");
