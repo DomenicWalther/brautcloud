@@ -208,8 +208,8 @@ Before merging visual work:
 2. Use tokens and existing primitives; update the system only for a genuinely reusable need.
 3. Exercise default plus empty/loading/error/disabled states that apply.
 4. Check keyboard order, focus, labels, alt text, contrast, reduced motion, and 320px layout.
-5. Run from `brautcloud-frontend`: `npm run lint`, `npm test -- --watch=false`, and `npm run build`.
-6. The known `ng-qrcode` CommonJS optimization warning is accepted; new warnings are not.
+5. Run from `brautcloud-frontend`: `pnpm run format:check`, `pnpm run typecheck`, `pnpm test -- --watch=false`, `pnpm run build`, and `pnpm run security:audit`.
+6. `qrcode` is the only allowed CommonJS dependency: `ng-qrcode@21` uses it transitively for QR generation and has no ESM replacement compatible with Angular 21. New CommonJS warnings are not accepted.
 
 ## Decisions log
 

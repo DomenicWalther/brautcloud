@@ -43,6 +43,12 @@ jobs:
       - name: Check formatting
         run: pnpm run format:check
 
+      - name: Run type checks
+        run: pnpm run typecheck
+
+      - name: Audit production dependencies
+        run: pnpm run security:audit
+
       - name: Run unit tests
         run: pnpm run test:ci
 
