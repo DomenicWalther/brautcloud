@@ -89,14 +89,24 @@ export class Home {
     }));
   });
 
-  readonly daysTillWedding = computed<number | null>(() => {
+  private readonly weddingDate = computed<Date | null>(() => {
     const weddingDateValue = this.event()?.date;
     if (!weddingDateValue) {
       return null;
     }
 
     const weddingDate = new Date(weddingDateValue);
-    if (Number.isNaN(weddingDate.getTime())) {
+    return Number.isNaN(weddingDate.getTime()) ? null : weddingDate;
+  });
+
+  readonly weddingDatePassed = computed(() => {
+    const weddingDate = this.weddingDate();
+    return weddingDate !== null && weddingDate.getTime() < Date.now();
+  });
+
+  readonly daysTillWedding = computed<number | null>(() => {
+    const weddingDate = this.weddingDate();
+    if (!weddingDate || this.weddingDatePassed()) {
       return null;
     }
 

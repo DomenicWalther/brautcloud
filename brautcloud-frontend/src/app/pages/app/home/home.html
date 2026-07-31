@@ -21,6 +21,8 @@
             {{ daysTillWedding() === 1 ? 'day' : 'days' }} until your wedding. Everything your
             guests share will gather here.
           </p>
+        } @else if (weddingDatePassed()) {
+          <p class="bc-lede">Your wedding day has passed. Your guests' shared moments are here.</p>
         }
       </header>
 
