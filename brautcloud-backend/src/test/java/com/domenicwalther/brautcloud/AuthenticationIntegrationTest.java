@@ -12,10 +12,18 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,6 +83,7 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 		Cookie refreshCookie = login.getResponse().getCookie("refresh_token");
 		assertThat(refreshCookie).isNotNull();
 		assertThat(refreshCookie.isHttpOnly()).isTrue();
+		assertThat(refreshCookie.getSecure()).isTrue();
 		assertThat(refreshCookie.getPath()).isEqualTo("/api/auth");
 		assertThat(login.getResponse().getHeader("Set-Cookie")).contains("SameSite=Strict");
 		assertThat(refreshTokenRepository.findByToken(refreshCookie.getValue())).isPresent();
@@ -164,7 +173,63 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(content().string("Logged out"))
 			.andReturn();
 		assertThat(refreshTokenRepository.count()).isZero();
-		assertThat(logout.getResponse().getCookie("refresh_token").getMaxAge()).isZero();
+		Cookie expiredCookie = logout.getResponse().getCookie("refresh_token");
+		assertThat(expiredCookie.getMaxAge()).isZero();
+		assertThat(expiredCookie.getSecure()).isTrue();
+		assertThat(logout.getResponse().getHeader("Set-Cookie")).contains("SameSite=Strict");
+		mockMvc.perform(post("/api/auth/refresh").cookie(rotatedCookie)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void logoutRevokesPreviouslyIssuedAccessToken() throws Exception {
+		register();
+		MvcResult login = login();
+		String accessToken = accessToken(login);
+		Cookie refreshCookie = login.getResponse().getCookie("refresh_token");
+
+		mockMvc.perform(post("/api/auth/logout").cookie(refreshCookie).header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/user").header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void concurrentRefreshRequestsOnlyRotateTokenOnce() throws Exception {
+		register();
+		Cookie originalCookie = login().getResponse().getCookie("refresh_token");
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		try {
+			List<Future<MvcResult>> requests = List.of(1, 2).stream().map(ignored -> executor.submit(() -> {
+				ready.countDown();
+				start.await();
+				return mockMvc.perform(post("/api/auth/refresh").cookie(originalCookie)).andReturn();
+			})).toList();
+			ready.await();
+			start.countDown();
+
+			assertThat(requests.stream().map(future -> getStatus(future)).toList())
+				.containsExactlyInAnyOrder(HttpStatus.OK.value(), HttpStatus.UNAUTHORIZED.value());
+			assertThat(refreshTokenRepository.findByToken(originalCookie.getValue())).isEmpty();
+			assertThat(refreshTokenRepository.count()).isOne();
+		}
+		finally {
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	void crossOriginCookieMutationsAreRejectedButPublicGalleryReadsRemainAnonymous() throws Exception {
+		mockMvc.perform(post("/api/auth/logout").header("Origin", "https://evil.example"))
+			.andExpect(status().isForbidden());
+		mockMvc
+			.perform(post("/api/events/{eventId}/public/view", UUID.randomUUID())
+				.header("Origin", "https://evil.example")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"visitorId\":\"" + UUID.randomUUID() + "\"}"))
+			.andExpect(status().isForbidden());
 	}
 
 	@Test
@@ -181,6 +246,15 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 		return mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(credentials()))
 			.andExpect(status().isOk())
 			.andReturn();
+	}
+
+	private static int getStatus(Future<MvcResult> future) {
+		try {
+			return future.get().getResponse().getStatus();
+		}
+		catch (Exception exception) {
+			throw new AssertionError(exception);
+		}
 	}
 
 	private static String accessToken(MvcResult result) throws Exception {
