@@ -27,9 +27,50 @@
     </div>
   }
   @if (images().length > 0) {
+    @if (selectableImages().length > 0) {
+      <div class="gallery-selection-bar" aria-live="polite">
+        <span>{{ selectedImageCount() }} photographs selected</span>
+        <div class="gallery-selection-bar__actions">
+          @if (selectedImageCount() > 0) {
+            <button
+              type="button"
+              class="bc-button bc-button--quiet"
+              (click)="clearImageSelection()"
+            >
+              Clear selection
+            </button>
+            <button
+              type="button"
+              class="bc-button bc-button--danger"
+              (click)="deleteSelectedImages()"
+            >
+              Delete selected ({{ selectedImageCount() }})
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="bc-button bc-button--secondary"
+              (click)="selectAllImages()"
+            >
+              Select all
+            </button>
+          }
+        </div>
+      </div>
+    }
     <div class="gallery-masonry" aria-label="Wedding photographs">
       @for (img of images(); track img.id; let i = $index) {
         <figure class="gallery-photo">
+          @if (canDelete(img)) {
+            <input
+              class="gallery-photo__select"
+              type="checkbox"
+              [checked]="isImageSelected(img.id)"
+              [disabled]="deletingImageId() !== null"
+              [attr.aria-label]="'Select wedding gallery moment ' + (i + 1)"
+              (change)="toggleImageSelection(img)"
+            />
+          }
           @if (isImageFailed(img.id)) {
             <div
               class="gallery-photo__fallback"
@@ -60,7 +101,7 @@
             <button
               type="button"
               class="bc-button bc-button--icon bc-button--danger gallery-photo__delete"
-              [disabled]="deletingImageId() === img.id"
+              [disabled]="deletingImageId() !== null"
               [attr.aria-label]="'Delete wedding gallery moment ' + (i + 1)"
               (click)="deleteImage(img, i)"
             >
@@ -136,7 +177,7 @@
               <button
                 type="button"
                 class="bc-button bc-button--icon bc-button--danger gallery-lightbox__delete"
-                [disabled]="deletingImageId() === image.id"
+                [disabled]="deletingImageId() !== null"
                 [attr.aria-label]="'Delete wedding gallery moment ' + (selectedIndex() + 1)"
                 (click)="deleteImage(image, selectedIndex())"
               >
@@ -225,5 +266,51 @@
         }
       </nav>
     </div>
+  </div>
+}
+
+@if (deleteConfirmation(); as confirmation) {
+  <div class="gallery-delete-dialog" role="presentation" (click)="cancelDelete()">
+    <section
+      class="gallery-delete-dialog__panel bc-surface"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gallery-delete-dialog-title"
+      aria-describedby="gallery-delete-dialog-description"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        type="button"
+        class="bc-button bc-button--icon gallery-delete-dialog__close"
+        aria-label="Close delete confirmation"
+        (click)="cancelDelete()"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+      <span class="material-symbols-outlined gallery-delete-dialog__icon" aria-hidden="true"
+        >delete</span
+      >
+      <h2 id="gallery-delete-dialog-title">
+        Delete {{ confirmation.images.length === 1 ? 'this photograph' : 'these photographs' }}?
+      </h2>
+      <p id="gallery-delete-dialog-description">
+        {{ confirmation.images.length }}
+        {{ confirmation.images.length === 1 ? 'photograph will be' : 'photographs will be' }}
+        permanently deleted. This action cannot be undone.
+      </p>
+      <div class="gallery-delete-dialog__actions">
+        <button
+          #confirmationCancelButton
+          type="button"
+          class="bc-button bc-button--secondary"
+          (click)="cancelDelete()"
+        >
+          Cancel
+        </button>
+        <button type="button" class="bc-button bc-button--danger" (click)="confirmDelete()">
+          Delete {{ confirmation.images.length === 1 ? 'photograph' : 'photographs' }}
+        </button>
+      </div>
+    </section>
   </div>
 }

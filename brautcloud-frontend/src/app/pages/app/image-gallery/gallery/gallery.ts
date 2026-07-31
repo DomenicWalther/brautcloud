@@ -12,9 +12,11 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
 import { EventImageDto } from '../../../../core/models/event-image.dto';
 import { PublicEventDto } from '../../../../core/models/event.dto';
 import { ImageService } from '../../../../services/image-service';
+import { ToastService } from '../../../../services/toast-service';
 import { UserService } from '../../../../services/user-service';
 
 @Component({
@@ -25,10 +27,13 @@ import { UserService } from '../../../../services/user-service';
 export class Gallery {
   private readonly imageService = inject(ImageService);
   private readonly userService = inject(UserService);
+  private readonly toastService = inject(ToastService);
   private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
 
   @ViewChild('closeButton') private closeButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('confirmationCancelButton')
+  private confirmationCancelButton?: ElementRef<HTMLButtonElement>;
 
   private readonly allImages = signal<EventImageDto[]>([]);
   private readonly failedImageIds = signal<Set<string>>(new Set());
@@ -48,6 +53,8 @@ export class Gallery {
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
   readonly lightboxOpen = signal(false);
+  readonly deleteConfirmation = signal<{ images: EventImageDto[]; indices: number[] } | null>(null);
+  readonly selectedImageIds = signal<Set<string>>(new Set());
 
   readonly images = this.allImages.asReadonly();
   readonly user = this.userService.user;
@@ -59,6 +66,10 @@ export class Gallery {
     () => `${this.selectedIndex() + 1} of ${this.images().length}`,
   );
   readonly visibleLightbox = computed(() => this.images().length > 0);
+  readonly selectableImages = computed(() =>
+    this.images().filter((image) => this.canDelete(image)),
+  );
+  readonly selectedImageCount = computed(() => this.selectedImageIds().size);
 
   private readonly eventId = computed(() => this.event()?.id);
 
@@ -77,11 +88,14 @@ export class Gallery {
     });
 
     effect(() => {
-      if (!this.lightboxOpen()) {
+      if (this.deleteConfirmation()) {
+        setTimeout(() => this.confirmationCancelButton?.nativeElement.focus());
         return;
       }
 
-      setTimeout(() => this.closeButton?.nativeElement.focus());
+      if (this.lightboxOpen()) {
+        setTimeout(() => this.closeButton?.nativeElement.focus());
+      }
     });
 
     this.destroyRef.onDestroy(() => this.restoreBodyScroll());
@@ -89,6 +103,14 @@ export class Gallery {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent): void {
+    if (this.deleteConfirmation()) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.cancelDelete();
+      }
+      return;
+    }
+
     if (!this.lightboxOpen()) {
       return;
     }
@@ -173,46 +195,153 @@ export class Gallery {
     return !this.publicMode() || image.canDelete === true;
   }
 
-  deleteImage(image: EventImageDto, index: number): void {
+  toggleImageSelection(image: EventImageDto): void {
     if (!this.canDelete(image) || this.deletingImageId()) {
       return;
     }
 
-    const confirmed =
-      this.document.defaultView?.confirm('Delete this photograph? This action cannot be undone.') ??
-      true;
-    if (!confirmed) {
+    this.selectedImageIds.update((selected) => {
+      const next = new Set(selected);
+      if (next.has(image.id)) {
+        next.delete(image.id);
+      } else {
+        next.add(image.id);
+      }
+      return next;
+    });
+  }
+
+  selectAllImages(): void {
+    this.selectedImageIds.set(new Set(this.selectableImages().map((image) => image.id)));
+  }
+
+  clearImageSelection(): void {
+    this.selectedImageIds.set(new Set());
+  }
+
+  isImageSelected(imageId: string): boolean {
+    return this.selectedImageIds().has(imageId);
+  }
+
+  deleteSelectedImages(): void {
+    const selected = this.images().filter(
+      (image) => this.selectedImageIds().has(image.id) && this.canDelete(image),
+    );
+    if (selected.length) {
+      this.openDeleteConfirmation(selected);
+    }
+  }
+
+  deleteImage(image: EventImageDto, _index: number): void {
+    if (!this.canDelete(image) || this.deletingImageId()) {
       return;
     }
 
+    const selected = this.images().filter(
+      (candidate) => this.selectedImageIds().has(candidate.id) && this.canDelete(candidate),
+    );
+    this.openDeleteConfirmation(
+      selected.includes(image) && selected.length > 1 ? selected : [image],
+    );
+  }
+
+  private openDeleteConfirmation(images: EventImageDto[]): void {
+    this.returnFocusElement =
+      this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
+    this.deleteConfirmation.set({
+      images,
+      indices: images.map((image) =>
+        this.images().findIndex((candidate) => candidate.id === image.id),
+      ),
+    });
+  }
+
+  cancelDelete(): void {
+    if (!this.deleteConfirmation()) {
+      return;
+    }
+
+    this.deleteConfirmation.set(null);
+    this.restoreFocus();
+  }
+
+  confirmDelete(): void {
+    const confirmation = this.deleteConfirmation();
+    if (!confirmation || this.deletingImageId()) {
+      return;
+    }
+
+    this.deleteConfirmation.set(null);
     const eventId = this.eventId();
     if (!eventId) {
+      this.restoreFocus();
       return;
     }
 
-    this.deletingImageId.set(image.id);
+    const { images, indices } = confirmation;
+    const previousImages = this.images();
+    const previousSelectedIndex = this.selectedIndex();
+    const previousSelectedImageFailed = this.selectedImageFailed();
+    const wasLightboxOpen = this.lightboxOpen();
+    this.selectedImageIds.set(new Set());
+    this.deletingImageId.set('__gallery_delete__');
     this.deleteError.set(null);
-    const deletion$ = this.publicMode()
-      ? this.imageService.deletePublicImage(eventId, image.id, this.galleryPassword())
-      : this.imageService.deleteImage(image.id);
+    this.allImages.update((current) => current.filter((image) => !images.includes(image)));
+    const remainingCount = this.images().length;
+    const removedBeforeSelection = indices.filter((index) => index < previousSelectedIndex).length;
+    if (!remainingCount) {
+      this.lightboxOpen.set(false);
+      this.restoreBodyScroll();
+    } else {
+      this.selectedIndex.set(
+        Math.min(Math.max(previousSelectedIndex - removedBeforeSelection, 0), remainingCount - 1),
+      );
+      this.selectedImageFailed.set(false);
+    }
 
-    deletion$.subscribe({
-      next: () => {
-        const wasSelected = this.selectedIndex() === index;
-        this.allImages.update((images) => images.filter((candidate) => candidate.id !== image.id));
-        const remainingCount = this.images().length;
-        if (!remainingCount) {
-          this.closeLightbox();
-        } else if (this.selectedIndex() > index || wasSelected) {
-          this.selectedIndex.set(Math.min(index, remainingCount - 1));
-          this.selectedImageFailed.set(false);
+    const requests = images.map((image) => {
+      const deletion$ = this.publicMode()
+        ? this.imageService.deletePublicImage(eventId, image.id, this.galleryPassword())
+        : this.imageService.deleteImage(image.id);
+      return deletion$.pipe(catchError(() => of(null)));
+    });
+
+    forkJoin(requests).subscribe((results) => {
+      const failedImages = images.filter((_, index) => results[index] === null);
+      if (failedImages.length) {
+        this.allImages.update((current) => {
+          const restored = [...current, ...failedImages];
+          return restored.sort(
+            (left, right) => previousImages.indexOf(left) - previousImages.indexOf(right),
+          );
+        });
+        const failedSelected = failedImages.some(
+          (image) => previousImages[previousSelectedIndex] === image,
+        );
+        if (failedSelected) {
+          this.selectedIndex.set(previousSelectedIndex);
+          this.selectedImageFailed.set(previousSelectedImageFailed);
         }
-        this.deletingImageId.set(null);
-      },
-      error: () => {
-        this.deletingImageId.set(null);
-        this.deleteError.set('This photograph could not be deleted. Please try again.');
-      },
+        if (wasLightboxOpen && !this.lightboxOpen() && this.images().length) {
+          this.lightboxOpen.set(true);
+          this.document.body.style.overflow = 'hidden';
+        }
+        this.deleteError.set(
+          failedImages.length === images.length
+            ? 'These photographs could not be deleted. Please try again.'
+            : `${failedImages.length} of ${images.length} photographs could not be deleted. Please try again.`,
+        );
+        this.toastService.show(this.deleteError()!, 'error');
+      } else {
+        this.toastService.show(
+          images.length === 1
+            ? 'Photograph deleted successfully.'
+            : `${images.length} photographs deleted successfully.`,
+          'success',
+        );
+      }
+      this.deletingImageId.set(null);
+      this.restoreFocus();
     });
   }
 
@@ -237,6 +366,18 @@ export class Gallery {
     const image = new globalThis.Image();
     image.decoding = 'async';
     image.src = url;
+  }
+
+  private restoreFocus(): void {
+    const elementToFocus = this.returnFocusElement;
+    this.returnFocusElement = null;
+    setTimeout(() => {
+      if (elementToFocus?.isConnected) {
+        elementToFocus.focus();
+      } else {
+        this.closeButton?.nativeElement.focus();
+      }
+    });
   }
 
   private restoreBodyScroll(): void {
