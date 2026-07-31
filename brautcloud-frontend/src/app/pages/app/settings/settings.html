@@ -141,7 +141,11 @@
         }
       </form>
 
-      <form class="bc-surface bc-card settings-card" novalidate (submit)="savePassword($event)">
+      <form
+        class="bc-surface bc-card settings-card settings-card--password"
+        novalidate
+        (submit)="savePassword($event)"
+      >
         <header class="settings-section-header">
           <h2 class="bc-heading">Gallery password</h2>
           <p class="bc-muted">

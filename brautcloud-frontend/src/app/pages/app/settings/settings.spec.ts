@@ -79,6 +79,14 @@ describe('Settings', () => {
     expect(root.querySelector('a[href="/app/settings"]')).toBeTruthy();
   });
 
+  it('separates gallery password section from main gallery settings', () => {
+    const cards = fixture.nativeElement.querySelectorAll('.settings-card');
+
+    expect(cards).toHaveLength(2);
+    expect(cards[0].classList.contains('settings-card--password')).toBe(false);
+    expect(cards[1].classList.contains('settings-card--password')).toBe(true);
+  });
+
   it('saves supported event edits and reports success', () => {
     component.model.set({
       eventName: 'Our wedding',
