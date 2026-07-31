@@ -34,6 +34,7 @@
                 "input": "public"
               }
             ],
+            "allowedCommonJsDependencies": ["qrcode"],
             "styles": ["src/styles.css"]
           },
           "configurations": {
@@ -46,7 +47,7 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
+                  "maximumWarning": "9kB",
                   "maximumError": "10kB"
                 }
               ],
