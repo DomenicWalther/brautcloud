@@ -26,7 +26,7 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 	void applicationStartsWithEveryMigrationAppliedToPostgres() {
 		assertThat(applicationContext.getBean(BrautcloudApplication.class)).isNotNull();
 		assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()))
-			.containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+			.containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
 	}
 
 	@Test
@@ -36,6 +36,8 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 		assertThat(columnType("images", "is_uploaded")).isEqualTo("boolean");
 		assertThat(columnType("refresh_tokens", "token_hash")).isEqualTo("character varying");
 		assertThat(columnType("users", "token_version")).isEqualTo("integer");
+		assertThat(columnType("images", "content_type")).isEqualTo("character varying");
+		assertThat(columnType("images", "size_bytes")).isEqualTo("bigint");
 		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pg_extension WHERE extname = 'uuid-ossp'",
 				Integer.class))
 			.isOne();

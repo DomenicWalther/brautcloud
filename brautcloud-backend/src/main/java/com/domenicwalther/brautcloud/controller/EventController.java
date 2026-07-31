@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.exception.BadRequestException;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
@@ -11,6 +12,7 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.EventService;
 import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.GuestSessionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -62,14 +64,23 @@ public class EventController {
 	public ResponseEntity<List<ImageUploadResponse>> getPublicImagePresignedUrls(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
 			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
-			@RequestBody ImageUploadRequest request) {
-		String sessionToken = guestSessionToken == null ? guestSessionService.createToken() : guestSessionToken;
+			HttpServletRequest servletRequest, @RequestBody ImageUploadRequest request) {
+		if (request == null) {
+			throw new BadRequestException("Event and file names are required");
+		}
+		boolean issueNewSession = !GuestSessionService.isValidToken(guestSessionToken);
+		String sessionToken = issueNewSession ? guestSessionService.createToken() : guestSessionToken;
 		ResponseEntity.BodyBuilder response = ResponseEntity.ok();
-		if (guestSessionToken == null) {
+		if (issueNewSession) {
 			response.header(HttpHeaders.SET_COOKIE, guestSessionService.createCookie(sessionToken).toString());
 		}
-		return response.body(imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword,
-				request.getFileNames(), sessionToken));
+		String clientAddress = servletRequest.getRemoteAddr() == null ? "unknown" : servletRequest.getRemoteAddr();
+		List<ImageUploadResponse> uploads = request.getContentTypes() == null && request.getFileSizes() == null
+				? imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword, request.getFileNames(),
+						sessionToken, clientAddress)
+				: imageService.generatePublicPresignedUploadUrlsWithMetadata(eventID, galleryPassword, request,
+						sessionToken, clientAddress);
+		return response.body(uploads);
 	}
 
 	@PostMapping("/{eventID}/public/images/uploaded")

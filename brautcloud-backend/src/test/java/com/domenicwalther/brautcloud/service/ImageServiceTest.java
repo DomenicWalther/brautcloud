@@ -25,12 +25,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
+
+	private static final String GUEST_SESSION_TOKEN = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 	@Mock
 	private ImageRepository imageRepository;
@@ -117,7 +122,7 @@ class ImageServiceTest {
 		when(s3Service.getPresignedPutUrl(any(String.class))).thenReturn("https://uploads.test/photo");
 
 		List<ImageUploadResponse> responses = imageService.generatePublicPresignedUploadUrls(eventId, null,
-				List.of("guest photo.jpg"), "guest-session-token");
+				List.of("guest photo.jpg"), GUEST_SESSION_TOKEN);
 
 		assertThat(responses).singleElement().satisfies(response -> {
 			assertThat(response.getImageId()).isNotNull();
@@ -126,11 +131,73 @@ class ImageServiceTest {
 		ArgumentCaptor<Image> image = ArgumentCaptor.forClass(Image.class);
 		verify(imageRepository).save(image.capture());
 		assertThat(image.getValue().getEvent()).isSameAs(event);
-		assertThat(image.getValue().getGuestSessionHash()).isEqualTo(GuestSessionService.hash("guest-session-token"));
+		assertThat(image.getValue().getGuestSessionHash()).isEqualTo(GuestSessionService.hash(GUEST_SESSION_TOKEN));
 		assertThat(image.getValue().isUploaded()).isFalse();
 		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
 		verify(s3Service).getPresignedPutUrl(key.capture());
 		assertThat(key.getValue()).endsWith("-guest_photo.jpg");
+	}
+
+	@Test
+	void presignedPutBindsDeclaredImageTypeAndLength() {
+		UUID eventId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("photo.jpg"), List.of("image/jpeg"),
+				List.of(42L));
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.save(any(Image.class))).thenAnswer(invocation -> {
+			Image image = invocation.getArgument(0);
+			image.setId(UUID.randomUUID());
+			return image;
+		});
+		when(s3Service.getPresignedPutUrl(anyString(), eq("image/jpeg"), eq(42L)))
+			.thenReturn("https://uploads.test/photo");
+
+		List<ImageUploadResponse> responses = imageService.generatePresignedUploadUrls(owner.getEmail(), request);
+
+		assertThat(responses).singleElement().satisfies(response -> {
+			assertThat(response.getUploadUrl()).isEqualTo("https://uploads.test/photo");
+			assertThat(response.getContentType()).isEqualTo("image/jpeg");
+		});
+		verify(s3Service).getPresignedPutUrl(anyString(), eq("image/jpeg"), eq(42L));
+	}
+
+	@Test
+	void publicUploadRejectsOversizedMetadataBeforeCreatingRecords() {
+		UUID eventId = UUID.randomUUID();
+		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(new Event());
+
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("photo.jpg"), List.of("image/jpeg"),
+				List.of(ImageUploadPolicy.MAX_IMAGE_BYTES + 1));
+		assertThatThrownBy(() -> imageService.generatePublicPresignedUploadUrlsWithMetadata(eventId, null, request,
+				GUEST_SESSION_TOKEN, null))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
+		verify(imageRepository, never()).save(any());
+		verify(s3Service, never()).getPresignedPutUrl(anyString());
+	}
+
+	@Test
+	void publicConfirmationDiscardsMissingObjectInsteadOfPublishingIt() {
+		UUID eventId = UUID.randomUUID();
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		Image image = TestFixtures.image(event, "guest.jpg", false);
+		image.setId(imageId);
+		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
+		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(event);
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+		when(s3Service.verifyUploadedImage("guest.jpg", null, null)).thenReturn(false);
+
+		assertThatThrownBy(
+				() -> imageService.markPublicImagesAsUploaded(eventId, null, List.of(imageId), GUEST_SESSION_TOKEN))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
+			.hasMessage("Uploaded image is missing or invalid");
+		verify(imageRepository).deleteAll(List.of(image));
+		verify(imageRepository, never()).saveAll(any());
 	}
 
 	@Test
@@ -144,10 +211,10 @@ class ImageServiceTest {
 		image.setId(imageId);
 		when(eventService.requirePublicGalleryAccess(eventId, "secret")).thenReturn(event);
 		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
-		image.setGuestSessionHash(GuestSessionService.hash("guest-session-token"));
+		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
 
-		assertThatThrownBy(() -> imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId),
-				"guest-session-token"))
+		assertThatThrownBy(
+				() -> imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), GUEST_SESSION_TOKEN))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Image not found");
 		verify(imageRepository, never()).saveAll(any());
@@ -164,9 +231,10 @@ class ImageServiceTest {
 		image.setId(imageId);
 		when(eventService.requirePublicGalleryAccess(eventId, "secret")).thenReturn(event);
 		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
-		image.setGuestSessionHash(GuestSessionService.hash("guest-session-token"));
+		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
+		when(s3Service.verifyUploadedImage("guest.jpg", null, null)).thenReturn(true);
 
-		imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), "guest-session-token");
+		imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), GUEST_SESSION_TOKEN);
 
 		assertThat(image.isUploaded()).isTrue();
 		verify(imageRepository).saveAll(List.of(image));
@@ -178,7 +246,7 @@ class ImageServiceTest {
 		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(new Event());
 
 		assertThatThrownBy(
-				() -> imageService.generatePublicPresignedUploadUrls(eventId, null, List.of(), "guest-session-token"))
+				() -> imageService.generatePublicPresignedUploadUrls(eventId, null, List.of(), GUEST_SESSION_TOKEN))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
 		verify(imageRepository, never()).save(any());
 		verify(s3Service, never()).getPresignedPutUrl(any());
@@ -196,7 +264,10 @@ class ImageServiceTest {
 		Image second = new Image();
 		second.setId(secondId);
 		second.setEvent(event);
+		first.setImageKey("first.jpg");
+		second.setImageKey("second.jpg");
 		when(imageRepository.findAllById(List.of(firstId, secondId))).thenReturn(List.of(first, second));
+		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), nullable(Long.class))).thenReturn(true);
 
 		imageService.markImagesAsUploaded(owner.getEmail(), List.of(firstId, secondId));
 
@@ -259,11 +330,11 @@ class ImageServiceTest {
 		event.setId(eventId);
 		Image image = TestFixtures.image(event, "guest.jpg", true);
 		image.setId(imageId);
-		image.setGuestSessionHash(GuestSessionService.hash("guest-session-token"));
+		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
 		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(event);
 		when(imageRepository.findById(imageId)).thenReturn(Optional.of(image));
 
-		imageService.deletePublicImage(eventId, null, imageId, "guest-session-token");
+		imageService.deletePublicImage(eventId, null, imageId, GUEST_SESSION_TOKEN);
 
 		verify(imageRepository).deleteById(imageId);
 		verify(s3Service).deleteFile("guest.jpg");
@@ -283,7 +354,7 @@ class ImageServiceTest {
 		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(event);
 		when(imageRepository.findById(imageId)).thenReturn(Optional.of(image));
 
-		assertThatThrownBy(() -> imageService.deletePublicImage(eventId, null, imageId, "guest-session-token"))
+		assertThatThrownBy(() -> imageService.deletePublicImage(eventId, null, imageId, GUEST_SESSION_TOKEN))
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Image not found");
 		verify(imageRepository, never()).deleteById(any());
