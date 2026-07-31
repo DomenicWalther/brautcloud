@@ -38,6 +38,20 @@ public class GuestSessionService {
 			.build();
 	}
 
+	public static boolean isValidToken(String token) {
+		if (token == null || token.isBlank()) {
+			return false;
+		}
+		try {
+			byte[] decoded = Base64.getUrlDecoder().decode(token);
+			return decoded.length == 32
+					&& Base64.getUrlEncoder().withoutPadding().encodeToString(decoded).equals(token);
+		}
+		catch (IllegalArgumentException exception) {
+			return false;
+		}
+	}
+
 	public static String hash(String token) {
 		if (token == null || token.isBlank()) {
 			return null;

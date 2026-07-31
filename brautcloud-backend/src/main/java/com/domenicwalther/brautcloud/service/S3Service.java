@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -53,12 +55,49 @@ public class S3Service {
 	}
 
 	public String getPresignedPutUrl(String key) {
+		return getPresignedPutUrl(key, ImageUploadPolicy.contentTypeForFileName(key), null);
+	}
+
+	public String getPresignedPutUrl(String key, String contentType, Long contentLength) {
 		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
 			.signatureDuration(Duration.ofMinutes(15))
-			.putObjectRequest(r -> r.bucket(bucketName).key(key))
+			.putObjectRequest(r -> {
+				r.bucket(bucketName).key(key).contentType(contentType);
+				if (contentLength != null) {
+					r.contentLength(contentLength);
+				}
+			})
 			.build();
 
 		return presigner.presignPutObject(presignRequest).url().toString();
+	}
+
+	public boolean verifyUploadedImage(String key, String expectedContentType, Long expectedLength) {
+		try {
+			HeadObjectResponse head = s3Client
+				.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
+			long actualLength = head.contentLength() == null ? -1L : head.contentLength();
+			String actualContentType = ImageUploadPolicy.normalizeContentType(head.contentType());
+			if (actualLength <= 0 || actualLength > ImageUploadPolicy.MAX_IMAGE_BYTES
+					|| !ImageUploadPolicy.isAllowedContentType(actualContentType)) {
+				return false;
+			}
+			if (expectedLength != null && expectedLength.longValue() != actualLength) {
+				return false;
+			}
+			if (expectedContentType != null
+					&& !ImageUploadPolicy.normalizeContentType(expectedContentType).equals(actualContentType)) {
+				return false;
+			}
+
+			byte[] bytes = getObjectBytes(key);
+			return bytes.length == actualLength && ImageUploadPolicy.hasValidSignature(bytes, actualContentType);
+		}
+		catch (RuntimeException exception) {
+			// Missing objects, storage errors, and malformed metadata are never
+			// publishable.
+			return false;
+		}
 	}
 
 }

@@ -71,6 +71,14 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}
 
+	@ExceptionHandler(TooManyRequestsException.class)
+	public ResponseEntity<Map<String, String>> handleTooManyRequests(TooManyRequestsException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Too Many Requests");
+		error.put("message", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
+	}
+
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
 		Map<String, String> error = new HashMap<>();

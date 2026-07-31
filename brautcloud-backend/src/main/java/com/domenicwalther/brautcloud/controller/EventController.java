@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.controller;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.exception.BadRequestException;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
@@ -64,14 +65,23 @@ public class EventController {
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
 			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
 			HttpServletRequest servletRequest, @RequestBody ImageUploadRequest request) {
-		String sessionToken = guestSessionToken == null ? guestSessionService.createToken() : guestSessionToken;
+		if (request == null) {
+			throw new BadRequestException("Event and file names are required");
+		}
+		boolean issueNewSession = !GuestSessionService.isValidToken(guestSessionToken);
+		String sessionToken = issueNewSession ? guestSessionService.createToken() : guestSessionToken;
 		ResponseEntity.BodyBuilder response = ResponseEntity.ok();
-		if (guestSessionToken == null) {
+		if (issueNewSession) {
 			response.header(HttpHeaders.SET_COOKIE,
 					guestSessionService.createCookie(sessionToken, servletRequest.isSecure()).toString());
 		}
-		return response.body(imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword,
-				request.getFileNames(), sessionToken));
+		String clientAddress = servletRequest.getRemoteAddr() == null ? "unknown" : servletRequest.getRemoteAddr();
+		List<ImageUploadResponse> uploads = request.getContentTypes() == null && request.getFileSizes() == null
+				? imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword, request.getFileNames(),
+						sessionToken, clientAddress)
+				: imageService.generatePublicPresignedUploadUrlsWithMetadata(eventID, galleryPassword, request,
+						sessionToken, clientAddress);
+		return response.body(uploads);
 	}
 
 	@PostMapping("/{eventID}/public/images/uploaded")

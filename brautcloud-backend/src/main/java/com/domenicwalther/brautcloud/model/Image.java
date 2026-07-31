@@ -21,6 +21,12 @@ public class Image {
 
 	private String imageKey;
 
+	/** MIME type expected by the signed PUT and verified before publication. */
+	private String contentType;
+
+	/** Expected size supplied at presign time, when client metadata is available. */
+	private Long sizeBytes;
+
 	/**
 	 * SHA-256 hash of server-issued guest browser session token, null for owner uploads.
 	 */
