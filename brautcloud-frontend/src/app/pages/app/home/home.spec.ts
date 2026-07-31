@@ -573,6 +573,95 @@ describe('Home QR code download', () => {
   });
 });
 
+describe('Home wedding date status', () => {
+  const now = Date.parse('2026-08-01T12:00:00Z');
+  const user = signal<UserDto | null>(null);
+  const eventService = {
+    downloadEventImages: vi.fn(),
+    registerView: vi.fn(),
+  };
+  const imageService = {
+    getEventImages: vi.fn(),
+  };
+  let fixture: ComponentFixture<Home>;
+
+  beforeEach(async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    user.set(null);
+    sessionStorage.clear();
+    eventService.downloadEventImages.mockReset();
+    eventService.registerView.mockReset().mockReturnValue(of(undefined));
+    imageService.getEventImages.mockReset().mockReturnValue(of([]));
+
+    await TestBed.configureTestingModule({
+      imports: [Home],
+      providers: [
+        provideRouter([]),
+        { provide: APP_URL, useValue: 'http://app.test' },
+        {
+          provide: UserService,
+          useValue: {
+            user: user.asReadonly(),
+            loading: signal(false).asReadonly(),
+            error: signal<string | null>(null).asReadonly(),
+          },
+        },
+        { provide: EventService, useValue: eventService },
+        { provide: ImageService, useValue: imageService },
+      ],
+    })
+      .overrideComponent(Home, {
+        remove: { imports: [QrCodeComponent] },
+        add: { imports: [StubQrCode] },
+      })
+      .compileComponents();
+    fixture = TestBed.createComponent(Home);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function renderDate(date: string | null): string {
+    user.set({ ...userTemplate, events: [eventFixture({ date })] });
+    fixture.detectChanges();
+    return fixture.nativeElement.textContent as string;
+  }
+
+  it('shows completed copy without a negative countdown for past dates', () => {
+    const content = renderDate('2026-07-28T12:00:00Z');
+
+    expect(content).toContain("Your wedding day has passed. Your guests' shared moments are here.");
+    expect(content).not.toContain('until your wedding');
+    expect(content).not.toMatch(/-\\d+ days?/);
+    expect(fixture.componentInstance.daysTillWedding()).toBeNull();
+  });
+
+  it('retains plural countdown for future dates', () => {
+    const content = renderDate('2026-08-03T12:00:00Z');
+
+    expect(content).toContain('2 days until your wedding');
+    expect(content).not.toContain('has passed');
+    expect(fixture.componentInstance.daysTillWedding()).toBe(2);
+  });
+
+  it('retains singular countdown one day before the wedding', () => {
+    const content = renderDate('2026-08-02T12:00:00Z');
+
+    expect(content).toContain('1 day until your wedding');
+    expect(content).not.toContain('1 days');
+  });
+
+  it.each([null, 'not-a-date'])('omits date status for missing or invalid dates (%s)', (date) => {
+    const content = renderDate(date);
+
+    expect(content).not.toContain('until your wedding');
+    expect(content).not.toContain('has passed');
+    expect(fixture.componentInstance.daysTillWedding()).toBeNull();
+    expect(fixture.componentInstance.weddingDatePassed()).toBe(false);
+  });
+});
+
 const userTemplate: UserDto = {
   createdAt: '2024-01-01T00:00:00Z',
   email: 'test@example.com',
