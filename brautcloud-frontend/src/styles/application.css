@@ -335,6 +335,75 @@
   margin-bottom: 0;
 }
 
+.upload-delete-feedback {
+  margin-bottom: var(--bc-space-md);
+}
+
+.uploaded-photo__pending {
+  position: absolute;
+  z-index: 3;
+  inset: auto var(--bc-space-xs) var(--bc-space-xs);
+  padding: var(--bc-space-2xs) var(--bc-space-xs);
+  color: var(--bc-color-text-inverse);
+  background: var(--bc-color-surface-inverse);
+  font-size: var(--bc-font-size-xs);
+  text-align: center;
+}
+
+.upload-delete-dialog {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--bc-space-md);
+  background: var(--bc-color-scrim);
+}
+
+.upload-delete-dialog__panel {
+  position: relative;
+  width: min(100%, 30rem);
+  padding: var(--bc-space-xl);
+  box-shadow: var(--bc-shadow-md);
+}
+
+.upload-delete-dialog__close {
+  position: absolute;
+  top: var(--bc-space-md);
+  right: var(--bc-space-md);
+}
+
+.upload-delete-dialog__icon {
+  color: var(--bc-color-danger);
+  font-size: 2rem;
+}
+
+.upload-delete-dialog__panel h2 {
+  margin: var(--bc-space-sm) 0 var(--bc-space-xs);
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-size-xl);
+  font-weight: 400;
+}
+
+.upload-delete-dialog__panel p {
+  margin-bottom: var(--bc-space-lg);
+  color: var(--bc-color-text-muted);
+}
+
+.upload-delete-dialog__pending {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-xs);
+  color: var(--bc-color-text) !important;
+  font-weight: 600;
+}
+
+.upload-delete-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bc-space-sm);
+}
+
 /* Gallery loading, empty, error, and populated states. */
 .gallery-masonry {
   columns: 3;

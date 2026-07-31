@@ -100,6 +100,19 @@
         <span class="upload-count">{{ uploadedImages().length }} shared</span>
       </div>
 
+      @if (deleteError(); as message) {
+        <div class="bc-status bc-status--error upload-delete-feedback" role="alert">
+          <span class="material-symbols-outlined" aria-hidden="true">error</span>
+          <span>{{ message }}</span>
+        </div>
+      }
+      @if (deleteSuccess(); as message) {
+        <div class="bc-status upload-delete-feedback" role="status" aria-live="polite">
+          <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+          <span>{{ message }}</span>
+        </div>
+      }
+
       @if (uploadedImages().length === 0) {
         <div class="bc-empty-state">
           <div class="bc-empty-state__inner">
@@ -113,10 +126,14 @@
           @for (image of uploadedImages(); track image.id; let i = $index) {
             <figure class="uploaded-photo">
               <img [src]="image.url" [alt]="'Uploaded wedding moment ' + (i + 1)" />
+              @if (deletingImageId() === image.id) {
+                <span class="uploaded-photo__pending" role="status">Removing photograph…</span>
+              }
               <button
                 type="button"
                 (click)="deleteUploadedImage(i)"
                 class="bc-button bc-button--icon bc-button--danger uploaded-photo__delete"
+                [disabled]="pendingDeletionId() !== null || deletingImageId() !== null"
                 [attr.aria-label]="'Delete uploaded wedding moment ' + (i + 1)"
               >
                 <span class="material-symbols-outlined" aria-hidden="true">delete</span>
@@ -132,4 +149,63 @@
       </a>
     </section>
   </div>
+
+  @if (pendingDeletion(); as image) {
+    <div class="upload-delete-dialog" role="presentation" (click)="cancelDeleteUploadedImage()">
+      <section
+        class="upload-delete-dialog__panel bc-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-delete-dialog-title"
+        aria-describedby="upload-delete-dialog-description"
+        (click)="$event.stopPropagation()"
+      >
+        <button
+          type="button"
+          class="bc-button bc-button--icon upload-delete-dialog__close"
+          aria-label="Close delete confirmation"
+          [disabled]="deletingImageId() === image.id"
+          (click)="cancelDeleteUploadedImage()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        <span class="material-symbols-outlined upload-delete-dialog__icon" aria-hidden="true"
+          >delete</span
+        >
+        <h2 id="upload-delete-dialog-title">Delete this photograph?</h2>
+        <p id="upload-delete-dialog-description">
+          This photograph will be permanently deleted. This action cannot be undone.
+        </p>
+        @if (deletingImageId() === image.id) {
+          <p class="upload-delete-dialog__pending" role="status" aria-live="polite">
+            <span class="bc-spinner" aria-hidden="true"></span>
+            Removing photograph…
+          </p>
+        }
+        <div class="upload-delete-dialog__actions">
+          <button
+            #confirmationCancelButton
+            type="button"
+            class="bc-button bc-button--secondary"
+            [disabled]="deletingImageId() === image.id"
+            (click)="cancelDeleteUploadedImage()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="bc-button bc-button--danger"
+            [disabled]="deletingImageId() === image.id"
+            (click)="confirmDeleteUploadedImage()"
+          >
+            @if (deletingImageId() === image.id) {
+              Removing…
+            } @else {
+              Delete photograph
+            }
+          </button>
+        </div>
+      </section>
+    </div>
+  }
 </app-shell>
