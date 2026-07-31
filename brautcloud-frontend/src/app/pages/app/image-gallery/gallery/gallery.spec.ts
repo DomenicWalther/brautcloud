@@ -215,7 +215,7 @@ describe('Gallery lightbox', () => {
     expect(document.activeElement).toBe(deleteButton);
   });
 
-  it('optimistically removes image and shows success toast only after server response', () => {
+  it('keeps image pending and shows success toast only after server response', () => {
     const deletion = new Subject<void>();
     imageService.deleteImage.mockReturnValue(deletion);
     const toastService = TestBed.inject(ToastService);
@@ -232,14 +232,16 @@ describe('Gallery lightbox', () => {
     fixture.detectChanges();
 
     expect(imageService.deleteImage).toHaveBeenCalledWith(images[0].id);
-    expect(fixture.componentInstance.images()).toEqual(images.slice(1));
+    expect(fixture.componentInstance.images()).toEqual(images);
+    expect(fixture.componentInstance.isImagePending(images[0].id)).toBe(true);
     expect(toastService.toasts()).toEqual([]);
     deletion.next();
     deletion.complete();
+    expect(fixture.componentInstance.images()).toEqual(images.slice(1));
     expect(toastService.toasts()[0]?.message).toContain('deleted successfully');
   });
 
-  it('rolls back failed deletion and shows error toast', () => {
+  it('keeps failed image visible and shows error toast', () => {
     imageService.deleteImage.mockReturnValue(throwError(() => new Error('request failed')));
     const toastService = TestBed.inject(ToastService);
     const deleteButton = fixture.nativeElement.querySelector(
@@ -258,8 +260,9 @@ describe('Gallery lightbox', () => {
     expect(toastService.toasts()[0]?.kind).toBe('error');
   });
 
-  it('confirms selected batch and removes all selected images optimistically', () => {
-    imageService.deleteImage.mockReturnValue(of(undefined));
+  it('confirms selected batch and removes images only after server confirmation', () => {
+    const batchDeletion = new Subject<void>();
+    imageService.deleteImage.mockReturnValue(batchDeletion);
     const selectAll = fixture.nativeElement.querySelector(
       '.gallery-selection-bar button',
     ) as HTMLButtonElement;
@@ -283,10 +286,14 @@ describe('Gallery lightbox', () => {
     ).click();
     fixture.detectChanges();
     expect(imageService.deleteImage).toHaveBeenCalledTimes(3);
+    expect(fixture.componentInstance.images()).toEqual(images);
+    expect(fixture.componentInstance.pendingDeleteIds().size).toBe(3);
+    batchDeletion.next();
+    batchDeletion.complete();
     expect(fixture.componentInstance.images()).toEqual([]);
   });
 
-  it('restores only failed images after partial batch deletion', () => {
+  it('keeps failed images visible after partial batch deletion', () => {
     imageService.deleteImage.mockImplementation((imageId) =>
       imageId === images[1].id ? throwError(() => new Error('request failed')) : of(undefined),
     );

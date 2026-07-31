@@ -40,6 +40,7 @@ export class Gallery {
   readonly selectedIndex = signal(0);
   readonly selectedImageFailed = signal(false);
   readonly deletingImageId = signal<string | null>(null);
+  readonly pendingDeleteIds = signal<Set<string>>(new Set());
   readonly deleteError = signal<string | null>(null);
   private readonly preloadedImageUrls = new Set<string>();
   private previousBodyOverflow = '';
@@ -281,23 +282,11 @@ export class Gallery {
     const { images, indices } = confirmation;
     const previousImages = this.images();
     const previousSelectedIndex = this.selectedIndex();
-    const previousSelectedImageFailed = this.selectedImageFailed();
-    const wasLightboxOpen = this.lightboxOpen();
+    const previousSelectedImage = previousImages[previousSelectedIndex];
     this.selectedImageIds.set(new Set());
+    this.pendingDeleteIds.set(new Set(images.map((image) => image.id)));
     this.deletingImageId.set('__gallery_delete__');
     this.deleteError.set(null);
-    this.allImages.update((current) => current.filter((image) => !images.includes(image)));
-    const remainingCount = this.images().length;
-    const removedBeforeSelection = indices.filter((index) => index < previousSelectedIndex).length;
-    if (!remainingCount) {
-      this.lightboxOpen.set(false);
-      this.restoreBodyScroll();
-    } else {
-      this.selectedIndex.set(
-        Math.min(Math.max(previousSelectedIndex - removedBeforeSelection, 0), remainingCount - 1),
-      );
-      this.selectedImageFailed.set(false);
-    }
 
     const requests = images.map((image) => {
       const deletion$ = this.publicMode()
@@ -307,25 +296,36 @@ export class Gallery {
     });
 
     forkJoin(requests).subscribe((results) => {
+      const successfulImages = images.filter((_, index) => results[index] !== null);
       const failedImages = images.filter((_, index) => results[index] === null);
-      if (failedImages.length) {
-        this.allImages.update((current) => {
-          const restored = [...current, ...failedImages];
-          return restored.sort(
-            (left, right) => previousImages.indexOf(left) - previousImages.indexOf(right),
-          );
-        });
-        const failedSelected = failedImages.some(
-          (image) => previousImages[previousSelectedIndex] === image,
+      if (successfulImages.length) {
+        this.allImages.update((current) =>
+          current.filter((image) => !successfulImages.includes(image)),
         );
-        if (failedSelected) {
-          this.selectedIndex.set(previousSelectedIndex);
-          this.selectedImageFailed.set(previousSelectedImageFailed);
+        const selectedImageStillVisible = previousSelectedImage
+          ? this.images().some((image) => image.id === previousSelectedImage.id)
+          : false;
+        if (selectedImageStillVisible) {
+          this.selectedIndex.set(
+            this.images().findIndex((image) => image.id === previousSelectedImage!.id),
+          );
+        } else if (this.images().length) {
+          const removedBeforeSelection = indices.filter(
+            (index, resultIndex) => index < previousSelectedIndex && results[resultIndex] !== null,
+          ).length;
+          this.selectedIndex.set(
+            Math.min(
+              Math.max(previousSelectedIndex - removedBeforeSelection, 0),
+              this.images().length - 1,
+            ),
+          );
+          this.selectedImageFailed.set(false);
+        } else if (this.lightboxOpen()) {
+          this.closeLightbox();
         }
-        if (wasLightboxOpen && !this.lightboxOpen() && this.images().length) {
-          this.lightboxOpen.set(true);
-          this.document.body.style.overflow = 'hidden';
-        }
+      }
+
+      if (failedImages.length) {
         this.deleteError.set(
           failedImages.length === images.length
             ? 'These photographs could not be deleted. Please try again.'
@@ -340,9 +340,14 @@ export class Gallery {
           'success',
         );
       }
+      this.pendingDeleteIds.set(new Set());
       this.deletingImageId.set(null);
       this.restoreFocus();
     });
+  }
+
+  isImagePending(imageId: string): boolean {
+    return this.pendingDeleteIds().has(imageId);
   }
 
   isImageFailed(imageId: string): boolean {

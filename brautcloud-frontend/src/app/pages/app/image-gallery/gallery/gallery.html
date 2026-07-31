@@ -35,6 +35,7 @@
             <button
               type="button"
               class="bc-button bc-button--quiet"
+              [disabled]="deletingImageId() !== null"
               (click)="clearImageSelection()"
             >
               Clear selection
@@ -42,6 +43,7 @@
             <button
               type="button"
               class="bc-button bc-button--danger"
+              [disabled]="deletingImageId() !== null"
               (click)="deleteSelectedImages()"
             >
               Delete selected ({{ selectedImageCount() }})
@@ -50,6 +52,7 @@
             <button
               type="button"
               class="bc-button bc-button--secondary"
+              [disabled]="deletingImageId() !== null"
               (click)="selectAllImages()"
             >
               Select all
@@ -60,7 +63,11 @@
     }
     <div class="gallery-masonry" aria-label="Wedding photographs">
       @for (img of images(); track img.id; let i = $index) {
-        <figure class="gallery-photo">
+        <figure
+          class="gallery-photo"
+          [class.gallery-photo--pending]="isImagePending(img.id)"
+          [attr.aria-busy]="isImagePending(img.id) ? 'true' : null"
+        >
           @if (canDelete(img)) {
             <input
               class="gallery-photo__select"
@@ -96,6 +103,9 @@
                 (error)="onGalleryImageError(img.id)"
               />
             </button>
+          }
+          @if (isImagePending(img.id)) {
+            <span class="gallery-photo__pending" role="status">Deleting photograph…</span>
           }
           @if (canDelete(img)) {
             <button

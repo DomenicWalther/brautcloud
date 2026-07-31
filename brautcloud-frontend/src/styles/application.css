@@ -413,6 +413,21 @@
   gap: var(--bc-space-sm);
 }
 
+.gallery-photo--pending {
+  opacity: 0.62;
+}
+
+.gallery-photo__pending {
+  position: absolute;
+  z-index: 3;
+  inset: auto var(--bc-space-sm) var(--bc-space-sm);
+  padding: var(--bc-space-2xs) var(--bc-space-xs);
+  color: var(--bc-color-text-inverse);
+  background: var(--bc-color-surface-inverse);
+  font-size: var(--bc-font-size-xs);
+  text-align: center;
+}
+
 .gallery-photo__select {
   position: absolute;
   z-index: 2;
