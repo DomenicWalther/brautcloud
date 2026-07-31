@@ -43,6 +43,10 @@ public class User {
 	@Builder.Default
 	private String role = "ROLE_USER";
 
+	@Column(nullable = false)
+	@Builder.Default
+	private int tokenVersion = 0;
+
 	@OneToMany(mappedBy = "user")
 	@Builder.Default
 	private List<Event> events = new ArrayList<>();

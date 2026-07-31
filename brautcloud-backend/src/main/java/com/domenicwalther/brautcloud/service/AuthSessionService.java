@@ -18,11 +18,11 @@ public class AuthSessionService {
 
 	private final RefreshTokenService refreshTokenService;
 
-	@Value("${app.cookie.secure}")
-	private boolean cookieSecure;
+	@Value("${app.cookie.secure:true}")
+	private boolean cookieSecure = true;
 
-	@Value("${app.cookie.same-site}")
-	private String cookieSameSite;
+	@Value("${app.cookie.same-site:Strict}")
+	private String cookieSameSite = "Strict";
 
 	public AuthSessionService(JwtService jwtService, RefreshTokenService refreshTokenService) {
 		this.jwtService = jwtService;
@@ -30,9 +30,11 @@ public class AuthSessionService {
 	}
 
 	public AuthResponse issue(User user, HttpServletResponse response) {
-		String accessToken = jwtService.generateToken(user.getEmail());
-		RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+		return issue(user, refreshTokenService.createRefreshToken(user), response);
+	}
 
+	public AuthResponse issue(User user, RefreshToken refreshToken, HttpServletResponse response) {
+		String accessToken = jwtService.generateToken(user);
 		ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken.getToken())
 			.httpOnly(true)
 			.secure(cookieSecure)
@@ -43,6 +45,16 @@ public class AuthSessionService {
 		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
 		return new AuthResponse(accessToken, user.getOnboardingCompletedAt() != null);
+	}
+
+	public ResponseCookie expiredRefreshCookie() {
+		return ResponseCookie.from("refresh_token", "")
+			.httpOnly(true)
+			.secure(cookieSecure)
+			.sameSite(cookieSameSite)
+			.path("/api/auth")
+			.maxAge(0)
+			.build();
 	}
 
 }

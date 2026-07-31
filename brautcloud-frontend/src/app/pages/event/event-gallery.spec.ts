@@ -133,6 +133,42 @@ describe('EventGallery', () => {
     protectedFixture.destroy();
   });
 
+  it('keeps protected gallery prompt and shows incorrect-password feedback after a 401', () => {
+    eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
+    imageService.getPublicEventImages.mockReturnValue(
+      throwError(() => ({ status: 401, statusText: 'Unauthorized' })),
+    );
+    const protectedFixture = TestBed.createComponent(EventGallery);
+    protectedFixture.detectChanges();
+
+    protectedFixture.componentInstance.enteredPassword.set('wrong-password');
+    protectedFixture.componentInstance.submitPassword(new Event('submit'));
+    protectedFixture.detectChanges();
+
+    expect(protectedFixture.componentInstance.verifiedPassword()).toBeNull();
+    expect(protectedFixture.nativeElement.textContent).toContain(
+      'Incorrect password. Please try again.',
+    );
+    expect(protectedFixture.nativeElement.textContent).toContain('This gallery is protected');
+    protectedFixture.destroy();
+  });
+
+  it('renders protected gallery after correct password verification', () => {
+    eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
+    imageService.getPublicEventImages.mockReturnValue(of([]));
+    const protectedFixture = TestBed.createComponent(EventGallery);
+    protectedFixture.detectChanges();
+
+    protectedFixture.componentInstance.enteredPassword.set('gallery-secret');
+    protectedFixture.componentInstance.submitPassword(new Event('submit'));
+    protectedFixture.detectChanges();
+
+    expect(protectedFixture.componentInstance.verifiedPassword()).toBe('gallery-secret');
+    expect(protectedFixture.nativeElement.textContent).toContain('Share your photographs');
+    expect(protectedFixture.nativeElement.textContent).not.toContain('This gallery is protected');
+    protectedFixture.destroy();
+  });
+
   it('passes verified gallery password into guest upload submission', () => {
     eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
     const protectedFixture = TestBed.createComponent(EventGallery);

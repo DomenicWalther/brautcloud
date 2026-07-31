@@ -1,5 +1,6 @@
 package com.domenicwalther.brautcloud.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,12 @@ public class GuestSessionService {
 
 	private static final SecureRandom RANDOM = new SecureRandom();
 
+	@Value("${app.cookie.secure:true}")
+	private boolean cookieSecure = true;
+
+	@Value("${app.guest-cookie.same-site:Lax}")
+	private String cookieSameSite = "Lax";
+
 	public String createToken() {
 		byte[] token = new byte[32];
 		RANDOM.nextBytes(token);
@@ -25,14 +32,10 @@ public class GuestSessionService {
 	}
 
 	public ResponseCookie createCookie(String token) {
-		return createCookie(token, false);
-	}
-
-	public ResponseCookie createCookie(String token, boolean secure) {
 		return ResponseCookie.from(COOKIE_NAME, token)
 			.httpOnly(true)
-			.secure(secure)
-			.sameSite("Lax")
+			.secure(cookieSecure)
+			.sameSite(cookieSameSite)
 			.path("/")
 			.maxAge(Duration.ofDays(30))
 			.build();

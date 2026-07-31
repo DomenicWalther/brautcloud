@@ -72,8 +72,7 @@ public class EventController {
 		String sessionToken = issueNewSession ? guestSessionService.createToken() : guestSessionToken;
 		ResponseEntity.BodyBuilder response = ResponseEntity.ok();
 		if (issueNewSession) {
-			response.header(HttpHeaders.SET_COOKIE,
-					guestSessionService.createCookie(sessionToken, servletRequest.isSecure()).toString());
+			response.header(HttpHeaders.SET_COOKIE, guestSessionService.createCookie(sessionToken).toString());
 		}
 		String clientAddress = servletRequest.getRemoteAddr() == null ? "unknown" : servletRequest.getRemoteAddr();
 		List<ImageUploadResponse> uploads = request.getContentTypes() == null && request.getFileSizes() == null

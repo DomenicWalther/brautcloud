@@ -198,6 +198,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(jsonPath("$.length()").value(1))
 			.andReturn();
 		Cookie guestCookie = presignResult.getResponse().getCookie(GuestSessionService.COOKIE_NAME);
+		assertThat(guestCookie.getSecure()).isTrue();
+		assertThat(presignResult.getResponse().getHeader("Set-Cookie")).contains("SameSite=Lax");
 
 		Image image = imageRepository.findAll()
 			.stream()

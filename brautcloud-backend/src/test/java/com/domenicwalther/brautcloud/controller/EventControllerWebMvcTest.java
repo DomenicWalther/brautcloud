@@ -119,7 +119,7 @@ class EventControllerWebMvcTest {
 		UUID eventId = UUID.randomUUID();
 		UUID imageId = UUID.randomUUID();
 		when(guestSessionService.createToken()).thenReturn("guest-session-token");
-		when(guestSessionService.createCookie("guest-session-token", false))
+		when(guestSessionService.createCookie("guest-session-token"))
 			.thenReturn(ResponseCookie.from("brautcloud-guest-session", "guest-session-token").build());
 		when(imageService.generatePublicPresignedUploadUrls(eq(eventId), eq("secret"),
 				argThat(fileNames -> fileNames.equals(List.of("guest.jpg"))), eq("guest-session-token"), anyString()))

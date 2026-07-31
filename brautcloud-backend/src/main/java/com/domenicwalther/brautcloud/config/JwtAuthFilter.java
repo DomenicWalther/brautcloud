@@ -1,5 +1,7 @@
 package com.domenicwalther.brautcloud.config;
 
+import com.domenicwalther.brautcloud.model.User;
+import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.service.CustomUserDetailsService;
 import com.domenicwalther.brautcloud.service.JwtService;
 import io.jsonwebtoken.JwtException;
@@ -7,6 +9,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,9 +31,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private final CustomUserDetailsService userDetailsService;
 
-	public JwtAuthFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+	private final UserRepository userRepository;
+
+	public JwtAuthFilter(JwtService jwtService, CustomUserDetailsService userDetailsService,
+			ObjectProvider<UserRepository> userRepositoryProvider) {
 		this.jwtService = jwtService;
 		this.userDetailsService = userDetailsService;
+		this.userRepository = userRepositoryProvider.getIfAvailable();
 	}
 
 	@Override
@@ -49,8 +56,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
 			if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 				UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+				User user = userRepository == null ? null : userRepository.findPreferredByEmail(email).orElse(null);
+				int tokenVersion = user == null ? 0 : user.getTokenVersion();
 
-				if (jwtService.isTokenValid(token, userDetails)) {
+				if (jwtService.isTokenValid(token, userDetails, tokenVersion)
+						&& (userRepository == null || user != null)) {
 					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
 							null, userDetails.getAuthorities());
 					authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
