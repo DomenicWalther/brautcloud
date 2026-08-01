@@ -123,6 +123,23 @@ describe('EventGallery', () => {
     );
   });
 
+  it('releases guest preview URLs when destroyed', () => {
+    const originalRevoke = URL.revokeObjectURL;
+    const revokeObjectURL = vi.fn();
+    URL.revokeObjectURL = revokeObjectURL;
+    fixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'guest.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:guest-preview',
+      },
+    ]);
+
+    fixture.destroy();
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:guest-preview');
+    URL.revokeObjectURL = originalRevoke;
+  });
+
   it('does not expose guest upload controls before protected gallery verification', () => {
     eventService.getPublicEvent.mockReturnValue(of({ ...eventFixture, passwordProtected: true }));
     const protectedFixture = TestBed.createComponent(EventGallery);
