@@ -8,6 +8,7 @@ import com.domenicwalther.brautcloud.repository.RefreshTokenRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.service.OnboardingService;
+import com.domenicwalther.brautcloud.support.PostgresTestSupport;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
@@ -39,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class UserControllerTest {
 
-	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(PostgresTestSupport.IMAGE);
 
 	@LocalServerPort
 	private Integer port;
