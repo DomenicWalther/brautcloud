@@ -221,6 +221,24 @@ describe('Home gallery preview and photos stat', () => {
     expect(fixture.componentInstance.stats().photos).toBe('0');
   });
 
+  it('keeps newer event images when an older request resolves later', () => {
+    const firstLoad = new Subject<EventImageDto[]>();
+    imageService.getEventImages.mockImplementation((eventId: string) =>
+      eventId === 'event-1' ? firstLoad : of([image2]),
+    );
+    user.set({ ...userTemplate, events: [event] });
+    fixture.detectChanges();
+
+    user.set({ ...userTemplate, events: [eventFixture({ id: 'event-2' })] });
+    fixture.detectChanges();
+    firstLoad.next([image1]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.previewPhotos().map((photo) => photo.url)).toEqual([
+      image2.url,
+    ]);
+  });
+
   it('copies canonical gallery URL through secure clipboard and reports success', async () => {
     user.set({ ...userTemplate, events: [event] });
     imageService.getEventImages.mockReturnValue(of([]));
