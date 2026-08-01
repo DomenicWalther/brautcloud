@@ -45,7 +45,7 @@ This is a static audit plus available test execution, not a penetration test or 
 | S-04 | High | Confirmed | Reliability/security | Transient S3 failures can delete valid upload records |
 | S-05 | High | Confirmed | Deployment | Production frontend uses localhost HTTP URLs |
 | S-06 | Medium | Confirmed | Resource exhaustion | Batch IDs, request bodies, passwords, and exports are insufficiently bounded |
-| S-07 | Medium | Confirmed | Observability | Security and Flyway TRACE/DEBUG logging is enabled by default |
+| S-07 | Medium | Remediated | Observability | Security and Flyway logging defaults are now bounded |
 | S-08 | Medium | Needs verification | Transport security | S3 endpoint configuration does not enforce HTTPS |
 | R-01 | High | High | Data integrity | Event deletion can race with new uploads |
 | R-02 | Medium | Confirmed | Distributed processing | Deletion jobs have no lease or claim protocol |
@@ -59,7 +59,7 @@ This is a static audit plus available test execution, not a penetration test or 
 | A-01 | Medium | Confirmed | Architecture | Large services combine too many responsibilities |
 | A-02 | Medium | Confirmed | Architecture | Upload/deletion lifecycle lacks explicit state transitions |
 | A-03 | Medium | Confirmed | Operations | Production deployment/security configuration is mostly externalized |
-| C-01 | Medium | Confirmed | Dependencies | Compose uses mutable image tags and a hardcoded password |
+| C-01 | Medium | Confirmed | Dependencies | Compose uses mutable image tags and requires local secret input |
 | C-02 | Medium | High | Supply chain | Backend dependency scanning and SBOM generation are missing |
 | C-03 | Low | Confirmed | Tooling | Angular declares npm while the project uses pnpm |
 
@@ -148,18 +148,9 @@ Recommendation: enforce request body limits, cap ID lists, add password/email ma
 
 ## S-07 — Security and Flyway TRACE/DEBUG logging is enabled by default
 
-Severity: Medium. Confidence: Confirmed.
+Status: Remediated in current branch.
 
-Affected code: `brautcloud-backend/src/main/resources/application.properties`, lines 29–30.
-
-The default configuration enables:
-
-```properties
-logging.level.org.springframework.security=TRACE
-logging.level.org.flywaydb=DEBUG
-```
-
-Move verbose logging into local development profiles and use INFO/WARN in production.
+The default configuration now uses `WARN` for Spring Security and `INFO` for Flyway. Gallery password migration reports only the number of records updated; it never logs password material.
 
 ## S-08 — S3 endpoint does not enforce HTTPS
 
@@ -255,7 +246,7 @@ There are no visible production manifests, reverse-proxy configuration, security
 
 ## C-01 — Compose configuration is unsafe by default
 
-`brautcloud-backend/compose.yaml` uses mutable `latest` tags, a hardcoded `POSTGRES_PASSWORD=secret`, exposed database/object-storage ports, and local filesystem mounts. Pin versions, use ignored environment files or secrets, and bind services to localhost.
+`brautcloud-backend/compose.yaml` still uses mutable `latest` tags, exposed database/object-storage ports, and local filesystem mounts. Database credentials are now required from the process environment rather than stored in the compose file. Pin versions and bind services to localhost before production use.
 
 ## C-02 — Backend dependency scanning and SBOM generation are missing
 
@@ -694,8 +685,7 @@ These are the concrete refactoring rules I would apply throughout the codebase:
 4. Add minimum gallery-password strength requirements.
 5. Replace production localhost URLs and assert against them in CI.
 6. Cap request bodies, UUID batches, passwords, and synchronous ZIP exports.
-7. Remove TRACE/DEBUG logging from production defaults.
-8. Pin Compose images and remove the hardcoded database password.
+7. Pin Compose images and bind local services to localhost.
 
 ## Next sprint
 

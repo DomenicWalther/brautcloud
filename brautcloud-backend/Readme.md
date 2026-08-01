@@ -33,9 +33,29 @@ Add these variables in your Doppler project/config:
 | `POSTGRES_USER`         | Username for Postgres |
 | `POSTGRES_PW`           | Password for Postgres |
 
-> These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections.
+> These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections. Never copy production values into this repository or into issue/PR text.
 
 Included in this Project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot.
+
+### Local-only setup
+
+Docker Compose requires a locally chosen PostgreSQL password; it is intentionally not stored in `compose.yaml`:
+
+```bash
+export POSTGRES_PASSWORD='choose-a-local-only-password'
+docker compose up -d postgres aistor
+```
+
+Use Doppler or an equivalent local secret manager for `AWS_*`, `POSTGRES_*`, and `JWT_SECRET` when running the application. Do not create a checked-in `.env` file. `src/test/resources/application-test.properties` contains non-secret placeholders; the test suite replaces storage calls with a test double and needs no live credentials.
+
+Bruno requests under `src/bruno/Brautcloud` also avoid checked-in credentials. Set local environment variables before using auth requests:
+
+```bash
+export BRAUTCLOUD_LOCAL_TEST_EMAIL='local-user@example.invalid'
+export BRAUTCLOUD_LOCAL_TEST_PASSWORD='choose-another-local-only-password'
+```
+
+Register and log in with those values, then set `BRAUTCLOUD_ACCESS_TOKEN` from that local response for `Users::GetUser`. Never commit exported values or bearer tokens.
 
 ## Running the backend test suite
 

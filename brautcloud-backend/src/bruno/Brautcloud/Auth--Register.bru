@@ -12,8 +12,8 @@ post {
 
 body:json {
   {
-    "email": "test@mail.de",
-    "password": "mypassword"
+    "email": "{{$processEnv BRAUTCLOUD_LOCAL_TEST_EMAIL}}",
+    "password": "{{$processEnv BRAUTCLOUD_LOCAL_TEST_PASSWORD}}"
   }
 }
 
