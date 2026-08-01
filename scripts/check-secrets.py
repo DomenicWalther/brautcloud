@@ -30,6 +30,7 @@ CONFIG_SUFFIXES = (
 )
 SAFE_MARKERS = (
     "change-me",
+    "change_me",
     "dummy",
     "example",
     "local-only",
