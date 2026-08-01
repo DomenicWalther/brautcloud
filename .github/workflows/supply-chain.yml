@@ -1,0 +1,135 @@
+name: Supply chain checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend dependency checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: brautcloud-backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up GraalVM JDK 25
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: graalvm
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: brautcloud-backend/pom.xml
+
+      - name: Verify Maven wrapper
+        run: ./mvnw -B --version
+
+      - name: Verify dependency checksums
+        shell: bash
+        run: |
+          set -u
+          for attempt in 1 2 3; do
+            if ./mvnw -B -ntp -Daether.checksums.fail=true \
+              org.apache.maven.plugins:maven-dependency-plugin:3.9.0:go-offline \
+              -DskipTests; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
+
+      - name: Generate backend SBOM
+        shell: bash
+        run: |
+          set -u
+          for attempt in 1 2 3; do
+            if ./mvnw -B -ntp \
+              org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom \
+              -DskipTests \
+              -DoutputFormat=json \
+              -DoutputName=bom; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 15))
+          done
+
+      # Scan resolved CycloneDX dependencies directly. This avoids OSV Maven
+      # transitive-resolution rate limits without omitting transitive dependencies.
+      - name: Scan backend SBOM for vulnerabilities
+        id: osv-scan-1
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@9fd1bcce27f67e3bd819a0a7620e332803dc43bc # v2.3.8
+        with:
+          scan-args: |-
+            scan
+            source
+            --lockfile
+            brautcloud-backend/target/bom.json
+
+      - name: Back off before dependency scan retry
+        if: ${{ steps.osv-scan-1.outcome == 'failure' }}
+        run: sleep 15
+
+      - name: Scan backend SBOM for vulnerabilities (retry)
+        id: osv-scan-2
+        if: ${{ steps.osv-scan-1.outcome == 'failure' }}
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@9fd1bcce27f67e3bd819a0a7620e332803dc43bc # v2.3.8
+        with:
+          scan-args: |-
+            scan
+            source
+            --lockfile
+            brautcloud-backend/target/bom.json
+
+      - name: Back off before final dependency scan retry
+        if: ${{ steps.osv-scan-2.outcome == 'failure' }}
+        run: sleep 30
+
+      - name: Scan backend SBOM for vulnerabilities (final retry)
+        id: osv-scan-3
+        if: ${{ steps.osv-scan-2.outcome == 'failure' }}
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@9fd1bcce27f67e3bd819a0a7620e332803dc43bc # v2.3.8
+        with:
+          scan-args: |-
+            scan
+            source
+            --lockfile
+            brautcloud-backend/target/bom.json
+
+      - name: Enforce dependency scan gate
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.osv-scan-1.outcome }}" == "success" \
+            || "${{ steps.osv-scan-2.outcome }}" == "success" \
+            || "${{ steps.osv-scan-3.outcome }}" == "success" ]]; then
+            exit 0
+          fi
+          exit 1
+
+      - name: Upload dependency reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-supply-chain-reports
+          path: brautcloud-backend/target/bom.json
+          if-no-files-found: ignore

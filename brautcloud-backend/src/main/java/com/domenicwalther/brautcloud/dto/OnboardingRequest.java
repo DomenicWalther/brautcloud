@@ -3,6 +3,7 @@ package com.domenicwalther.brautcloud.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.domenicwalther.brautcloud.validation.StrongGalleryPassword;
 
 import java.time.LocalDateTime;
 
@@ -16,5 +17,5 @@ public record OnboardingRequest(
 		@NotBlank(message = "Venue is required") @Size(max = 255,
 				message = "Venue must not exceed 255 characters") String venue,
 		@NotNull(message = "Event date is required") LocalDateTime date,
-		@Size(max = 72, message = "Password must not exceed 72 characters") String password) {
+		@Size(max = 72, message = "Password must not exceed 72 characters") @StrongGalleryPassword String password) {
 }

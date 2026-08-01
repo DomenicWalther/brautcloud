@@ -1,5 +1,6 @@
 package com.domenicwalther.brautcloud.repository;
 
+import com.domenicwalther.brautcloud.dto.EventSummary;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
 import com.domenicwalther.brautcloud.model.Image;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
@@ -73,6 +75,26 @@ class PersistenceIntegrationTest extends PostgresIntegrationTest {
 		assertThat(image.getCreatedAt()).isNotNull();
 		assertThat(image.isVisible()).isTrue();
 		assertThat(image.isUploaded()).isFalse();
+	}
+
+	@Test
+	void entityStringMethodsDoNotInitializeLazyRelationships() {
+		User user = userRepository.saveAndFlush(TestFixtures.user("owner@example.com"));
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(user, "Wedding"));
+		imageRepository.saveAndFlush(TestFixtures.image(event, "photo.jpg", true));
+		entityManager.clear();
+
+		User persistedUser = entityManager.find(User.class, user.getId());
+		Event persistedEvent = entityManager.find(Event.class, event.getId());
+		var persistenceUnitUtil = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
+		assertThat(persistenceUnitUtil.isLoaded(persistedUser, "events")).isFalse();
+		assertThat(persistenceUnitUtil.isLoaded(persistedEvent, "images")).isFalse();
+
+		persistedUser.toString();
+		persistedEvent.toString();
+
+		assertThat(persistenceUnitUtil.isLoaded(persistedUser, "events")).isFalse();
+		assertThat(persistenceUnitUtil.isLoaded(persistedEvent, "images")).isFalse();
 	}
 
 	@Test
@@ -148,6 +170,31 @@ class PersistenceIntegrationTest extends PostgresIntegrationTest {
 		assertThatThrownBy(() -> eventGuestVisitRepository
 			.saveAndFlush(EventGuestVisit.builder().event(event).visitorId(visitorId).build()))
 			.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
+	void eventSummaryProjectionIncludesGuestCountsWithoutPerEventReads() {
+		User user = userRepository.saveAndFlush(TestFixtures.user("owner@example.com"));
+		Event first = eventRepository.saveAndFlush(TestFixtures.event(user, "First"));
+		Event second = eventRepository.saveAndFlush(TestFixtures.event(user, "Second"));
+		eventGuestVisitRepository
+			.saveAndFlush(EventGuestVisit.builder().event(first).visitorId(UUID.randomUUID()).build());
+		eventGuestVisitRepository
+			.saveAndFlush(EventGuestVisit.builder().event(first).visitorId(UUID.randomUUID()).build());
+
+		List<EventSummary> summaries = eventRepository.findEventSummariesByUser(user, PageRequest.of(0, 100));
+
+		assertThat(summaries).hasSize(2);
+		assertThat(summaries.stream()
+			.filter(summary -> summary.id().equals(first.getId()))
+			.findFirst()
+			.orElseThrow()
+			.guestCount()).isEqualTo(2);
+		assertThat(summaries.stream()
+			.filter(summary -> summary.id().equals(second.getId()))
+			.findFirst()
+			.orElseThrow()
+			.guestCount()).isZero();
 	}
 
 	@Test

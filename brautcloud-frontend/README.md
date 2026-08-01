@@ -19,7 +19,9 @@ The app serves at `http://localhost:4200/` and reloads when source files change.
 
 ```bash
 pnpm start                    # ng serve
-pnpm run build
+BRAUTCLOUD_API_URL=https://api.example.com/api BRAUTCLOUD_APP_URL=https://app.example.com pnpm run build
+pnpm run assert:production-config
+pnpm run test:production-config
 pnpm run format:check
 pnpm run typecheck
 pnpm run security:audit       # production dependencies; high/critical fail
@@ -29,7 +31,7 @@ pnpm run watch
 
 ## Build output
 
-`pnpm run build` creates a production build in `dist/`.
+`pnpm run build` creates a production build in `dist/`. Production builds require `BRAUTCLOUD_API_URL` and `BRAUTCLOUD_APP_URL`; both must be absolute HTTPS URLs. The build removes its generated environment file after completion and rejects artifacts containing localhost or insecure API URLs. Development configuration keeps local URLs in `src/environments/environment.development.ts`.
 
 ## Validation
 
