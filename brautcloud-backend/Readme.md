@@ -1,76 +1,92 @@
-# Brautcloud Backend
+# Brautcloud backend
 
-> Backend for Brautcloud, a Service where guest can share the pictures they took at a Wedding with the bride & groom. 
+Spring Boot backend for Brautcloud. Runtime operations and launch gates live in
+[`../RUNBOOK.md`](../RUNBOOK.md); storage-specific controls live in
+[`STORAGE_OPERATIONS.md`](STORAGE_OPERATIONS.md).
 
-## Overview
-This is a backend project built with **Java, SpringBoot, AiSto and Postgres**. 
-Currently it's in early development.
+## Local development
 
-
-## Getting started
-```bash 
-# Clone the repo
-git clone https://github.com/domenicwalther/brautcloud-backend.git
-cd brautcloud-backend
-```
-
-> **Note:** At this stage, the Docker Compose Spring setup is disabled. Make sure to run `docker compose up` manually and have an AiStor container running.
-
-## Environment Variables
-This Project uses [Doppler](https://www.doppler.com/) to manage environment variables securely.
-Make sure you have Doppler installed and are logged in.
-
-### Required Variables
-
-Add these variables in your Doppler project/config:
-
-| Key                   | Description |
-|-----------------------|-------------|
-| `AWS_ACCESS_KEY_ID`     | Access key for local S3 (aistore) |
-| `AWS_SECRET_ACCESS_KEY` | Secret key for local S3 (aistore) |
-| `AWS_ENDPOINT`          | Endpoint URL for the local S3 server |
-| `POSTGRES_URL`          | Hostname or URL of the Postgres database |
-| `POSTGRES_USER`         | Username for Postgres |
-| `POSTGRES_PW`           | Password for Postgres |
-
-> These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections.
-
-Included in this Project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot.
-
-## Running the backend test suite
-
-Prerequisites:
-
-- JDK 21 (the Maven wrapper downloads Maven itself)
-- a running Docker-compatible container daemon
-- permission to pull and run `postgres:16-alpine`
-
-No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The full clean suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against one shared PostgreSQL Testcontainer while replacing S3 operations with a test double.
-
-Run the complete suite from a clean build:
+Compose provides local PostgreSQL and AiStor dependencies only. It is not a
+production deployment or backup solution. Images are digest-pinned, ports bind to
+loopback, and named volumes persist local data.
 
 ```bash
 cd brautcloud-backend
+cp .env.example .env
+# Replace every CHANGE_ME value. Keep .env and .local/ untracked.
+mkdir -p .local
+# Provide .local/minio.license when using the licensed AiStor image.
+docker compose up -d
+```
+
+Run Spring Boot separately with `.env` values exported or supplied by Doppler:
+
+```bash
+set -a; . ./.env; set +a
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+`APP_COOKIE_SECURE=false` and an HTTP `AWS_ENDPOINT` are local-only exceptions.
+Never copy those values into production. `docker compose down` preserves named
+volumes; removing them intentionally discards local database and object data.
+
+## Runtime configuration
+
+Production values must come from the deployment target's secret/configuration
+system. Never commit credentials or expose them to the frontend.
+
+| Variable | Purpose |
+|---|---|
+| `POSTGRES_URL` | JDBC URL for PostgreSQL. |
+| `POSTGRES_USER`, `POSTGRES_PW` | Database credentials. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Least-privilege S3-compatible storage credentials or workload identity. |
+| `AWS_ENDPOINT` | S3-compatible endpoint; HTTPS outside local/test. |
+| `JWT_SECRET` | Required high-entropy JWT signing secret; use at least 256 bits. |
+| `APP_ALLOWED_ORIGINS` | Exact comma-separated trusted browser origins. |
+| `APP_COOKIE_SECURE` | `true` in production; `false` only for local HTTP. |
+| `APP_COOKIE_SAME_SITE` | Auth refresh-cookie SameSite policy, normally `Strict`. |
+| `APP_GUEST_COOKIE_SAME_SITE` | Guest-cookie SameSite policy, normally `Lax`. |
+
+JWT secret rotation is operationally significant: this version has one active
+verification secret and no dual-key transition. Coordinate a backend restart,
+expect existing JWT access/guest tokens to require re-authentication, verify
+refresh behavior, and retire the old value through the secret manager. Do not
+attempt zero-downtime rotation until overlapping-key support exists.
+
+## Database migrations
+
+Flyway owns `src/main/resources/db/migration`; Hibernate schema generation is
+disabled. Run migrations through one controlled startup owner. Never edit an
+applied migration or bypass Flyway. Back up and rehearse restore before destructive
+or locking changes. Use expand/contract compatibility before removing old columns.
+A failed migration must be fixed or restored by the database owner; do not switch
+to H2 or enable automatic Hibernate DDL.
+
+## Tests
+
+Prerequisites for the complete suite:
+
+- JDK 21 (the Maven wrapper downloads Maven itself).
+- Docker-compatible container daemon with permission to run PostgreSQL 16.
+
+Run from a clean build:
+
+```bash
 ./mvnw clean test
 ```
 
-This full run requires a reachable Docker-compatible socket. If Docker Desktop, Podman, or another compatible daemon is not running, the PostgreSQL-backed integration tests fail before the Spring context finishes booting.
-
-For rootless Podman, expose its Docker-compatible socket first. Some Podman setups also require Ryuk to be disabled; the suite has its own shutdown hook for the shared PostgreSQL container:
-
-```bash
-systemctl --user start podman.socket
-DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/podman/podman.sock" \
-  TESTCONTAINERS_RYUK_DISABLED=true \
-  ./mvnw clean test
-```
-
-Focused unit and MVC slice tests can run without a container, for example:
+The suite uses PostgreSQL Testcontainers for production-like SQL semantics and safe
+storage test doubles. It does not need Doppler, local Compose, live AWS credentials,
+or a live S3-compatible service. Focused tests can run without a container, for example:
 
 ```bash
 ./mvnw -Dtest=JwtServiceTest,EventControllerWebMvcTest test
 ```
 
-Database integration tests intentionally use PostgreSQL through Testcontainers rather than H2 so constraints, UUIDs, migrations, cascade behavior, and SQL semantics match production.
+For rootless Podman:
 
-Storage deployment requirements, bucket privacy assumptions, presign lifetimes, deletion retries, lifecycle, IAM, and backup ownership are documented in [STORAGE_OPERATIONS.md](STORAGE_OPERATIONS.md). The application accepts a configurable S3-compatible endpoint and does not prescribe a production provider.
+```bash
+systemctl --user start podman.socket
+DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/podman/podman.sock" \
+  TESTCONTAINERS_RYUK_DISABLED=true ./mvnw clean test
+```
