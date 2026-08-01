@@ -62,14 +62,6 @@ public class EventService {
 		this.storageDeletionService = storageDeletionService;
 	}
 
-	public List<EventResponse> getEvents() {
-		return eventRepository.findAll()
-			.stream()
-			.filter(event -> !event.isDeletionRequested())
-			.map(EventResponse::fromEvent)
-			.toList();
-	}
-
 	public List<EventResponse> getEventsByUserEmail(String email) {
 		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
