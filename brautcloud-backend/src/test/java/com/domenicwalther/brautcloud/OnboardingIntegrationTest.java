@@ -78,13 +78,13 @@ class OnboardingIntegrationTest extends FullStackIntegrationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(
 						"""
-								{"firstName":"Sophie","partnerFirstName":"Marcus","familyName":"Müller-Weber","venue":"Eichenfürst","date":"2030-06-15T00:00:00","password":"secret"}
+								{"firstName":"Sophie","partnerFirstName":"Marcus","familyName":"Müller-Weber","venue":"Eichenfürst","date":"2030-06-15T00:00:00","password":"Secret-Gallery9!"}
 								"""))
 			.andExpect(status().isOk());
 
 		Event event = eventRepository.findByUser(owner).getFirst();
 		assertThat(event.getPassword()).isNotNull();
-		assertThat(passwordEncoder.matches("secret", event.getPassword())).isTrue();
+		assertThat(passwordEncoder.matches("Secret-Gallery9!", event.getPassword())).isTrue();
 	}
 
 	@Test

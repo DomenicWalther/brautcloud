@@ -180,7 +180,7 @@ class UserControllerTest {
 			.contentType(ContentType.JSON)
 			.header(HttpHeaders.SET_COOKIE, nullValue())
 			.body("error", equalTo("Bad Request"))
-			.body("message", equalTo("Email already used!"));
+			.body("message", equalTo("Unable to complete registration"));
 
 		assertEquals(1, userRepository.count());
 	}
@@ -199,7 +199,7 @@ class UserControllerTest {
 			.contentType(ContentType.JSON)
 			.header(HttpHeaders.SET_COOKIE, nullValue())
 			.body("error", equalTo("Bad Request"))
-			.body("message", equalTo("Email already used!"));
+			.body("message", equalTo("Unable to complete registration"));
 
 		assertEquals(1, userRepository.count());
 	}
