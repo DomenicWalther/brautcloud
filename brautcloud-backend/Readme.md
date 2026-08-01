@@ -14,81 +14,79 @@ git clone https://github.com/domenicwalther/brautcloud-backend.git
 cd brautcloud-backend
 ```
 
-> **Note:** At this stage, the Docker Compose Spring setup is disabled. Make sure to run `docker compose up` manually and have an AiStor container running.
+> **Note:** Docker Compose does not start Spring Boot. Run `docker compose up -d` manually, then start an AiStor container with its license mounted.
 
 ## Environment Variables
-This Project uses [Doppler](https://www.doppler.com/) to manage environment variables securely.
-Make sure you have Doppler installed and are logged in.
+This project uses [Doppler](https://www.doppler.com/) to manage environment variables securely. For local development, activate Spring's `local` profile; it is the only non-test profile that permits an HTTP S3 endpoint and enables verbose security/Flyway logs.
 
 ### Required Variables
 
 Add these variables in your Doppler project/config:
 
-| Key                   | Description |
-|-----------------------|-------------|
-| `AWS_ACCESS_KEY_ID`     | Access key for local S3 (aistore) |
-| `AWS_SECRET_ACCESS_KEY` | Secret key for local S3 (aistore) |
-| `AWS_ENDPOINT`          | Endpoint URL for the local S3 server |
-| `POSTGRES_URL`          | Hostname or URL of the Postgres database |
-| `POSTGRES_USER`         | Username for Postgres |
-| `POSTGRES_PW`           | Password for Postgres |
+| Key | Description |
+|-----|-------------|
+| `SPRING_PROFILES_ACTIVE` | Set to `local` for local development. |
+| `AWS_ACCESS_KEY_ID` | Access key for local S3 (AiStor). |
+| `AWS_SECRET_ACCESS_KEY` | Secret key for local S3 (AiStor). |
+| `AWS_ENDPOINT` | S3 endpoint, normally `http://127.0.0.1:9000` locally; HTTPS is required outside `local`/`test`. |
+| `POSTGRES_URL` | JDBC URL, normally `jdbc:postgresql://127.0.0.1:5432/mydatabase` locally. |
+| `POSTGRES_USER` | PostgreSQL username; Compose reads same variable. |
+| `POSTGRES_PW` | PostgreSQL password; Compose reads same variable. |
+| `JWT_SECRET` | JWT signing secret. |
+| `APP_ALLOWED_ORIGINS` | Comma-separated browser origins, normally `http://localhost:4200` locally. |
 
-> These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections. Never copy production values into this repository or into issue/PR text.
+`POSTGRES_DB` is optional for Compose and defaults to `mydatabase`. Never commit credential values. Compose binds PostgreSQL and AiStor ports to loopback only.
 
-Included in this Project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot.
-
-### Local-only setup
-
-Docker Compose requires a locally chosen PostgreSQL password; it is intentionally not stored in `compose.yaml`:
-
-```bash
-export POSTGRES_PASSWORD='choose-a-local-only-password'
-docker compose up -d postgres aistor
-```
-
-Use Doppler or an equivalent local secret manager for `AWS_*`, `POSTGRES_*`, and `JWT_SECRET` when running the application. Do not create a checked-in `.env` file. `src/test/resources/application-test.properties` contains non-secret placeholders; the test suite replaces storage calls with a test double and needs no live credentials.
-
-Bruno requests under `src/bruno/Brautcloud` also avoid checked-in credentials. Set local environment variables before using auth requests:
+Start local dependencies with credentials exported:
 
 ```bash
-export BRAUTCLOUD_LOCAL_TEST_EMAIL='local-user@example.invalid'
-export BRAUTCLOUD_LOCAL_TEST_PASSWORD='choose-another-local-only-password'
+export SPRING_PROFILES_ACTIVE=local
+export POSTGRES_USER=brautcloud
+export POSTGRES_PW='change-me-locally'
+docker compose up -d
 ```
 
-Register and log in with those values, then set `BRAUTCLOUD_ACCESS_TOKEN` from that local response for `Users::GetUser`. Never commit exported values or bearer tokens.
+Included in this project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot. Ensure Doppler provides all required variables above.
 
 ## Running the backend test suite
 
-Prerequisites:
+Prerequisites for backend verification:
 
-- JDK 21 (the Maven wrapper downloads Maven itself)
-- a running Docker-compatible container daemon
-- permission to pull and run `postgres:16-alpine`
+- GraalVM JDK 25 (the Maven compiler target and CI runtime are Java 25)
+- Maven 3.9.12 through the checked-in Maven wrapper
+- Docker Engine/Desktop or rootless Podman with a Docker-compatible socket
+- permission to pull and run the pinned test image `postgres:16-alpine`
 
-No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The full clean suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against one shared PostgreSQL Testcontainer while replacing S3 operations with a test double.
+Spring Boot 4.0.2 manages Testcontainers 2.0.3. All PostgreSQL-backed tests use the same `postgres:16-alpine` policy; do not replace it with `latest` or another major version without updating the test support and this document.
 
-Run the complete suite from a clean build:
+No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against PostgreSQL Testcontainers while replacing S3 operations with a test double.
+
+Run the exact backend verification used by CI from a clean build:
 
 ```bash
 cd brautcloud-backend
-./mvnw clean test
+./mvnw -B clean verify
 ```
 
-This full run requires a reachable Docker-compatible socket. If Docker Desktop, Podman, or another compatible daemon is not running, the PostgreSQL-backed integration tests fail before the Spring context finishes booting.
-
-For rootless Podman, expose its Docker-compatible socket first. Some Podman setups also require Ryuk to be disabled; the suite has its own shutdown hook for the shared PostgreSQL container:
+Docker users must have a reachable daemon before running the command:
 
 ```bash
-systemctl --user start podman.socket
+docker info
+```
+
+For rootless Podman, expose its Docker-compatible socket first. Ryuk is disabled for this suite because its shared PostgreSQL container has an explicit shutdown hook:
+
+```bash
+systemctl --user enable --now podman.socket
 DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/podman/podman.sock" \
   TESTCONTAINERS_RYUK_DISABLED=true \
-  ./mvnw clean test
+  ./mvnw -B clean verify
 ```
 
-Focused unit and MVC slice tests can run without a container, for example:
+If neither `docker info` nor the Podman socket is reachable, PostgreSQL-backed tests fail before the Spring context finishes booting. Focused unit and MVC slice tests can run without a container, for example:
 
 ```bash
-./mvnw -Dtest=JwtServiceTest,EventControllerWebMvcTest test
+./mvnw -B -Dtest=JwtServiceTest,EventControllerWebMvcTest test
 ```
 
 Database integration tests intentionally use PostgreSQL through Testcontainers rather than H2 so constraints, UUIDs, migrations, cascade behavior, and SQL semantics match production.

@@ -11,6 +11,7 @@ import com.domenicwalther.brautcloud.repository.StorageDeletionJobRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.service.GuestSessionService;
 import com.domenicwalther.brautcloud.service.ImageService;
+import com.domenicwalther.brautcloud.service.ImageVerificationResult;
 import com.domenicwalther.brautcloud.service.JwtService;
 import com.domenicwalther.brautcloud.support.FullStackIntegrationTest;
 import com.domenicwalther.brautcloud.support.TestFixtures;
@@ -27,6 +28,7 @@ import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
@@ -84,7 +86,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		eventRepository.deleteAll();
 		userRepository.deleteAll();
 		reset(s3Service);
-		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), nullable(Long.class))).thenReturn(true);
+		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), anyLong()))
+			.thenReturn(ImageVerificationResult.VALID);
 	}
 
 	@Test
@@ -99,8 +102,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isOk());
 		Event event = eventRepository.findByUser(owner).getFirst();
 		assertThat(event.getEventName()).isEqualTo("Wedding");
-		assertThat(event.getPassword()).isNotEqualTo("guest-secret");
-		assertThat(passwordEncoder.matches("guest-secret", event.getPassword())).isTrue();
+		assertThat(event.getPassword()).isNotEqualTo("Guest-Secret123!");
+		assertThat(passwordEncoder.matches("Guest-Secret123!", event.getPassword())).isTrue();
 
 		mockMvc.perform(get("/api/events").header("Authorization", bearer(token)))
 			.andExpect(status().isOk())
@@ -109,14 +112,13 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(jsonPath("$[0].password").doesNotExist())
 			.andExpect(jsonPath("$[0].hasPassword").value(true));
 
-		when(s3Service.getPresignedPutUrl(anyString()))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
-		mockMvc
-			.perform(
-					post("/api/image/presigned-url").header("Authorization", bearer(token))
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"eventId\":\"%s\",\"fileNames\":[\"ceremony.jpg\",\"party.jpg\"]}"
-							.formatted(event.getId())))
+		mockMvc.perform(post("/api/image/presigned-url").header("Authorization", bearer(token))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"ceremony.jpg\",\"party.jpg\"],\"contentTypes\":[\"image/jpeg\",\"image/jpeg\"],\"fileSizes\":[4,4]}"
+						.formatted(event.getId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$").isArray())
 			.andExpect(jsonPath("$.length()").value(2))
@@ -238,13 +240,14 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
 		Event otherEvent = eventRepository.saveAndFlush(TestFixtures.event(owner, "Other wedding"));
 
-		when(s3Service.getPresignedPutUrl(anyString()))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
-		MvcResult presignResult = mockMvc
-			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"]}".formatted(otherEvent.getId())))
+		MvcResult presignResult = mockMvc.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}"
+						.formatted(otherEvent.getId())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(1))
 			.andReturn();
@@ -281,15 +284,15 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	void protectedGuestsNeedGalleryPasswordForBothUploadStepsAndCannotConfirmForeignImages() throws Exception {
 		User owner = persistUser("owner@example.com");
 		Event event = TestFixtures.event(owner, "Protected wedding");
-		event.setPassword(passwordEncoder.encode("guest-secret"));
+		event.setPassword(passwordEncoder.encode("Guest-Secret123!"));
 		event = eventRepository.saveAndFlush(event);
 		UUID protectedEventId = event.getId();
 		Event otherEvent = eventRepository.saveAndFlush(TestFixtures.event(owner, "Other wedding"));
 		Image foreignImage = imageRepository.saveAndFlush(TestFixtures.image(otherEvent, "foreign.jpg", false));
-		when(s3Service.getPresignedPutUrl(anyString()))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
-		String body = "{\"fileNames\":[\"guest.jpg\"]}";
+		String body = "{\"fileNames\":[\"guest.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}";
 		mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -305,7 +308,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 
 		MvcResult protectedPresign = mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body))
 			.andExpect(status().isOk())
@@ -325,7 +328,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isUnauthorized());
 		mockMvc
 			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(foreignImage.getId())))
 			.andExpect(status().isNotFound());
@@ -333,7 +336,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 
 		mockMvc
 			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(guestImage.getId())))
 			.andExpect(status().isNoContent());
@@ -345,13 +348,13 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		User owner = persistUser("owner@example.com");
 		Event event = eventRepository.saveAndFlush(TestFixtures.event(owner, "Wedding"));
 		Image preExisting = imageRepository.saveAndFlush(TestFixtures.image(event, "existing.jpg", true));
-		when(s3Service.getPresignedPutUrl(anyString()))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
 		MvcResult presign = mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"fileNames\":[\"guest.jpg\"]}"))
+				.content("{\"fileNames\":[\"guest.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}"))
 			.andExpect(status().isOk())
 			.andReturn();
 		Cookie guestCookie = presign.getResponse().getCookie(GuestSessionService.COOKIE_NAME);
@@ -475,12 +478,13 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isOk());
 		Event event = eventRepository.findByUser(owner).getFirst();
 
-		when(s3Service.getPresignedPutUrl(anyString()))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
-		mockMvc
-			.perform(post("/api/image/presigned-url").header("Authorization", bearer(ownerToken))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"eventId\":\"%s\",\"fileNames\":[\"ceremony.jpg\"]}".formatted(event.getId())))
+		mockMvc.perform(post("/api/image/presigned-url").header("Authorization", bearer(ownerToken))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"ceremony.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}"
+						.formatted(event.getId())))
 			.andExpect(status().isOk());
 		Image image = imageRepository.findAll().getFirst();
 
@@ -501,10 +505,11 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 								"""))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.message").value("Event not found"));
-		mockMvc
-			.perform(post("/api/image/presigned-url").header("Authorization", bearer(intruderToken))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"eventId\":\"%s\",\"fileNames\":[\"stolen.jpg\"]}".formatted(event.getId())))
+		mockMvc.perform(post("/api/image/presigned-url").header("Authorization", bearer(intruderToken))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"stolen.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}"
+						.formatted(event.getId())))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.message").value("Event not found"));
 		mockMvc
@@ -529,10 +534,11 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		String token = jwtService.generateToken(owner.getEmail());
 		UUID missingId = UUID.randomUUID();
 
-		mockMvc
-			.perform(post("/api/image/presigned-url").header("Authorization", bearer(token))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"eventId\":\"%s\",\"fileNames\":[\"photo.jpg\"]}".formatted(missingId)))
+		mockMvc.perform(post("/api/image/presigned-url").header("Authorization", bearer(token))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"photo.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[4]}"
+						.formatted(missingId)))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.message").value("Event not found"));
 		mockMvc.perform(delete("/api/image/{id}", missingId).header("Authorization", bearer(token)))
@@ -541,7 +547,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 		mockMvc.perform(get("/api/events/not-a-uuid/images").header("Authorization", bearer(token)))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.parameter").value("eventID"));
-		verify(s3Service, never()).getPresignedPutUrl(anyString());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
 		verify(s3Service, never()).deleteFile(anyString());
 	}
 
@@ -565,7 +571,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 				  "firstNameCoupleTwo": "Sam",
 				  "location": "Berlin",
 				  "date": "2030-06-15T14:00:00",
-				  "password": "guest-secret",
+				  "password": "Guest-Secret123!",
 				  "qrCode": "qr-code"
 				}
 				""".formatted(userId);

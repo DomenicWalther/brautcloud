@@ -12,7 +12,8 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, forkJoin, of } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { EventImageDto } from '../../../../core/models/event-image.dto';
 import { PublicEventDto } from '../../../../core/models/event.dto';
 import { ImageService } from '../../../../services/image-service';
@@ -42,8 +43,10 @@ export class Gallery {
   readonly deletingImageId = signal<string | null>(null);
   readonly pendingDeleteIds = signal<Set<string>>(new Set());
   readonly deleteError = signal<string | null>(null);
-  private readonly preloadedImageUrls = new Set<string>();
+  private readonly preloadedImages = new Map<string, HTMLImageElement>();
   private previousBodyOverflow = '';
+  private loadRequestId = 0;
+  private deleteSubscription?: Subscription;
   private returnFocusElement: HTMLElement | null = null;
 
   readonly publicMode = input(false);
@@ -79,6 +82,12 @@ export class Gallery {
       const eventId = this.eventId();
       this.refreshToken();
       if (eventId === undefined) {
+        this.loadRequestId += 1;
+        this.deleteSubscription?.unsubscribe();
+        this.deleteSubscription = undefined;
+        this.pendingDeleteIds.set(new Set());
+        this.deletingImageId.set(null);
+        this.releasePreloadedImages();
         this.allImages.set([]);
         this.loadError.set(null);
         this.loading.set(false);
@@ -99,7 +108,10 @@ export class Gallery {
       }
     });
 
-    this.destroyRef.onDestroy(() => this.restoreBodyScroll());
+    this.destroyRef.onDestroy(() => {
+      this.restoreBodyScroll();
+      this.releasePreloadedImages();
+    });
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -295,55 +307,59 @@ export class Gallery {
       return deletion$.pipe(catchError(() => of(null)));
     });
 
-    forkJoin(requests).subscribe((results) => {
-      const successfulImages = images.filter((_, index) => results[index] !== null);
-      const failedImages = images.filter((_, index) => results[index] === null);
-      if (successfulImages.length) {
-        this.allImages.update((current) =>
-          current.filter((image) => !successfulImages.includes(image)),
-        );
-        const selectedImageStillVisible = previousSelectedImage
-          ? this.images().some((image) => image.id === previousSelectedImage.id)
-          : false;
-        if (selectedImageStillVisible) {
-          this.selectedIndex.set(
-            this.images().findIndex((image) => image.id === previousSelectedImage!.id),
+    this.deleteSubscription = forkJoin(requests)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((results) => {
+        const successfulImages = images.filter((_, index) => results[index] !== null);
+        const failedImages = images.filter((_, index) => results[index] === null);
+        if (successfulImages.length) {
+          this.allImages.update((current) =>
+            current.filter((image) => !successfulImages.includes(image)),
           );
-        } else if (this.images().length) {
-          const removedBeforeSelection = indices.filter(
-            (index, resultIndex) => index < previousSelectedIndex && results[resultIndex] !== null,
-          ).length;
-          this.selectedIndex.set(
-            Math.min(
-              Math.max(previousSelectedIndex - removedBeforeSelection, 0),
-              this.images().length - 1,
-            ),
-          );
-          this.selectedImageFailed.set(false);
-        } else if (this.lightboxOpen()) {
-          this.closeLightbox();
+          const selectedImageStillVisible = previousSelectedImage
+            ? this.images().some((image) => image.id === previousSelectedImage.id)
+            : false;
+          if (selectedImageStillVisible) {
+            this.selectedIndex.set(
+              this.images().findIndex((image) => image.id === previousSelectedImage!.id),
+            );
+          } else if (this.images().length) {
+            const removedBeforeSelection = indices.filter(
+              (index, resultIndex) =>
+                index < previousSelectedIndex && results[resultIndex] !== null,
+            ).length;
+            this.selectedIndex.set(
+              Math.min(
+                Math.max(previousSelectedIndex - removedBeforeSelection, 0),
+                this.images().length - 1,
+              ),
+            );
+            this.selectedImageFailed.set(false);
+          } else if (this.lightboxOpen()) {
+            this.closeLightbox();
+          }
         }
-      }
 
-      if (failedImages.length) {
-        this.deleteError.set(
-          failedImages.length === images.length
-            ? 'These photographs could not be deleted. Please try again.'
-            : `${failedImages.length} of ${images.length} photographs could not be deleted. Please try again.`,
-        );
-        this.toastService.show(this.deleteError()!, 'error');
-      } else {
-        this.toastService.show(
-          images.length === 1
-            ? 'Photograph deleted successfully.'
-            : `${images.length} photographs deleted successfully.`,
-          'success',
-        );
-      }
-      this.pendingDeleteIds.set(new Set());
-      this.deletingImageId.set(null);
-      this.restoreFocus();
-    });
+        if (failedImages.length) {
+          this.deleteError.set(
+            failedImages.length === images.length
+              ? 'These photographs could not be deleted. Please try again.'
+              : `${failedImages.length} of ${images.length} photographs could not be deleted. Please try again.`,
+          );
+          this.toastService.show(this.deleteError()!, 'error');
+        } else {
+          this.toastService.show(
+            images.length === 1
+              ? 'Photograph deleted successfully.'
+              : `${images.length} photographs deleted successfully.`,
+            'success',
+          );
+        }
+        this.pendingDeleteIds.set(new Set());
+        this.deletingImageId.set(null);
+        this.restoreFocus();
+        this.deleteSubscription = undefined;
+      });
   }
 
   isImagePending(imageId: string): boolean {
@@ -363,14 +379,14 @@ export class Gallery {
   }
 
   private preloadImage(url: string | undefined): void {
-    if (!url || this.preloadedImageUrls.has(url)) {
+    if (!url || this.preloadedImages.has(url)) {
       return;
     }
 
-    this.preloadedImageUrls.add(url);
     const image = new globalThis.Image();
     image.decoding = 'async';
     image.src = url;
+    this.preloadedImages.set(url, image);
   }
 
   private restoreFocus(): void {
@@ -392,6 +408,12 @@ export class Gallery {
   }
 
   private loadAll(eventId: string): void {
+    const requestId = ++this.loadRequestId;
+    this.deleteSubscription?.unsubscribe();
+    this.deleteSubscription = undefined;
+    this.pendingDeleteIds.set(new Set());
+    this.deletingImageId.set(null);
+    this.releasePreloadedImages();
     this.loading.set(true);
     this.loadError.set(null);
 
@@ -399,8 +421,12 @@ export class Gallery {
       ? this.imageService.getPublicEventImages(eventId, this.galleryPassword())
       : this.imageService.getEventImages(eventId);
 
-    images$.subscribe({
+    images$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (images) => {
+        if (requestId !== this.loadRequestId) {
+          return;
+        }
+
         this.allImages.set(images);
         images.slice(0, 1).forEach((image) => this.preloadImage(image.url));
         this.failedImageIds.set(new Set());
@@ -409,10 +435,21 @@ export class Gallery {
         this.loading.set(false);
       },
       error: () => {
+        if (requestId !== this.loadRequestId) {
+          return;
+        }
+
         this.allImages.set([]);
         this.loadError.set('We could not load your gallery. Please try again from home.');
         this.loading.set(false);
       },
     });
+  }
+
+  private releasePreloadedImages(): void {
+    this.preloadedImages.forEach((image) => {
+      image.src = '';
+    });
+    this.preloadedImages.clear();
   }
 }

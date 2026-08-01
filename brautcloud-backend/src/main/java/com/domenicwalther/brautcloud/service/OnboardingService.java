@@ -8,6 +8,7 @@ import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import com.domenicwalther.brautcloud.validation.GalleryPasswordPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class OnboardingService {
 				.orElseGet(() -> new OnboardingResponse(true, null));
 		}
 
+		GalleryPasswordPolicy.validateOptional(request.password());
 		String hashedPassword = null;
 		if (request.password() != null && !request.password().isBlank()) {
 			hashedPassword = passwordEncoder.encode(request.password());

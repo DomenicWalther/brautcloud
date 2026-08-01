@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import java.io.File;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Objects;
 
 @Service
 public class S3Service {
@@ -74,51 +75,47 @@ public class S3Service {
 	}
 
 	/**
-	 * Returns a time-limited signed upload URL for a server-generated key.
+	 * Returns time-limited signed upload URL with exact content type and byte length.
 	 */
-	public String getPresignedPutUrl(String key) {
-		return getPresignedPutUrl(key, ImageUploadPolicy.contentTypeForFileName(key), null);
-	}
-
-	public String getPresignedPutUrl(String key, String contentType, Long contentLength) {
+	public String getPresignedPutUrl(String key, String contentType, long contentLength) {
+		Objects.requireNonNull(contentType, "contentType");
+		if (contentLength <= 0 || contentLength > ImageUploadPolicy.MAX_IMAGE_BYTES) {
+			throw new IllegalArgumentException("contentLength must be within image bounds");
+		}
 		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
 			.signatureDuration(Duration.ofMinutes(15))
-			.putObjectRequest(r -> {
-				r.bucket(bucketName).key(key).contentType(contentType);
-				if (contentLength != null) {
-					r.contentLength(contentLength);
-				}
-			})
+			.putObjectRequest(r -> r.bucket(bucketName).key(key).contentType(contentType).contentLength(contentLength))
 			.build();
 
 		return presigner.presignPutObject(presignRequest).url().toString();
 	}
 
-	public boolean verifyUploadedImage(String key, String expectedContentType, Long expectedLength) {
+	public ImageVerificationResult verifyUploadedImage(String key, String expectedContentType, Long expectedLength) {
+		if (expectedLength == null) {
+			return ImageVerificationResult.INVALID;
+		}
 		try {
 			HeadObjectResponse head = s3Client
 				.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
 			long actualLength = head.contentLength() == null ? -1L : head.contentLength();
 			String actualContentType = ImageUploadPolicy.normalizeContentType(head.contentType());
 			if (actualLength <= 0 || actualLength > ImageUploadPolicy.MAX_IMAGE_BYTES
-					|| !ImageUploadPolicy.isAllowedContentType(actualContentType)) {
-				return false;
-			}
-			if (expectedLength != null && expectedLength.longValue() != actualLength) {
-				return false;
-			}
-			if (expectedContentType != null
-					&& !ImageUploadPolicy.normalizeContentType(expectedContentType).equals(actualContentType)) {
-				return false;
+					|| !ImageUploadPolicy.isAllowedContentType(actualContentType)
+					|| actualLength != expectedLength.longValue() || !Objects
+						.equals(ImageUploadPolicy.normalizeContentType(expectedContentType), actualContentType)) {
+				return ImageVerificationResult.INVALID;
 			}
 
 			byte[] bytes = getObjectBytes(key);
-			return bytes.length == actualLength && ImageUploadPolicy.hasValidSignature(bytes, actualContentType);
+			return bytes.length == actualLength && ImageUploadPolicy.hasValidSignature(bytes, actualContentType)
+					? ImageVerificationResult.VALID : ImageVerificationResult.INVALID;
+		}
+		catch (S3Exception exception) {
+			return exception.statusCode() == 404 ? ImageVerificationResult.MISSING
+					: ImageVerificationResult.TRANSIENT_FAILURE;
 		}
 		catch (RuntimeException exception) {
-			// Missing objects, storage errors, and malformed metadata are never
-			// publishable.
-			return false;
+			return ImageVerificationResult.TRANSIENT_FAILURE;
 		}
 	}
 

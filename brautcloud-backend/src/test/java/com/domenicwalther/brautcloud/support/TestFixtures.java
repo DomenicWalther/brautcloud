@@ -32,6 +32,7 @@ public final class TestFixtures {
 		image.setEvent(event);
 		image.setImageKey(key);
 		image.setVisible(true);
+		image.setSizeBytes(4L);
 		image.setUploaded(uploaded);
 		return image;
 	}
