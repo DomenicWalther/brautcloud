@@ -14,28 +14,39 @@ git clone https://github.com/domenicwalther/brautcloud-backend.git
 cd brautcloud-backend
 ```
 
-> **Note:** At this stage, the Docker Compose Spring setup is disabled. Make sure to run `docker compose up` manually and have an AiStor container running.
+> **Note:** Docker Compose does not start Spring Boot. Run `docker compose up -d` manually, then start an AiStor container with its license mounted.
 
 ## Environment Variables
-This Project uses [Doppler](https://www.doppler.com/) to manage environment variables securely.
-Make sure you have Doppler installed and are logged in.
+This project uses [Doppler](https://www.doppler.com/) to manage environment variables securely. For local development, activate Spring's `local` profile; it is the only non-test profile that permits an HTTP S3 endpoint and enables verbose security/Flyway logs.
 
 ### Required Variables
 
 Add these variables in your Doppler project/config:
 
-| Key                   | Description |
-|-----------------------|-------------|
-| `AWS_ACCESS_KEY_ID`     | Access key for local S3 (aistore) |
-| `AWS_SECRET_ACCESS_KEY` | Secret key for local S3 (aistore) |
-| `AWS_ENDPOINT`          | Endpoint URL for the local S3 server |
-| `POSTGRES_URL`          | Hostname or URL of the Postgres database |
-| `POSTGRES_USER`         | Username for Postgres |
-| `POSTGRES_PW`           | Password for Postgres |
+| Key | Description |
+|-----|-------------|
+| `SPRING_PROFILES_ACTIVE` | Set to `local` for local development. |
+| `AWS_ACCESS_KEY_ID` | Access key for local S3 (AiStor). |
+| `AWS_SECRET_ACCESS_KEY` | Secret key for local S3 (AiStor). |
+| `AWS_ENDPOINT` | S3 endpoint, normally `http://127.0.0.1:9000` locally; HTTPS is required outside `local`/`test`. |
+| `POSTGRES_URL` | JDBC URL, normally `jdbc:postgresql://127.0.0.1:5432/mydatabase` locally. |
+| `POSTGRES_USER` | PostgreSQL username; Compose reads same variable. |
+| `POSTGRES_PW` | PostgreSQL password; Compose reads same variable. |
+| `JWT_SECRET` | JWT signing secret. |
+| `APP_ALLOWED_ORIGINS` | Comma-separated browser origins, normally `http://localhost:4200` locally. |
 
-> These variables are used by the AWS SDK in Java for interacting with the local aistore S3 server and by your backend for database connections.
+`POSTGRES_DB` is optional for Compose and defaults to `mydatabase`. Never commit credential values. Compose binds PostgreSQL and AiStor ports to loopback only.
 
-Included in this Project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot.
+Start local dependencies with credentials exported:
+
+```bash
+export SPRING_PROFILES_ACTIVE=local
+export POSTGRES_USER=brautcloud
+export POSTGRES_PW='change-me-locally'
+docker compose up -d
+```
+
+Included in this project is a Spring_Run.run.xml which automatically starts Doppler & Spring Boot. Ensure Doppler provides all required variables above.
 
 ## Running the backend test suite
 
