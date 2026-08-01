@@ -1,20 +1,45 @@
+# Local dependencies only. Not a production deployment manifest.
+# Images stay pinned by digest; review and update digests deliberately.
 services:
   postgres:
     image: 'postgres:17.10-alpine3.24@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193'
     environment:
-      POSTGRES_DB: '${POSTGRES_DB:-mydatabase}'
-      POSTGRES_PASSWORD: '${POSTGRES_PW:?Set POSTGRES_PW before starting Compose}'
-      POSTGRES_USER: '${POSTGRES_USER:?Set POSTGRES_USER before starting Compose}'
+      POSTGRES_DB: '${POSTGRES_DB:-brautcloud_local}'
+      POSTGRES_PASSWORD: '${POSTGRES_PW:?Set POSTGRES_PW in local environment}'
+      POSTGRES_USER: '${POSTGRES_USER:?Set POSTGRES_USER in local environment}'
     ports:
       - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   aistor:
     image: 'quay.io/minio/aistor/minio@sha256:17527b97a9e92dcc32b641dc161e4beb1eaf9a9198018c1489923c981f4af2ef'
     command: minio server /mnt/data --license /minio.license
+    environment:
+      MINIO_ROOT_USER: '${AISTOR_ROOT_USER:?Set AISTOR_ROOT_USER in local environment}'
+      MINIO_ROOT_PASSWORD: '${AISTOR_ROOT_PASSWORD:?Set AISTOR_ROOT_PASSWORD in local environment}'
     ports:
       - '127.0.0.1:9000:9000'
       - '127.0.0.1:9001:9001'
     volumes:
-      - '${HOME}/minio/certs:/etc/minio/certs'
-      - '${HOME}/minio/data:/mnt/data'
-      - '${HOME}/minio/minio.license:/minio.license'
-    tty: true
+      - aistor-data:/mnt/data
+      - type: bind
+        source: '${AISTOR_LICENSE_FILE:-./.local/minio.license}'
+        target: /minio.license
+        read_only: true
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --fail --silent http://127.0.0.1:9000/minio/health/live || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  aistor-data:
