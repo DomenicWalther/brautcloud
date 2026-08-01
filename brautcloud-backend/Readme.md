@@ -39,36 +39,43 @@ Included in this Project is a Spring_Run.run.xml which automatically starts Dopp
 
 ## Running the backend test suite
 
-Prerequisites:
+Prerequisites for backend verification:
 
-- JDK 21 (the Maven wrapper downloads Maven itself)
-- a running Docker-compatible container daemon
-- permission to pull and run `postgres:16-alpine`
+- GraalVM JDK 25 (the Maven compiler target and CI runtime are Java 25)
+- Maven 3.9.12 through the checked-in Maven wrapper
+- Docker Engine/Desktop or rootless Podman with a Docker-compatible socket
+- permission to pull and run the pinned test image `postgres:16-alpine`
 
-No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The full clean suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against one shared PostgreSQL Testcontainer while replacing S3 operations with a test double.
+Spring Boot 4.0.2 manages Testcontainers 2.0.3. All PostgreSQL-backed tests use the same `postgres:16-alpine` policy; do not replace it with `latest` or another major version without updating the test support and this document.
 
-Run the complete suite from a clean build:
+No PostgreSQL installation, Doppler login, AWS credentials, or live S3-compatible service is needed. The suite exercises startup and Flyway migration checks, authentication/session flows, repository persistence, and cross-layer event/image journeys against PostgreSQL Testcontainers while replacing S3 operations with a test double.
+
+Run the exact backend verification used by CI from a clean build:
 
 ```bash
 cd brautcloud-backend
-./mvnw clean test
+./mvnw -B clean verify
 ```
 
-This full run requires a reachable Docker-compatible socket. If Docker Desktop, Podman, or another compatible daemon is not running, the PostgreSQL-backed integration tests fail before the Spring context finishes booting.
-
-For rootless Podman, expose its Docker-compatible socket first. Some Podman setups also require Ryuk to be disabled; the suite has its own shutdown hook for the shared PostgreSQL container:
+Docker users must have a reachable daemon before running the command:
 
 ```bash
-systemctl --user start podman.socket
+docker info
+```
+
+For rootless Podman, expose its Docker-compatible socket first. Ryuk is disabled for this suite because its shared PostgreSQL container has an explicit shutdown hook:
+
+```bash
+systemctl --user enable --now podman.socket
 DOCKER_HOST="unix://${XDG_RUNTIME_DIR}/podman/podman.sock" \
   TESTCONTAINERS_RYUK_DISABLED=true \
-  ./mvnw clean test
+  ./mvnw -B clean verify
 ```
 
-Focused unit and MVC slice tests can run without a container, for example:
+If neither `docker info` nor the Podman socket is reachable, PostgreSQL-backed tests fail before the Spring context finishes booting. Focused unit and MVC slice tests can run without a container, for example:
 
 ```bash
-./mvnw -Dtest=JwtServiceTest,EventControllerWebMvcTest test
+./mvnw -B -Dtest=JwtServiceTest,EventControllerWebMvcTest test
 ```
 
 Database integration tests intentionally use PostgreSQL through Testcontainers rather than H2 so constraints, UUIDs, migrations, cascade behavior, and SQL semantics match production.
