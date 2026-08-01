@@ -1,5 +1,6 @@
 package com.domenicwalther.brautcloud;
 
+import com.domenicwalther.brautcloud.support.PostgresTestSupport;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class OnboardingMigrationTest {
 
-	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(PostgresTestSupport.IMAGE);
 
 	@BeforeAll
 	static void beforeAll() {

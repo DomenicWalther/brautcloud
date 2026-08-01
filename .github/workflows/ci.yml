@@ -52,8 +52,17 @@ jobs:
       - name: Run unit tests
         run: pnpm run test:ci
 
+      - name: Test production configuration checks
+        run: pnpm run test:production-config
+
       - name: Build production bundle
+        env:
+          BRAUTCLOUD_API_URL: https://api.example.invalid/api
+          BRAUTCLOUD_APP_URL: https://app.example.invalid
         run: pnpm run build
+
+      - name: Assert production bundle URLs
+        run: pnpm run assert:production-config
 
   backend:
     name: Backend checks

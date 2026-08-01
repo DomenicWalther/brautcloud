@@ -7,10 +7,14 @@ import { EventImageDto } from '../core/models/event-image.dto';
 interface PresignedUrlRequest {
   eventId: string;
   fileNames: string[];
+  contentTypes: string[];
+  fileSizes: number[];
 }
 
 interface PublicPresignedUrlRequest {
   fileNames: string[];
+  contentTypes: string[];
+  fileSizes: number[];
 }
 
 export interface SelectedFile {
@@ -55,11 +59,13 @@ export class ImageService {
 
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {
     const fileNames = files.map((f) => f.file.name);
+    const contentTypes = files.map((f) => f.file.type);
+    const fileSizes = files.map((f) => f.file.size);
 
     return this.uploadImagesWithEndpoints(
       `${this.API_URL}/image/presigned-url`,
       `${this.API_URL}/image/uploaded`,
-      { eventId, fileNames } as PresignedUrlRequest,
+      { eventId, fileNames, contentTypes, fileSizes },
       files,
       true,
     );
@@ -78,7 +84,11 @@ export class ImageService {
     return this.uploadImagesWithEndpoints(
       `${this.API_URL}/events/${eventId}/public/images/presigned-url`,
       `${this.API_URL}/events/${eventId}/public/images/uploaded`,
-      { fileNames: files.map((f) => f.file.name) } as PublicPresignedUrlRequest,
+      {
+        fileNames: files.map((f) => f.file.name),
+        contentTypes: files.map((f) => f.file.type),
+        fileSizes: files.map((f) => f.file.size),
+      },
       files,
       true,
       headers,

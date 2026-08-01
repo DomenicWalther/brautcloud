@@ -33,10 +33,13 @@ public class RefreshTokenService {
 
 	@Transactional
 	public RefreshToken createRefreshToken(User user) {
-		refreshTokenRepository.deleteByUser(user);
+		// One refresh token is allowed per user. Lock user row before replacing the
+		// existing token so concurrent login requests cannot both insert a session.
+		User lockedUser = userRepository.findForUpdateByEmail(user.getEmail()).orElse(user);
+		refreshTokenRepository.deleteByUser(lockedUser);
 
 		RefreshToken token = new RefreshToken();
-		token.setUser(user);
+		token.setUser(lockedUser);
 		token.setToken(generateTokenValue());
 		token.setExpiresAt(Instant.now().plus(refreshExpiration));
 
