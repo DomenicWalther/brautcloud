@@ -27,7 +27,7 @@ public class UserService {
 
 	public UserResponse getUserResponse(String email) {
 		User user = findByEmail(email);
-		List<EventResponse> events = user.getEvents().stream().map(eventService::toEventResponse).toList();
+		List<EventResponse> events = eventService.getEventResponses(user);
 		return UserResponse.fromUser(user, events);
 	}
 

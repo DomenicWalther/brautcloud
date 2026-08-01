@@ -86,6 +86,45 @@ describe('Gallery states', () => {
     expect(fixture.nativeElement.textContent).toContain('Back to home');
   });
 
+  it('ignores image responses from a superseded gallery load', () => {
+    const firstLoad = new Subject<EventImageDto[]>();
+    imageService.getEventImages
+      .mockReset()
+      .mockReturnValueOnce(firstLoad)
+      .mockReturnValueOnce(of([image]));
+    user.set({ events: [event] });
+
+    fixture.detectChanges();
+    fixture.componentRef.setInput('refreshToken', 1);
+    fixture.detectChanges();
+    firstLoad.next([{ id: 'stale-image', url: 'https://cdn.test/stale.jpg' }]);
+
+    expect(fixture.componentInstance.images()).toEqual([image]);
+  });
+
+  it('releases image preloads when gallery is destroyed', () => {
+    const originalImage = globalThis.Image;
+    const preloaded: Array<{ src: string; decoding: string }> = [];
+    class TestImage {
+      decoding = '';
+      src = '';
+
+      constructor() {
+        preloaded.push(this);
+      }
+    }
+    globalThis.Image = TestImage as unknown as typeof Image;
+    user.set({ events: [event] });
+    imageService.getEventImages.mockReturnValue(of([image]));
+
+    fixture.detectChanges();
+    fixture.componentInstance.openLightbox(0);
+    fixture.destroy();
+    globalThis.Image = originalImage;
+
+    expect(preloaded[0]?.src).toBe('');
+  });
+
   it('renders accessible populated gallery imagery', () => {
     user.set({ events: [event] });
     imageService.getEventImages.mockReturnValue(of([image]));

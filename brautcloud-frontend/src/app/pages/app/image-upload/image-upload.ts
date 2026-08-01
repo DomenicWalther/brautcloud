@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import {
   Component,
+  DestroyRef,
   ElementRef,
   HostListener,
   ViewChild,
@@ -9,6 +10,8 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ObjectUrlRegistry } from '../../../core/object-url-registry';
 import { ImageService } from '../../../services/image-service';
 import { UserService } from '../../../services/user-service';
 import { RouterLink } from '@angular/router';
@@ -39,6 +42,8 @@ export class ImageUpload {
   imageService = inject(ImageService);
   private readonly toastService = inject(ToastService);
   private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly objectUrls = new ObjectUrlRegistry();
   private returnFocusElement: HTMLElement | null = null;
 
   user = this.userService.user;
@@ -64,6 +69,12 @@ export class ImageUpload {
       if (this.pendingDeletion() && !this.deletingImageId()) {
         setTimeout(() => this.confirmationCancelButton?.nativeElement.focus());
       }
+    });
+
+    this.destroyRef.onDestroy(() => {
+      this.releaseSelectedFiles();
+      this.releaseUploadedImages();
+      this.objectUrls.revokeAll();
     });
   }
 
@@ -91,12 +102,14 @@ export class ImageUpload {
       .filter((file) => validTypes.includes(file.type))
       .map((file) => ({
         file,
-        preview: URL.createObjectURL(file),
+        preview: this.objectUrls.create(file),
       }));
 
     const current = this.selectedFiles();
-    const combined = [...current, ...newFiles].slice(0, this.MAX_FILES);
-    this.selectedFiles.set(combined);
+    const availableSlots = Math.max(this.MAX_FILES - current.length, 0);
+    const acceptedFiles = newFiles.slice(0, availableSlots);
+    newFiles.slice(acceptedFiles.length).forEach((file) => this.objectUrls.revoke(file.preview));
+    this.selectedFiles.set([...current, ...acceptedFiles]);
 
     input.value = '';
   }
@@ -104,13 +117,16 @@ export class ImageUpload {
   removeSelectedFile(index: number): void {
     const current = this.selectedFiles();
     const file = current[index];
-    URL.revokeObjectURL(file.preview);
+    if (!file) {
+      return;
+    }
+
+    this.objectUrls.revoke(file.preview);
     this.selectedFiles.set(current.filter((_, i) => i !== index));
   }
 
   clearAllSelected(): void {
-    const current = this.selectedFiles();
-    current.forEach((f) => URL.revokeObjectURL(f.preview));
+    this.releaseSelectedFiles();
     this.selectedFiles.set([]);
   }
 
@@ -122,40 +138,50 @@ export class ImageUpload {
     this.isUploading.set(true);
     const files = this.selectedFiles();
 
-    this.imageService.uploadImages(eventId, files).subscribe({
-      next: (results) => {
-        results.forEach((r, i) => {
-          if (!r.success) return;
-          const file = files[i]?.file;
-          if (!file) return;
-          this.uploadedImages.update((images) => [
-            ...images,
-            { id: r.imageId, url: URL.createObjectURL(file) },
-          ]);
-        });
+    this.imageService
+      .uploadImages(eventId, files)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (results) => {
+          const successfulFiles = new Set<SelectedFile>();
+          const uploaded = results.flatMap((result, index) => {
+            if (!result.success || !files[index]) {
+              return [];
+            }
 
-        const failed = results.filter((r) => !r.success);
-        const uploadedCount = results.length - failed.length;
-        if (failed.length > 0) {
-          const message = `${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could not be uploaded. Please try again.`;
+            const selectedFile = files[index];
+            successfulFiles.add(selectedFile);
+            return [{ id: result.imageId, url: this.objectUrls.create(selectedFile.file) }];
+          });
+          if (uploaded.length) {
+            this.uploadedImages.update((images) => [...images, ...uploaded]);
+          }
+          successfulFiles.forEach((file) => this.objectUrls.revoke(file.preview));
+          this.selectedFiles.update((current) =>
+            current.filter((file) => !successfulFiles.has(file)),
+          );
+
+          const failed = results.filter((r) => !r.success);
+          const uploadedCount = results.length - failed.length;
+          if (failed.length > 0) {
+            const message = `${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could not be uploaded. Please try again.`;
+            this.uploadError.set(message);
+            this.toastService.show(message, 'error');
+          } else if (uploadedCount > 0) {
+            this.toastService.show(
+              `${uploadedCount} ${uploadedCount === 1 ? 'photo' : 'photos'} uploaded successfully.`,
+              'success',
+            );
+          }
+          this.isUploading.set(false);
+        },
+        error: () => {
+          const message = 'The upload could not be completed. Check your connection and try again.';
           this.uploadError.set(message);
           this.toastService.show(message, 'error');
-        } else if (uploadedCount > 0) {
-          this.toastService.show(
-            `${uploadedCount} ${uploadedCount === 1 ? 'photo' : 'photos'} uploaded successfully.`,
-            'success',
-          );
-        }
-        this.clearAllSelected();
-        this.isUploading.set(false);
-      },
-      error: () => {
-        const message = 'The upload could not be completed. Check your connection and try again.';
-        this.uploadError.set(message);
-        this.toastService.show(message, 'error');
-        this.isUploading.set(false);
-      },
-    });
+          this.isUploading.set(false);
+        },
+      });
   }
 
   deleteUploadedImage(index: number): void {
@@ -196,27 +222,38 @@ export class ImageUpload {
     this.deleteError.set(null);
     this.deleteSuccess.set(null);
     this.deletingImageId.set(image.id);
-    this.imageService.deleteImage(image.id).subscribe({
-      next: () => {
-        URL.revokeObjectURL(image.url);
-        this.uploadedImages.update((images) =>
-          images.filter((candidate) => candidate.id !== image.id),
-        );
-        this.pendingDeletionId.set(null);
-        this.deletingImageId.set(null);
-        this.deleteSuccess.set('Photo deleted successfully.');
-        this.toastService.show('Photo deleted successfully.', 'success');
-        this.restoreFocus();
-      },
-      error: () => {
-        const message = 'That photo could not be removed. Please try again.';
-        this.pendingDeletionId.set(null);
-        this.deletingImageId.set(null);
-        this.deleteError.set(message);
-        this.toastService.show(message, 'error');
-        this.restoreFocus();
-      },
-    });
+    this.imageService
+      .deleteImage(image.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.objectUrls.revoke(image.url);
+          this.uploadedImages.update((images) =>
+            images.filter((candidate) => candidate.id !== image.id),
+          );
+          this.pendingDeletionId.set(null);
+          this.deletingImageId.set(null);
+          this.deleteSuccess.set('Photo deleted successfully.');
+          this.toastService.show('Photo deleted successfully.', 'success');
+          this.restoreFocus();
+        },
+        error: () => {
+          const message = 'That photo could not be removed. Please try again.';
+          this.pendingDeletionId.set(null);
+          this.deletingImageId.set(null);
+          this.deleteError.set(message);
+          this.toastService.show(message, 'error');
+          this.restoreFocus();
+        },
+      });
+  }
+
+  private releaseSelectedFiles(): void {
+    this.selectedFiles().forEach((file) => this.objectUrls.revoke(file.preview));
+  }
+
+  private releaseUploadedImages(): void {
+    this.uploadedImages().forEach((image) => this.objectUrls.revoke(image.url));
   }
 
   private restoreFocus(): void {

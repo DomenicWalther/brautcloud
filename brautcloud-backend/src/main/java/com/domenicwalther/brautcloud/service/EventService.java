@@ -1,8 +1,10 @@
 package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.dto.EventImageSummary;
 import com.domenicwalther.brautcloud.exception.BadRequestException;
 import com.domenicwalther.brautcloud.dto.EventRequest;
+import com.domenicwalther.brautcloud.dto.EventSummary;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
@@ -10,14 +12,16 @@ import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
-import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import com.domenicwalther.brautcloud.validation.GalleryPasswordPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +31,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -34,6 +39,8 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 public class EventService {
+
+	private static final int READ_PAGE_SIZE = 100;
 
 	@Autowired
 	private S3Service s3Service;
@@ -52,9 +59,13 @@ public class EventService {
 
 	private final StorageDeletionService storageDeletionService;
 
+	private final GalleryAccessRateLimiter galleryAccessRateLimiter;
+
+	@Autowired
 	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
 			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
-			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService) {
+			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService,
+			GalleryAccessRateLimiter galleryAccessRateLimiter) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
@@ -62,24 +73,36 @@ public class EventService {
 		this.eventGuestVisitRepository = eventGuestVisitRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.storageDeletionService = storageDeletionService;
+		this.galleryAccessRateLimiter = galleryAccessRateLimiter;
 	}
 
-	public List<EventResponse> getEvents() {
-		return eventRepository.findAll()
-			.stream()
-			.filter(event -> !event.isDeletionRequested())
-			.map(EventResponse::fromEvent)
-			.toList();
+	EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
+			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
+			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService) {
+		this(eventRepository, userRepository, imageRepository, resourceOwnershipService, eventGuestVisitRepository,
+				passwordEncoder, storageDeletionService, new GalleryAccessRateLimiter());
 	}
 
 	public List<EventResponse> getEventsByUserEmail(String email) {
 		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
-		return eventRepository.findByUser(user)
-			.stream()
-			.filter(event -> !event.isDeletionRequested())
-			.map(this::toEventResponse)
-			.toList();
+		return getEventResponses(user);
+	}
+
+	/**
+	 * Loads event cards in bounded pages. Guest counts are calculated by the projection
+	 * query, avoiding one count query per event.
+	 */
+	public List<EventResponse> getEventResponses(User user) {
+		List<EventResponse> responses = new ArrayList<>();
+		int page = 0;
+		List<EventSummary> summaries;
+		do {
+			summaries = eventRepository.findEventSummariesByUser(user, PageRequest.of(page++, READ_PAGE_SIZE));
+			responses.addAll(summaries.stream().map(EventSummary::toResponse).toList());
+		}
+		while (summaries.size() == READ_PAGE_SIZE);
+		return responses;
 	}
 
 	public EventResponse toEventResponse(Event event) {
@@ -145,6 +168,7 @@ public class EventService {
 			event.setPassword(null);
 		}
 		else {
+			GalleryPasswordPolicy.validateOptional(request.password());
 			event.setPassword(passwordEncoder.encode(request.password()));
 		}
 		return toEventResponse(eventRepository.save(event));
@@ -165,10 +189,18 @@ public class EventService {
 		if (galleryPassword != null && galleryPassword.length() > 72) {
 			throw new BadRequestException("Gallery password must not exceed 72 characters");
 		}
+		return requirePublicGalleryAccess(eventID, galleryPassword, currentClientAddress());
+	}
+
+	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword, String clientAddress) {
 		Event event = requireAvailableEvent(eventID);
-		if (event.getPassword() != null && !event.getPassword().isBlank()
-				&& !matchesGalleryPassword(event, galleryPassword)) {
-			throw new GalleryPasswordRequiredException("Gallery password required");
+		if (event.getPassword() != null && !event.getPassword().isBlank()) {
+			galleryAccessRateLimiter.check(eventID, clientAddress);
+			if (!matchesGalleryPassword(event, galleryPassword)) {
+				galleryAccessRateLimiter.recordFailure(eventID, clientAddress);
+				throw new GalleryPasswordRequiredException("Gallery password required");
+			}
+			galleryAccessRateLimiter.recordSuccess(eventID, clientAddress);
 		}
 		return event;
 	}
@@ -178,7 +210,7 @@ public class EventService {
 	}
 
 	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword, String guestSessionToken) {
-		requirePublicGalleryAccess(eventID, galleryPassword);
+		requirePublicGalleryAccess(eventID, galleryPassword, currentClientAddress());
 		String guestSessionHash = GuestSessionService.isValidToken(guestSessionToken)
 				? GuestSessionService.hash(guestSessionToken) : null;
 		return getEventImages(eventID, false, guestSessionHash);
@@ -189,22 +221,17 @@ public class EventService {
 	}
 
 	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
-		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
-
-		return images.stream().filter(image -> !image.isDeletionRequested()).map(image -> {
-			String url = s3Service.getPresignedUrl(image.getImageKey());
+		return readUploadedImageSummaries(eventID).stream().map(image -> {
+			String url = s3Service.getPresignedUrl(image.imageKey());
 			boolean canDelete = ownerView
-					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
-			return new EventImageDTO(image.getId(), url, canDelete);
+					|| guestSessionHash != null && guestSessionHash.equals(image.guestSessionHash());
+			return new EventImageDTO(image.id(), url, canDelete);
 		}).toList();
 	}
 
 	public StreamingResponseBody streamEventImagesAsZip(String email, UUID eventID) {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
-		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID)
-			.stream()
-			.filter(image -> !image.isDeletionRequested())
-			.toList();
+		List<EventImageSummary> images = readUploadedImageSummaries(eventID);
 		if (images.isEmpty()) {
 			return null;
 		}
@@ -212,7 +239,7 @@ public class EventService {
 			throw new BadRequestException("Synchronous export is limited to 100 images");
 		}
 		long estimatedBytes = images.stream()
-			.mapToLong(image -> image.getSizeBytes() == null ? ImageUploadPolicy.MAX_IMAGE_BYTES : image.getSizeBytes())
+			.mapToLong(image -> ImageUploadPolicy.MAX_IMAGE_BYTES)
 			.reduce(0L, EventService::addExportBytes);
 		if (estimatedBytes > ImageUploadPolicy.MAX_SYNC_EXPORT_BYTES) {
 			throw new BadRequestException("Synchronous export exceeds the 500 MB limit");
@@ -221,9 +248,9 @@ public class EventService {
 		return outputStream -> {
 			long[] exportedBytes = { 0L };
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
-				for (Image image : images) {
-					try (InputStream inputStream = s3Service.getObject(image.getImageKey())) {
-						zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
+				for (EventImageSummary image : images) {
+					try (InputStream inputStream = s3Service.getObject(image.imageKey())) {
+						zipOutputStream.putNextEntry(new ZipEntry(image.imageKey()));
 						copyExportBytes(inputStream, zipOutputStream, exportedBytes);
 						zipOutputStream.closeEntry();
 					}
@@ -253,9 +280,22 @@ public class EventService {
 		}
 	}
 
+	private List<EventImageSummary> readUploadedImageSummaries(UUID eventID) {
+		List<EventImageSummary> images = new ArrayList<>();
+		int page = 0;
+		List<EventImageSummary> pageImages;
+		do {
+			pageImages = imageRepository.findUploadedImageSummariesByEventId(eventID,
+					PageRequest.of(page++, READ_PAGE_SIZE));
+			images.addAll(pageImages);
+		}
+		while (pageImages.size() == READ_PAGE_SIZE);
+		return images;
+	}
+
 	private Event requireAvailableEvent(UUID eventId) {
 		Event event = findEvent(eventId);
-		if (event.isDeletionRequested()) {
+		if (event.isDeletionStarted()) {
 			throw new ResourceNotFoundException("Event not found");
 		}
 		return event;
@@ -265,6 +305,7 @@ public class EventService {
 		if (password != null && password.length() > 72) {
 			throw new BadRequestException("Gallery password must not exceed 72 characters");
 		}
+		GalleryPasswordPolicy.validateOptional(password);
 		if (password == null || password.isBlank()) {
 			return null;
 		}
@@ -320,6 +361,16 @@ public class EventService {
 
 	private User findUserByEmail(String email) {
 		return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	}
+
+	private String currentClientAddress() {
+		org.springframework.web.context.request.RequestAttributes attributes = org.springframework.web.context.request.RequestContextHolder
+			.getRequestAttributes();
+		if (attributes instanceof org.springframework.web.context.request.ServletRequestAttributes servletAttributes) {
+			String remoteAddress = servletAttributes.getRequest().getRemoteAddr();
+			return remoteAddress == null ? "unknown" : remoteAddress;
+		}
+		return "unknown";
 	}
 
 }

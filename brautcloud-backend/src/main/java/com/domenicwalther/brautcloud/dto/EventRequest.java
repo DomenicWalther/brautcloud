@@ -3,6 +3,7 @@ package com.domenicwalther.brautcloud.dto;
 import lombok.AllArgsConstructor;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import com.domenicwalther.brautcloud.validation.StrongGalleryPassword;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,6 +31,7 @@ public class EventRequest {
 	private LocalDateTime date;
 
 	@Size(max = 72, message = "Password must not exceed 72 characters")
+	@StrongGalleryPassword
 	private String password;
 
 	@Size(max = 4096, message = "QR code must not exceed 4096 characters")

@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ObjectUrlRegistry } from '../../core/object-url-registry';
 import { PublicEventDto } from '../../core/models/event.dto';
 import { EventService } from '../../services/event-service';
 import { ImageService, SelectedFile } from '../../services/image-service';
@@ -17,6 +19,8 @@ const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
 export class EventGallery {
   private readonly eventService = inject(EventService);
   private readonly imageService = inject(ImageService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly objectUrls = new ObjectUrlRegistry();
   private readonly eventId = inject(ActivatedRoute).snapshot.paramMap.get('eventId');
 
   readonly loading = signal(true);
@@ -47,29 +51,34 @@ export class EventGallery {
   readonly galleryRefreshToken = signal(0);
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.releaseSelectedFiles());
+
     if (!this.eventId) {
       this.error.set('This event link is missing its event identifier.');
       this.loading.set(false);
       return;
     }
 
-    this.eventService.getPublicEvent(this.eventId).subscribe({
-      next: (event) => {
-        this.event.set(event);
-        this.loading.set(false);
-        if (!event.passwordProtected) {
-          this.registerView(event.id);
-        }
-      },
-      error: (response: HttpErrorResponse) => {
-        this.error.set(
-          response.status === 404
-            ? 'This event link is no longer available.'
-            : 'We could not load this event. Please try again.',
-        );
-        this.loading.set(false);
-      },
-    });
+    this.eventService
+      .getPublicEvent(this.eventId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (event) => {
+          this.event.set(event);
+          this.loading.set(false);
+          if (!event.passwordProtected) {
+            this.registerView(event.id);
+          }
+        },
+        error: (response: HttpErrorResponse) => {
+          this.error.set(
+            response.status === 404
+              ? 'This event link is no longer available.'
+              : 'We could not load this event. Please try again.',
+          );
+          this.loading.set(false);
+        },
+      });
   }
 
   submitPassword(event: Event): void {
@@ -82,21 +91,24 @@ export class EventGallery {
     this.verifyingPassword.set(true);
     this.passwordError.set(null);
 
-    this.imageService.getPublicEventImages(this.eventId, password).subscribe({
-      next: () => {
-        this.verifiedPassword.set(password);
-        this.verifyingPassword.set(false);
-        this.registerView(this.eventId!);
-      },
-      error: (response: HttpErrorResponse) => {
-        if (response.status === 401) {
-          this.passwordError.set('Incorrect password. Please try again.');
-        } else {
-          this.passwordError.set('We could not verify the password. Please try again.');
-        }
-        this.verifyingPassword.set(false);
-      },
-    });
+    this.imageService
+      .getPublicEventImages(this.eventId, password)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.verifiedPassword.set(password);
+          this.verifyingPassword.set(false);
+          this.registerView(this.eventId!);
+        },
+        error: (response: HttpErrorResponse) => {
+          if (response.status === 401) {
+            this.passwordError.set('Incorrect password. Please try again.');
+          } else {
+            this.passwordError.set('We could not verify the password. Please try again.');
+          }
+          this.verifyingPassword.set(false);
+        },
+      });
   }
 
   onPasswordInput(event: Event): void {
@@ -120,7 +132,7 @@ export class EventGallery {
     const selected = Array.from(input.files);
     const validFiles = selected
       .filter((file) => validTypes.includes(file.type))
-      .map((file) => ({ file, preview: URL.createObjectURL(file) }));
+      .map((file) => ({ file, preview: this.objectUrls.create(file) }));
     const rejectedCount = selected.length - validFiles.length;
     const availableSlots = this.MAX_FILES - this.selectedFiles().length;
 
@@ -135,7 +147,9 @@ export class EventGallery {
 
     const acceptedFiles = validFiles.slice(0, Math.max(availableSlots, 0));
     if (validFiles.length > acceptedFiles.length) {
-      validFiles.slice(acceptedFiles.length).forEach((file) => URL.revokeObjectURL(file.preview));
+      validFiles
+        .slice(acceptedFiles.length)
+        .forEach((file) => this.objectUrls.revoke(file.preview));
       this.uploadError.set(`You can share up to ${this.MAX_FILES} photographs at once.`);
     }
     this.selectedFiles.update((files) => [...files, ...acceptedFiles]);
@@ -147,12 +161,12 @@ export class EventGallery {
     if (!file) {
       return;
     }
-    URL.revokeObjectURL(file.preview);
+    this.objectUrls.revoke(file.preview);
     this.selectedFiles.update((files) => files.filter((_, fileIndex) => fileIndex !== index));
   }
 
   clearAllSelected(): void {
-    this.selectedFiles().forEach((file) => URL.revokeObjectURL(file.preview));
+    this.releaseSelectedFiles();
     this.selectedFiles.set([]);
   }
 
@@ -169,17 +183,22 @@ export class EventGallery {
 
     this.imageService
       .uploadPublicImages(activeEvent.id, files, this.verifiedPassword() ?? undefined)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (results) => {
           const successfulIndexes = new Set(
             results.flatMap((result, index) => (result.success ? [index] : [])),
           );
+          const successfulFiles = new Set<SelectedFile>();
           files.forEach((file, index) => {
             if (successfulIndexes.has(index)) {
-              URL.revokeObjectURL(file.preview);
+              successfulFiles.add(file);
+              this.objectUrls.revoke(file.preview);
             }
           });
-          this.selectedFiles.set(files.filter((_, index) => !successfulIndexes.has(index)));
+          this.selectedFiles.update((current) =>
+            current.filter((file) => !successfulFiles.has(file)),
+          );
 
           const failedCount = results.filter((result) => !result.success).length;
           const uploadedCount = results.length - failedCount;
@@ -217,6 +236,14 @@ export class EventGallery {
     }
 
     sessionStorage.setItem(sessionKey, 'true');
-    this.eventService.registerPublicView(eventId).subscribe({ error: () => undefined });
+    this.eventService
+      .registerPublicView(eventId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ error: () => undefined });
+  }
+
+  private releaseSelectedFiles(): void {
+    this.selectedFiles().forEach((file) => this.objectUrls.revoke(file.preview));
+    this.objectUrls.revokeAll();
   }
 }

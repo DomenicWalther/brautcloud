@@ -1,7 +1,9 @@
 package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.dto.EventImageSummary;
 import com.domenicwalther.brautcloud.dto.EventRequest;
+import com.domenicwalther.brautcloud.dto.EventSummary;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
@@ -83,8 +85,11 @@ class EventServiceTest {
 		event.setId(UUID.randomUUID());
 		event.setViewCount(7L);
 		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
-		when(eventRepository.findByUser(user)).thenReturn(List.of(event));
-		when(eventGuestVisitRepository.countByEventId(event.getId())).thenReturn(2L);
+		when(eventRepository.findEventSummariesByUser(org.mockito.ArgumentMatchers.eq(user),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of(new EventSummary(event.getId(), event.getEventName(), event.getLocation(),
+					event.getDate(), user.getId(), event.getFirstNameCoupleOne(), event.getFirstNameCoupleTwo(),
+					event.getViewCount(), 2L, event.getPassword())));
 
 		List<EventResponse> responses = eventService.getEventsByUserEmail(user.getEmail());
 
@@ -95,6 +100,7 @@ class EventServiceTest {
 			assertThat(response.getViewCount()).isEqualTo(7L);
 			assertThat(response.getGuestCount()).isEqualTo(2L);
 		});
+		org.mockito.Mockito.verifyNoInteractions(eventGuestVisitRepository);
 	}
 
 	@Test
@@ -199,14 +205,14 @@ class EventServiceTest {
 	void eventCreationHashesGalleryPasswordBeforePersistence() {
 		User user = TestFixtures.user("owner@example.com");
 		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
-		when(passwordEncoder.encode("guest-secret")).thenReturn("$2a$hashed-gallery-password");
+		when(passwordEncoder.encode("Guest-secret123!")).thenReturn("$2a$hashed-gallery-password");
 
 		eventService.addEvent(user.getEmail(), request(UUID.randomUUID()));
 
 		ArgumentCaptor<Event> event = ArgumentCaptor.forClass(Event.class);
 		verify(eventRepository).save(event.capture());
 		assertThat(event.getValue().getPassword()).isEqualTo("$2a$hashed-gallery-password");
-		assertThat(event.getValue().getPassword()).isNotEqualTo("guest-secret");
+		assertThat(event.getValue().getPassword()).isNotEqualTo("Guest-secret123!");
 	}
 
 	@Test
@@ -219,7 +225,9 @@ class EventServiceTest {
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(passwordEncoder.matches("legacy-secret", "legacy-secret")).thenReturn(false);
 		when(passwordEncoder.encode("legacy-secret")).thenReturn("$2a$upgraded");
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of());
 
 		assertThat(eventService.getPublicEventImages(eventId, "legacy-secret")).isEmpty();
 
@@ -241,7 +249,10 @@ class EventServiceTest {
 		second.setId(UUID.randomUUID());
 		second.setImageKey("second.jpg");
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of(first, second));
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of(new EventImageSummary(first.getId(), first.getImageKey(), null),
+					new EventImageSummary(second.getId(), second.getImageKey(), null)));
 		when(s3Service.getPresignedUrl("first.jpg")).thenReturn("https://files.test/first");
 		when(s3Service.getPresignedUrl("second.jpg")).thenReturn("https://files.test/second");
 
@@ -296,7 +307,10 @@ class EventServiceTest {
 		second.setId(UUID.randomUUID());
 		second.setImageKey("second.jpg");
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of(first, second));
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of(new EventImageSummary(first.getId(), first.getImageKey(), null),
+					new EventImageSummary(second.getId(), second.getImageKey(), null)));
 		when(s3Service.getObject("first.jpg")).thenReturn(new java.io.ByteArrayInputStream("first-bytes".getBytes()));
 		when(s3Service.getObject("second.jpg")).thenReturn(new java.io.ByteArrayInputStream("second-bytes".getBytes()));
 
@@ -321,15 +335,13 @@ class EventServiceTest {
 		UUID eventId = UUID.randomUUID();
 		Event event = TestFixtures.event(user, "Wedding");
 		event.setId(eventId);
-		List<Image> images = java.util.stream.IntStream.range(0, 101).mapToObj(index -> {
-			Image image = new Image();
-			image.setId(UUID.randomUUID());
-			image.setImageKey("photo-" + index + ".jpg");
-			image.setSizeBytes(1L);
-			return image;
-		}).toList();
+		List<EventImageSummary> images = java.util.stream.IntStream.range(0, 101)
+			.mapToObj(index -> new EventImageSummary(UUID.randomUUID(), "photo-" + index + ".jpg", null))
+			.toList();
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(images);
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(images);
 
 		assertThatThrownBy(() -> eventService.streamEventImagesAsZip(user.getEmail(), eventId))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
@@ -343,15 +355,13 @@ class EventServiceTest {
 		UUID eventId = UUID.randomUUID();
 		Event event = TestFixtures.event(user, "Wedding");
 		event.setId(eventId);
-		List<Image> images = java.util.stream.IntStream.range(0, 51).mapToObj(index -> {
-			Image image = new Image();
-			image.setId(UUID.randomUUID());
-			image.setImageKey("photo-" + index + ".jpg");
-			image.setSizeBytes(ImageUploadPolicy.MAX_IMAGE_BYTES);
-			return image;
-		}).toList();
+		List<EventImageSummary> images = java.util.stream.IntStream.range(0, 51)
+			.mapToObj(index -> new EventImageSummary(UUID.randomUUID(), "photo-" + index + ".jpg", null))
+			.toList();
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(images);
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(images);
 
 		assertThatThrownBy(() -> eventService.streamEventImagesAsZip(user.getEmail(), eventId))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
@@ -366,7 +376,9 @@ class EventServiceTest {
 		Event event = TestFixtures.event(user, "Wedding");
 		event.setId(eventId);
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of());
 
 		assertThat(eventService.streamEventImagesAsZip(user.getEmail(), eventId)).isNull();
 	}
@@ -378,16 +390,16 @@ class EventServiceTest {
 		UUID eventId = UUID.randomUUID();
 		event.setId(eventId);
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(passwordEncoder.encode("new-secret")).thenReturn("$2a$hashed");
+		when(passwordEncoder.encode("New-secret123!")).thenReturn("$2a$hashed");
 		when(eventRepository.save(event)).thenReturn(event);
 		when(eventGuestVisitRepository.countByEventId(eventId)).thenReturn(0L);
 
 		EventUpdateRequest request = new EventUpdateRequest("Wedding", "Alex", "Sam", "Berlin",
-				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "new-secret");
+				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "New-secret123!");
 		eventService.updateEvent(user.getEmail(), eventId, request);
 
 		assertThat(event.getPassword()).isEqualTo("$2a$hashed");
-		verify(passwordEncoder).encode("new-secret");
+		verify(passwordEncoder).encode("New-secret123!");
 	}
 
 	@Test
@@ -455,7 +467,9 @@ class EventServiceTest {
 		event.setPassword("hashed");
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(passwordEncoder.matches("correct", "hashed")).thenReturn(true);
-		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(List.of());
+		when(imageRepository.findUploadedImageSummariesByEventId(org.mockito.ArgumentMatchers.eq(eventId),
+				org.mockito.ArgumentMatchers.any()))
+			.thenReturn(List.of());
 
 		List<EventImageDTO> result = eventService.getPublicEventImages(eventId, "correct");
 		assertThat(result).isEmpty();
@@ -470,7 +484,7 @@ class EventServiceTest {
 		request.setFirstNameCoupleTwo("Sam");
 		request.setLocation("Berlin");
 		request.setDate(LocalDateTime.of(2030, 6, 15, 14, 0));
-		request.setPassword("guest-secret");
+		request.setPassword("Guest-secret123!");
 		request.setQrCode("qr-code");
 		return request;
 	}

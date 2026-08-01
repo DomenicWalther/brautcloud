@@ -8,7 +8,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @ActiveProfiles("test")
 public abstract class PostgresIntegrationTest {
 
-	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine")
+	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(PostgresTestSupport.IMAGE)
 		.withDatabaseName("brautcloud_test")
 		.withUsername("brautcloud")
 		.withPassword("brautcloud");

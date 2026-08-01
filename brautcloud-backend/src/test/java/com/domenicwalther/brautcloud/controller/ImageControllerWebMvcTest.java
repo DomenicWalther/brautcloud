@@ -52,13 +52,16 @@ class ImageControllerWebMvcTest {
 		UUID imageId = UUID.randomUUID();
 		when(imageService.generatePresignedUploadUrls(eq("owner@example.com"),
 				argThat((ImageUploadRequest request) -> request.getEventId().equals(eventId)
-						&& request.getFileNames().equals(List.of("photo.jpg")))))
+						&& request.getFileNames().equals(List.of("photo.jpg"))
+						&& request.getFileSizes().equals(List.of(5L)))))
 			.thenReturn(List.of(new ImageUploadResponse(imageId, "https://uploads.test/photo")));
 
 		mockMvc.perform(post("/api/image/presigned-url").contentType(MediaType.APPLICATION_JSON).content("""
 				{
 				  "eventId": "%s",
-				  "fileNames": ["photo.jpg"]
+				  "fileNames": ["photo.jpg"],
+				  "contentTypes": ["image/jpeg"],
+				  "fileSizes": [5]
 				}
 				""".formatted(eventId)))
 			.andExpect(status().isOk())

@@ -5,6 +5,7 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.model.ImageLifecycleState;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -70,7 +73,8 @@ class ImageServiceTest {
 		User owner = TestFixtures.user("owner@example.com");
 		Event event = TestFixtures.event(owner, "Wedding");
 		event.setId(eventId);
-		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("ceremony.jpg", "party.jpg"));
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("ceremony.jpg", "party.jpg"),
+				List.of("image/jpeg", "image/jpeg"), List.of(4L, 4L));
 		AtomicInteger sequence = new AtomicInteger();
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 		when(imageRepository.save(any(Image.class))).thenAnswer(invocation -> {
@@ -78,7 +82,7 @@ class ImageServiceTest {
 			image.setId(new UUID(0, sequence.incrementAndGet()));
 			return image;
 		});
-		when(s3Service.getPresignedPutUrl(any(String.class)))
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
 			.thenAnswer(invocation -> "https://uploads.test/" + invocation.getArgument(0));
 
 		List<ImageUploadResponse> responses = imageService.generatePresignedUploadUrls(owner.getEmail(), request);
@@ -93,6 +97,7 @@ class ImageServiceTest {
 			assertThat(image.getEvent()).isSameAs(event);
 			assertThat(image.isVisible()).isTrue();
 			assertThat(image.isUploaded()).isFalse();
+			assertThat(image.getLifecycleState()).isEqualTo(ImageLifecycleState.PENDING);
 		})
 			.extracting(Image::getImageKey)
 			.anyMatch(key -> key.endsWith("-ceremony.jpg"))
@@ -109,7 +114,24 @@ class ImageServiceTest {
 			.isInstanceOf(ResourceNotFoundException.class)
 			.hasMessage("Event not found");
 		verify(imageRepository, never()).save(any());
-		verify(s3Service, never()).getPresignedPutUrl(any());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
+	}
+
+	@Test
+	void presigningIsRejectedOnceEventDeletionBegins() {
+		UUID eventId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		event.requestDeletion();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls(owner.getEmail(),
+				new ImageUploadRequest(eventId, List.of("photo.jpg"), List.of("image/jpeg"), List.of(42L))))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		verify(imageRepository, never()).save(any(Image.class));
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
 	}
 
 	@Test
@@ -124,10 +146,13 @@ class ImageServiceTest {
 			image.setId(UUID.randomUUID());
 			return image;
 		});
-		when(s3Service.getPresignedPutUrl(any(String.class))).thenReturn("https://uploads.test/photo");
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
+			.thenReturn("https://uploads.test/photo");
 
-		List<ImageUploadResponse> responses = imageService.generatePublicPresignedUploadUrls(eventId, null,
-				List.of("guest photo.jpg"), GUEST_SESSION_TOKEN);
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("guest photo.jpg"), List.of("image/jpeg"),
+				List.of(4L));
+		List<ImageUploadResponse> responses = imageService.generatePublicPresignedUploadUrlsWithMetadata(eventId, null,
+				request, GUEST_SESSION_TOKEN, null);
 
 		assertThat(responses).singleElement().satisfies(response -> {
 			assertThat(response.getImageId()).isNotNull();
@@ -139,7 +164,7 @@ class ImageServiceTest {
 		assertThat(image.getValue().getGuestSessionHash()).isEqualTo(GuestSessionService.hash(GUEST_SESSION_TOKEN));
 		assertThat(image.getValue().isUploaded()).isFalse();
 		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
-		verify(s3Service).getPresignedPutUrl(key.capture());
+		verify(s3Service).getPresignedPutUrl(key.capture(), eq("image/jpeg"), eq(4L));
 		assertThat(key.getValue()).endsWith("-guest_photo.jpg");
 	}
 
@@ -180,7 +205,42 @@ class ImageServiceTest {
 				GUEST_SESSION_TOKEN, null))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
 		verify(imageRepository, never()).save(any());
-		verify(s3Service, never()).getPresignedPutUrl(anyString());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
+	}
+
+	@Test
+	void ownerPresignRejectsMissingByteSize() {
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(TestFixtures.user("owner@example.com"), "Wedding");
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		ImageUploadRequest request = new ImageUploadRequest(eventId, List.of("photo.jpg"), List.of("image/jpeg"), null);
+
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls("owner@example.com", request))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
+			.hasMessage("File sizes are required for every upload");
+		verify(imageRepository, never()).save(any());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
+	}
+
+	@Test
+	void transientVerificationFailurePreservesPendingRowForRetryableCleanup() {
+		UUID imageId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		Image image = TestFixtures.image(event, "pending.jpg", false);
+		image.setId(imageId);
+		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
+		when(s3Service.verifyUploadedImage("pending.jpg", null, 4L))
+			.thenReturn(ImageVerificationResult.TRANSIENT_FAILURE);
+
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), List.of(imageId)))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.StorageLifecycleException.class)
+			.hasMessage("Uploaded image verification is pending object storage");
+		assertThat(image.isUploaded()).isFalse();
+		verify(imageRepository, never()).deleteAll(any());
+		verify(imageRepository, never()).saveAll(any());
+		verify(storageDeletionService, never()).requestImageDeletion(any());
 	}
 
 	@Test
@@ -195,7 +255,7 @@ class ImageServiceTest {
 		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
 		when(eventService.requirePublicGalleryAccess(eventId, null)).thenReturn(event);
 		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
-		when(s3Service.verifyUploadedImage("guest.jpg", null, null)).thenReturn(false);
+		when(s3Service.verifyUploadedImage("guest.jpg", null, 4L)).thenReturn(ImageVerificationResult.INVALID);
 
 		assertThatThrownBy(
 				() -> imageService.markPublicImagesAsUploaded(eventId, null, List.of(imageId), GUEST_SESSION_TOKEN))
@@ -237,11 +297,12 @@ class ImageServiceTest {
 		when(eventService.requirePublicGalleryAccess(eventId, "secret")).thenReturn(event);
 		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
 		image.setGuestSessionHash(GuestSessionService.hash(GUEST_SESSION_TOKEN));
-		when(s3Service.verifyUploadedImage("guest.jpg", null, null)).thenReturn(true);
+		when(s3Service.verifyUploadedImage("guest.jpg", null, 4L)).thenReturn(ImageVerificationResult.VALID);
 
 		imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), GUEST_SESSION_TOKEN);
 
 		assertThat(image.isUploaded()).isTrue();
+		assertThat(image.getLifecycleState()).isEqualTo(ImageLifecycleState.AVAILABLE);
 		verify(imageRepository).saveAll(List.of(image));
 	}
 
@@ -254,7 +315,7 @@ class ImageServiceTest {
 				() -> imageService.generatePublicPresignedUploadUrls(eventId, null, List.of(), GUEST_SESSION_TOKEN))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
 		verify(imageRepository, never()).save(any());
-		verify(s3Service, never()).getPresignedPutUrl(any());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
 	}
 
 	@Test
@@ -270,9 +331,12 @@ class ImageServiceTest {
 		second.setId(secondId);
 		second.setEvent(event);
 		first.setImageKey("first.jpg");
+		first.setSizeBytes(4L);
 		second.setImageKey("second.jpg");
+		second.setSizeBytes(4L);
 		when(imageRepository.findAllById(List.of(firstId, secondId))).thenReturn(List.of(first, second));
-		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), nullable(Long.class))).thenReturn(true);
+		when(s3Service.verifyUploadedImage(anyString(), nullable(String.class), anyLong()))
+			.thenReturn(ImageVerificationResult.VALID);
 
 		imageService.markImagesAsUploaded(owner.getEmail(), List.of(firstId, secondId));
 
@@ -332,7 +396,7 @@ class ImageServiceTest {
 
 		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls(owner.getEmail(), request))
 			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
-		verify(s3Service, never()).getPresignedPutUrl(anyString());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
 		verify(imageRepository, never()).save(any());
 	}
 
@@ -415,7 +479,7 @@ class ImageServiceTest {
 		Image image = TestFixtures.image(event, "pending.jpg", false);
 		image.setId(imageId);
 		when(imageRepository.findAllById(List.of(imageId))).thenReturn(List.of(image));
-		when(s3Service.verifyUploadedImage("pending.jpg", null, null)).thenReturn(true);
+		when(s3Service.verifyUploadedImage("pending.jpg", null, 4L)).thenReturn(ImageVerificationResult.VALID);
 		doThrow(new IllegalStateException("database unavailable")).when(imageRepository).saveAll(List.of(image));
 
 		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), List.of(imageId)))
@@ -430,10 +494,16 @@ class ImageServiceTest {
 		Image image = TestFixtures.image(TestFixtures.event(TestFixtures.user("owner@example.com"), "Wedding"),
 				"pending.jpg", false);
 		image.setId(imageId);
-		when(imageRepository.findByIsUploadedFalseAndCreatedAtBefore(any())).thenReturn(List.of(image));
-
+		when(imageRepository.findByIsUploadedFalseAndDeletionRequestedFalseAndCreatedAtBeforeOrderByCreatedAtAscIdAsc(
+				any(), any(Pageable.class)))
+			.thenReturn(List.of(image));
 		imageService.cleanupUnuploadedImages();
 
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(imageRepository)
+			.findByIsUploadedFalseAndDeletionRequestedFalseAndCreatedAtBeforeOrderByCreatedAtAscIdAsc(any(),
+					pageable.capture());
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(100);
 		verify(storageDeletionService).requestImageDeletion(image);
 		verify(storageDeletionService).processImageDeletion(imageId);
 		verify(imageRepository, never()).delete(image);
@@ -467,7 +537,7 @@ class ImageServiceTest {
 		verify(imageRepository, never()).save(any());
 		verify(imageRepository, never()).saveAll(any());
 		verify(imageRepository, never()).deleteById(any());
-		verify(s3Service, never()).getPresignedPutUrl(any());
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
 		verify(storageDeletionService, never()).requestImageDeletion(any());
 		verify(storageDeletionService, never()).processImageDeletion(any());
 	}
