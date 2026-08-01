@@ -99,8 +99,8 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isOk());
 		Event event = eventRepository.findByUser(owner).getFirst();
 		assertThat(event.getEventName()).isEqualTo("Wedding");
-		assertThat(event.getPassword()).isNotEqualTo("guest-secret");
-		assertThat(passwordEncoder.matches("guest-secret", event.getPassword())).isTrue();
+		assertThat(event.getPassword()).isNotEqualTo("Guest-Secret123!");
+		assertThat(passwordEncoder.matches("Guest-Secret123!", event.getPassword())).isTrue();
 
 		mockMvc.perform(get("/api/events").header("Authorization", bearer(token)))
 			.andExpect(status().isOk())
@@ -281,7 +281,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 	void protectedGuestsNeedGalleryPasswordForBothUploadStepsAndCannotConfirmForeignImages() throws Exception {
 		User owner = persistUser("owner@example.com");
 		Event event = TestFixtures.event(owner, "Protected wedding");
-		event.setPassword(passwordEncoder.encode("guest-secret"));
+		event.setPassword(passwordEncoder.encode("Guest-Secret123!"));
 		event = eventRepository.saveAndFlush(event);
 		UUID protectedEventId = event.getId();
 		Event otherEvent = eventRepository.saveAndFlush(TestFixtures.event(owner, "Other wedding"));
@@ -305,7 +305,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 
 		MvcResult protectedPresign = mockMvc
 			.perform(post("/api/events/{id}/public/images/presigned-url", event.getId())
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body))
 			.andExpect(status().isOk())
@@ -325,7 +325,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 			.andExpect(status().isUnauthorized());
 		mockMvc
 			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(foreignImage.getId())))
 			.andExpect(status().isNotFound());
@@ -333,7 +333,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 
 		mockMvc
 			.perform(post("/api/events/{id}/public/images/uploaded", event.getId()).cookie(protectedGuestCookie)
-				.header("X-Gallery-Password", "guest-secret")
+				.header("X-Gallery-Password", "Guest-Secret123!")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("[\"%s\"]".formatted(guestImage.getId())))
 			.andExpect(status().isNoContent());
@@ -565,7 +565,7 @@ class EventImageJourneyIntegrationTest extends FullStackIntegrationTest {
 				  "firstNameCoupleTwo": "Sam",
 				  "location": "Berlin",
 				  "date": "2030-06-15T14:00:00",
-				  "password": "guest-secret",
+				  "password": "Guest-Secret123!",
 				  "qrCode": "qr-code"
 				}
 				""".formatted(userId);

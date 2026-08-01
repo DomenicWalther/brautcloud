@@ -121,7 +121,8 @@ public class EventController {
 	}
 
 	@PostMapping
-	public void addEvent(@AuthenticationPrincipal UserDetails authenticatedUser, @RequestBody EventRequest request) {
+	public void addEvent(@AuthenticationPrincipal UserDetails authenticatedUser,
+			@Valid @RequestBody EventRequest request) {
 		eventService.addEvent(authenticatedUser.getUsername(), request);
 	}
 
