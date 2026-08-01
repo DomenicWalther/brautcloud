@@ -11,6 +11,7 @@ import com.domenicwalther.brautcloud.repository.ImageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,8 @@ public class ImageService {
 	private static final Duration PRESIGN_RATE_WINDOW = Duration.ofMinutes(10);
 
 	private static final int MAX_PRESIGN_REQUESTS_PER_WINDOW = 10;
+
+	private static final int CLEANUP_BATCH_SIZE = 100;
 
 	@Autowired
 	private S3Service s3Service;
@@ -321,9 +324,9 @@ public class ImageService {
 	@Scheduled(cron = "0 0 * * * *") // Every hour
 	public void cleanupUnuploadedImages() {
 		LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo)
-			.stream()
-			.filter(image -> !image.isDeletionRequested())
+		imageRepository
+			.findByIsUploadedFalseAndDeletionRequestedFalseAndCreatedAtBeforeOrderByCreatedAtAscIdAsc(oneHourAgo,
+					PageRequest.of(0, CLEANUP_BATCH_SIZE))
 			.forEach(image -> {
 				try {
 					storageDeletionService.requestImageDeletion(image);

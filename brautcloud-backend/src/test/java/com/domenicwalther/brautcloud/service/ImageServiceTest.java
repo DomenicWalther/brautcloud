@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -403,10 +404,16 @@ class ImageServiceTest {
 		Image image = TestFixtures.image(TestFixtures.event(TestFixtures.user("owner@example.com"), "Wedding"),
 				"pending.jpg", false);
 		image.setId(imageId);
-		when(imageRepository.findByIsUploadedFalseAndCreatedAtBefore(any())).thenReturn(List.of(image));
-
+		when(imageRepository.findByIsUploadedFalseAndDeletionRequestedFalseAndCreatedAtBeforeOrderByCreatedAtAscIdAsc(
+				any(), any(Pageable.class)))
+			.thenReturn(List.of(image));
 		imageService.cleanupUnuploadedImages();
 
+		ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+		verify(imageRepository)
+			.findByIsUploadedFalseAndDeletionRequestedFalseAndCreatedAtBeforeOrderByCreatedAtAscIdAsc(any(),
+					pageable.capture());
+		assertThat(pageable.getValue().getPageSize()).isEqualTo(100);
 		verify(storageDeletionService).requestImageDeletion(image);
 		verify(storageDeletionService).processImageDeletion(imageId);
 		verify(imageRepository, never()).delete(image);
