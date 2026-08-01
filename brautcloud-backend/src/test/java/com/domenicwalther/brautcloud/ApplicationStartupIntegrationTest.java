@@ -26,7 +26,7 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 	void applicationStartsWithEveryMigrationAppliedToPostgres() {
 		assertThat(applicationContext.getBean(BrautcloudApplication.class)).isNotNull();
 		assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()))
-			.containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
+			.containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
 	}
 
 	@Test
@@ -40,7 +40,10 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 		assertThat(columnType("images", "size_bytes")).isEqualTo("bigint");
 		assertThat(columnType("images", "deletion_requested")).isEqualTo("boolean");
 		assertThat(columnType("events", "deletion_requested")).isEqualTo("boolean");
-		assertThat(columnType("storage_deletion_jobs", "next_attempt_at")).isEqualTo("timestamp without time zone");
+		assertThat(columnType("events", "lifecycle_state")).isEqualTo("character varying");
+		assertThat(columnType("images", "lifecycle_state")).isEqualTo("character varying");
+		assertThat(columnType("storage_deletion_jobs", "lease_token")).isEqualTo("character varying");
+		assertThat(columnType("storage_deletion_jobs", "lease_until")).isEqualTo("timestamp without time zone");
 		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pg_extension WHERE extname = 'uuid-ossp'",
 				Integer.class))
 			.isOne();

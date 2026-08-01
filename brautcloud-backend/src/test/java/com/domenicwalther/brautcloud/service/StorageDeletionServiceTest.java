@@ -2,7 +2,9 @@ package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.exception.StorageLifecycleException;
 import com.domenicwalther.brautcloud.model.Event;
+import com.domenicwalther.brautcloud.model.EventLifecycleState;
 import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.model.ImageLifecycleState;
 import com.domenicwalther.brautcloud.model.StorageDeletionJob;
 import com.domenicwalther.brautcloud.model.StorageDeletionResourceType;
 import com.domenicwalther.brautcloud.repository.EventRepository;
@@ -23,6 +25,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,12 +112,33 @@ class StorageDeletionServiceTest {
 		storageDeletionService.requestEventDeletion(event);
 
 		assertThat(event.isDeletionRequested()).isTrue();
+		assertThat(event.getLifecycleState()).isEqualTo(EventLifecycleState.DELETE_REQUESTED);
 		assertThat(first.isDeletionRequested()).isTrue();
+		assertThat(first.getLifecycleState()).isEqualTo(ImageLifecycleState.DELETE_REQUESTED);
 		assertThat(second.isDeletionRequested()).isTrue();
 		verify(eventRepository).save(event);
 		verify(imageRepository).save(first);
 		verify(imageRepository).save(second);
 		verify(jobRepository, org.mockito.Mockito.times(3)).save(any(StorageDeletionJob.class));
+	}
+
+	@Test
+	void scheduledWorkerClaimsAndReleasesJobLease() {
+		Image image = image("photo.jpg");
+		image.setDeletionRequested(true);
+		StorageDeletionJob job = imageJob(image);
+		String leaseToken = "worker-token";
+		when(jobRepository.claimDueJobs(any(), any(), any(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(1);
+		when(jobRepository.findByLeaseToken(anyString())).thenReturn(List.of(job));
+		when(jobRepository.findByIdAndLeaseToken(eq(job.getId()), anyString())).thenReturn(Optional.of(job));
+		when(imageRepository.findByDeletionRequestedTrue()).thenReturn(List.of());
+		when(eventRepository.findByDeletionRequestedTrue()).thenReturn(List.of());
+
+		storageDeletionService.retryPendingDeletions();
+
+		verify(jobRepository).claimDueJobs(any(), any(), anyString(), org.mockito.ArgumentMatchers.eq(100));
+		verify(s3Service).deleteFile("photo.jpg");
+		verify(jobRepository).deleteByIdAndLeaseToken(eq(job.getId()), anyString());
 	}
 
 	@Test

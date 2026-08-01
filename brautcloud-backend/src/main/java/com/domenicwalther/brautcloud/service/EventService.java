@@ -65,7 +65,7 @@ public class EventService {
 	public List<EventResponse> getEvents() {
 		return eventRepository.findAll()
 			.stream()
-			.filter(event -> !event.isDeletionRequested())
+			.filter(event -> !event.isDeletionStarted())
 			.map(EventResponse::fromEvent)
 			.toList();
 	}
@@ -75,7 +75,7 @@ public class EventService {
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		return eventRepository.findByUser(user)
 			.stream()
-			.filter(event -> !event.isDeletionRequested())
+			.filter(event -> !event.isDeletionStarted())
 			.map(this::toEventResponse)
 			.toList();
 	}
@@ -186,7 +186,7 @@ public class EventService {
 	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
-		return images.stream().filter(image -> !image.isDeletionRequested()).map(image -> {
+		return images.stream().filter(image -> !image.isDeletionStarted()).map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			boolean canDelete = ownerView
 					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
@@ -198,7 +198,7 @@ public class EventService {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID)
 			.stream()
-			.filter(image -> !image.isDeletionRequested())
+			.filter(image -> !image.isDeletionStarted())
 			.toList();
 		if (images.isEmpty()) {
 			return null;
@@ -219,7 +219,7 @@ public class EventService {
 
 	private Event requireAvailableEvent(UUID eventId) {
 		Event event = findEvent(eventId);
-		if (event.isDeletionRequested()) {
+		if (event.isDeletionStarted()) {
 			throw new ResourceNotFoundException("Event not found");
 		}
 		return event;

@@ -52,6 +52,12 @@ public class StorageDeletionJob {
 	@Column(columnDefinition = "TEXT")
 	private String lastError;
 
+	@Column(name = "lease_token", length = 64)
+	private String leaseToken;
+
+	@Column(name = "lease_until")
+	private LocalDateTime leaseUntil;
+
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 

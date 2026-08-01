@@ -47,10 +47,34 @@ public class Event {
 	@Column(name = "deletion_requested", nullable = false)
 	private boolean deletionRequested;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "lifecycle_state", nullable = false, length = 32)
+	@Builder.Default
+	private EventLifecycleState lifecycleState = EventLifecycleState.ACTIVE;
+
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 
 	@OneToMany(mappedBy = "event")
 	private List<Image> images;
+
+	public boolean isUploadAllowed() {
+		return !deletionRequested && lifecycleState == EventLifecycleState.ACTIVE;
+	}
+
+	public boolean isDeletionStarted() {
+		return deletionRequested || lifecycleState != null && lifecycleState != EventLifecycleState.ACTIVE;
+	}
+
+	public void requestDeletion() {
+		deletionRequested = true;
+		lifecycleState = EventLifecycleState.DELETE_REQUESTED;
+	}
+
+	public void markDeleting() {
+		if (lifecycleState == EventLifecycleState.DELETE_REQUESTED) {
+			lifecycleState = EventLifecycleState.DELETING;
+		}
+	}
 
 }

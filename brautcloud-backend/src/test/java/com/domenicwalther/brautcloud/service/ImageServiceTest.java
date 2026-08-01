@@ -5,6 +5,7 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.model.ImageLifecycleState;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
@@ -93,6 +94,7 @@ class ImageServiceTest {
 			assertThat(image.getEvent()).isSameAs(event);
 			assertThat(image.isVisible()).isTrue();
 			assertThat(image.isUploaded()).isFalse();
+			assertThat(image.getLifecycleState()).isEqualTo(ImageLifecycleState.PENDING);
 		})
 			.extracting(Image::getImageKey)
 			.anyMatch(key -> key.endsWith("-ceremony.jpg"))
@@ -110,6 +112,23 @@ class ImageServiceTest {
 			.hasMessage("Event not found");
 		verify(imageRepository, never()).save(any());
 		verify(s3Service, never()).getPresignedPutUrl(any());
+	}
+
+	@Test
+	void presigningIsRejectedOnceEventDeletionBegins() {
+		UUID eventId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		event.requestDeletion();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls(owner.getEmail(),
+				new ImageUploadRequest(eventId, List.of("photo.jpg"))))
+			.isInstanceOf(ResourceNotFoundException.class)
+			.hasMessage("Event not found");
+		verify(imageRepository, never()).save(any(Image.class));
+		verify(s3Service, never()).getPresignedPutUrl(anyString());
 	}
 
 	@Test
@@ -242,6 +261,7 @@ class ImageServiceTest {
 		imageService.markPublicImagesAsUploaded(eventId, "secret", List.of(imageId), GUEST_SESSION_TOKEN);
 
 		assertThat(image.isUploaded()).isTrue();
+		assertThat(image.getLifecycleState()).isEqualTo(ImageLifecycleState.AVAILABLE);
 		verify(imageRepository).saveAll(List.of(image));
 	}
 

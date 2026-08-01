@@ -7,6 +7,8 @@ import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.exception.TooManyRequestsException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
+import com.domenicwalther.brautcloud.model.ImageLifecycleState;
+import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +43,9 @@ public class ImageService {
 
 	@Autowired
 	private S3Service s3Service;
+
+	@Autowired
+	private EventRepository eventRepository;
 
 	private final ImageRepository imageRepository;
 
@@ -97,12 +102,9 @@ public class ImageService {
 	private List<ImageUploadResponse> generatePresignedUploadUrls(Event event, ImageUploadRequest request,
 			String guestSessionHash, String rateLimitKey, boolean publicUpload) {
 		List<UploadSpec> specifications = validateUploadRequest(request);
+		Event uploadEvent = lockEventForUpload(event);
 		enforceRateLimit(rateLimitKey);
-		enforceQuota(event, specifications, guestSessionHash, publicUpload);
-
-		if (event.isDeletionRequested()) {
-			throw new ResourceNotFoundException("Event not found");
-		}
+		enforceQuota(uploadEvent, specifications, guestSessionHash, publicUpload);
 		List<Image> savedImages = new ArrayList<>();
 		try {
 			return specifications.stream().map(specification -> {
@@ -115,13 +117,14 @@ public class ImageService {
 				}
 
 				Image image = new Image();
-				image.setEvent(event);
+				image.setEvent(uploadEvent);
 				image.setImageKey(key);
 				image.setContentType(specification.contentType());
 				image.setSizeBytes(specification.sizeBytes());
 				image.setGuestSessionHash(guestSessionHash);
 				image.setVisible(true);
 				image.setUploaded(false);
+				image.setLifecycleState(ImageLifecycleState.PENDING);
 				Image saved = imageRepository.save(image);
 				savedImages.add(saved);
 				return new ImageUploadResponse(saved.getId(), uploadUrl, specification.contentType());
@@ -141,6 +144,7 @@ public class ImageService {
 	public void markImagesAsUploaded(String email, List<UUID> imageIds) {
 		validateImageIds(imageIds);
 		List<Image> images = resourceOwnershipService.requireOwnedImages(email, imageIds);
+		ensureEventsAllowUpload(images);
 		markImagesAsUploaded(images);
 	}
 
@@ -149,12 +153,13 @@ public class ImageService {
 			String guestSessionToken) {
 		Event event = eventService.requirePublicGalleryAccess(eventID, galleryPassword);
 		validateImageIds(imageIds);
+		Event uploadEvent = lockEventForUpload(event);
 		String guestSessionHash = requireGuestSessionHash(guestSessionToken);
 		List<Image> images = imageRepository.findAllById(imageIds);
-		if (guestSessionHash == null || images.size() != imageIds.size()
+		if (guestSessionHash == null || images.size() != imageIds.size() || !uploadEvent.isUploadAllowed()
 				|| images.stream()
-					.anyMatch(image -> image.isDeletionRequested() || image.getEvent() == null
-							|| !event.getId().equals(image.getEvent().getId())
+					.anyMatch(image -> image.isDeletionStarted() || image.getEvent() == null
+							|| !uploadEvent.getId().equals(image.getEvent().getId())
 							|| !guestSessionHash.equals(image.getGuestSessionHash()))) {
 			throw new ResourceNotFoundException("Image not found");
 		}
@@ -162,7 +167,7 @@ public class ImageService {
 	}
 
 	private void markImagesAsUploaded(List<Image> images) {
-		if (images.stream().anyMatch(Image::isDeletionRequested)) {
+		if (images.stream().anyMatch(Image::isDeletionStarted)) {
 			throw new ResourceNotFoundException("Image not found");
 		}
 		List<Image> pendingImages = images.stream().filter(image -> !image.isUploaded()).toList();
@@ -174,7 +179,7 @@ public class ImageService {
 			discardUnverifiedImages(invalidImages);
 			throw new BadRequestException("Uploaded image is missing or invalid");
 		}
-		images.forEach(image -> image.setUploaded(true));
+		images.forEach(Image::markAvailable);
 		imageRepository.saveAll(images);
 	}
 
@@ -189,6 +194,27 @@ public class ImageService {
 			}
 		}
 		imageRepository.deleteAll(images);
+	}
+
+	private Event lockEventForUpload(Event authorizedEvent) {
+		Event lockedEvent = eventRepository == null ? authorizedEvent
+				: eventRepository.findByIdForUpdate(authorizedEvent.getId())
+					.orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+		if (!lockedEvent.isUploadAllowed()) {
+			throw new ResourceNotFoundException("Event not found");
+		}
+		return lockedEvent;
+	}
+
+	private void ensureEventsAllowUpload(List<Image> images) {
+		Set<UUID> eventIds = new HashSet<>();
+		for (Image image : images) {
+			Event event = image.getEvent();
+			if (event == null || !eventIds.add(event.getId())) {
+				continue;
+			}
+			lockEventForUpload(event);
+		}
 	}
 
 	private List<UploadSpec> validateUploadRequest(ImageUploadRequest request) {
@@ -323,7 +349,7 @@ public class ImageService {
 		LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
 		imageRepository.findByIsUploadedFalseAndCreatedAtBefore(oneHourAgo)
 			.stream()
-			.filter(image -> !image.isDeletionRequested())
+			.filter(image -> !image.isDeletionStarted())
 			.forEach(image -> {
 				try {
 					storageDeletionService.requestImageDeletion(image);
