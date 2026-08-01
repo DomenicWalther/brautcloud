@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 
 	private static final List<String> EXPECTED_MIGRATION_VERSIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9",
-			"10", "11", "12", "13");
+			"10", "11", "12", "13", "14");
 
 	@Autowired
 	private ApplicationContext applicationContext;

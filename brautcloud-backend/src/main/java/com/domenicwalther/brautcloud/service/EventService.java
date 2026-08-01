@@ -1,7 +1,9 @@
 package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.dto.EventImageSummary;
 import com.domenicwalther.brautcloud.dto.EventRequest;
+import com.domenicwalther.brautcloud.dto.EventSummary;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
 import com.domenicwalther.brautcloud.dto.PublicEventResponse;
@@ -9,7 +11,6 @@ import com.domenicwalther.brautcloud.exception.GalleryPasswordRequiredException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.EventGuestVisit;
-import com.domenicwalther.brautcloud.model.Image;
 import com.domenicwalther.brautcloud.model.User;
 import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
@@ -18,6 +19,8 @@ import com.domenicwalther.brautcloud.repository.UserRepository;
 import com.domenicwalther.brautcloud.validation.GalleryPasswordPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -33,6 +37,8 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 public class EventService {
+
+	private static final int READ_PAGE_SIZE = 100;
 
 	@Autowired
 	private S3Service s3Service;
@@ -78,11 +84,23 @@ public class EventService {
 	public List<EventResponse> getEventsByUserEmail(String email) {
 		User user = userRepository.findByEmail(email)
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
-		return eventRepository.findByUser(user)
-			.stream()
-			.filter(event -> !event.isDeletionStarted())
-			.map(this::toEventResponse)
-			.toList();
+		return getEventResponses(user);
+	}
+
+	/**
+	 * Loads event cards in bounded pages. Guest counts are calculated by the projection
+	 * query, avoiding one count query per event.
+	 */
+	public List<EventResponse> getEventResponses(User user) {
+		List<EventResponse> responses = new ArrayList<>();
+		int page = 0;
+		List<EventSummary> summaries;
+		do {
+			summaries = eventRepository.findEventSummariesByUser(user, PageRequest.of(page++, READ_PAGE_SIZE));
+			responses.addAll(summaries.stream().map(EventSummary::toResponse).toList());
+		}
+		while (summaries.size() == READ_PAGE_SIZE);
+		return responses;
 	}
 
 	public EventResponse toEventResponse(Event event) {
@@ -198,37 +216,45 @@ public class EventService {
 	}
 
 	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
-		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
-
-		return images.stream().filter(image -> !image.isDeletionStarted()).map(image -> {
-			String url = s3Service.getPresignedUrl(image.getImageKey());
+		return readUploadedImageSummaries(eventID).stream().map(image -> {
+			String url = s3Service.getPresignedUrl(image.imageKey());
 			boolean canDelete = ownerView
-					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
-			return new EventImageDTO(image.getId(), url, canDelete);
+					|| guestSessionHash != null && guestSessionHash.equals(image.guestSessionHash());
+			return new EventImageDTO(image.id(), url, canDelete);
 		}).toList();
 	}
 
 	public StreamingResponseBody streamEventImagesAsZip(String email, UUID eventID) {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
-		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID)
-			.stream()
-			.filter(image -> !image.isDeletionStarted())
-			.toList();
+		List<EventImageSummary> images = readUploadedImageSummaries(eventID);
 		if (images.isEmpty()) {
 			return null;
 		}
 
 		return outputStream -> {
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
-				for (Image image : images) {
-					try (InputStream inputStream = s3Service.getObject(image.getImageKey())) {
-						zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
+				for (EventImageSummary image : images) {
+					try (InputStream inputStream = s3Service.getObject(image.imageKey())) {
+						zipOutputStream.putNextEntry(new ZipEntry(image.imageKey()));
 						inputStream.transferTo(zipOutputStream);
 						zipOutputStream.closeEntry();
 					}
 				}
 			}
 		};
+	}
+
+	private List<EventImageSummary> readUploadedImageSummaries(UUID eventID) {
+		List<EventImageSummary> images = new ArrayList<>();
+		int page = 0;
+		List<EventImageSummary> pageImages;
+		do {
+			pageImages = imageRepository.findUploadedImageSummariesByEventId(eventID,
+					PageRequest.of(page++, READ_PAGE_SIZE));
+			images.addAll(pageImages);
+		}
+		while (pageImages.size() == READ_PAGE_SIZE);
+		return images;
 	}
 
 	private Event requireAvailableEvent(UUID eventId) {
