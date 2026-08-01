@@ -33,6 +33,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -266,6 +267,22 @@ class EventControllerWebMvcTest {
 		when(eventService.streamEventImagesAsZip("owner@example.com", eventId)).thenReturn(null);
 
 		mockMvc.perform(get("/api/events/{eventId}/images/download", eventId)).andExpect(status().isNoContent());
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void createEventRejectsOversizedEventNameBeforeServiceCall() throws Exception {
+		String oversizedName = "x".repeat(256);
+
+		mockMvc.perform(post("/api/events").contentType(MediaType.APPLICATION_JSON).content("""
+				{
+				  "eventName": "%s",
+				  "location": "Berlin",
+				  "date": "2030-06-15T14:00:00"
+				}
+				""".formatted(oversizedName))).andExpect(status().isBadRequest());
+
+		verify(eventService, never()).addEvent(eq("owner@example.com"), org.mockito.ArgumentMatchers.any());
 	}
 
 	@Test

@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -75,6 +76,19 @@ class ImageControllerWebMvcTest {
 			.andExpect(status().isNoContent());
 
 		verify(imageService).markImagesAsUploaded("owner@example.com", List.of(imageId));
+	}
+
+	@Test
+	@WithMockUser(username = "owner@example.com")
+	void markUploadedRejectsOversizedConfirmationBatchBeforeServiceCall() throws Exception {
+		String imageIds = java.util.stream.IntStream.range(0, 101)
+			.mapToObj(ignored -> "\"%s\"".formatted(UUID.randomUUID()))
+			.collect(java.util.stream.Collectors.joining(",", "[", "]"));
+
+		mockMvc.perform(post("/api/image/uploaded").contentType(MediaType.APPLICATION_JSON).content(imageIds))
+			.andExpect(status().isBadRequest());
+
+		verify(imageService, never()).markImagesAsUploaded(eq("owner@example.com"), org.mockito.ArgumentMatchers.any());
 	}
 
 	@Test

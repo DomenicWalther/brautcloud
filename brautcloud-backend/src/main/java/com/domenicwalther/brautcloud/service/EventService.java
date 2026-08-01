@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.service;
 
 import com.domenicwalther.brautcloud.dto.EventImageDTO;
+import com.domenicwalther.brautcloud.exception.BadRequestException;
 import com.domenicwalther.brautcloud.dto.EventRequest;
 import com.domenicwalther.brautcloud.dto.EventResponse;
 import com.domenicwalther.brautcloud.dto.EventUpdateRequest;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.InputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
@@ -160,6 +162,9 @@ public class EventService {
 	}
 
 	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword) {
+		if (galleryPassword != null && galleryPassword.length() > 72) {
+			throw new BadRequestException("Gallery password must not exceed 72 characters");
+		}
 		Event event = requireAvailableEvent(eventID);
 		if (event.getPassword() != null && !event.getPassword().isBlank()
 				&& !matchesGalleryPassword(event, galleryPassword)) {
@@ -203,18 +208,49 @@ public class EventService {
 		if (images.isEmpty()) {
 			return null;
 		}
+		if (images.size() > ImageUploadPolicy.MAX_SYNC_EXPORT_IMAGES) {
+			throw new BadRequestException("Synchronous export is limited to 100 images");
+		}
+		long estimatedBytes = images.stream()
+			.mapToLong(image -> image.getSizeBytes() == null ? ImageUploadPolicy.MAX_IMAGE_BYTES : image.getSizeBytes())
+			.reduce(0L, EventService::addExportBytes);
+		if (estimatedBytes > ImageUploadPolicy.MAX_SYNC_EXPORT_BYTES) {
+			throw new BadRequestException("Synchronous export exceeds the 500 MB limit");
+		}
 
 		return outputStream -> {
+			long[] exportedBytes = { 0L };
 			try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
 				for (Image image : images) {
 					try (InputStream inputStream = s3Service.getObject(image.getImageKey())) {
 						zipOutputStream.putNextEntry(new ZipEntry(image.getImageKey()));
-						inputStream.transferTo(zipOutputStream);
+						copyExportBytes(inputStream, zipOutputStream, exportedBytes);
 						zipOutputStream.closeEntry();
 					}
 				}
 			}
 		};
+	}
+
+	private static long addExportBytes(long total, long imageBytes) {
+		if (imageBytes < 0 || imageBytes > ImageUploadPolicy.MAX_IMAGE_BYTES
+				|| total > ImageUploadPolicy.MAX_SYNC_EXPORT_BYTES - imageBytes) {
+			throw new BadRequestException("Synchronous export exceeds the 500 MB limit");
+		}
+		return total + imageBytes;
+	}
+
+	private static void copyExportBytes(InputStream inputStream, ZipOutputStream outputStream, long[] exportedBytes)
+			throws IOException {
+		byte[] buffer = new byte[8192];
+		int read;
+		while ((read = inputStream.read(buffer)) != -1) {
+			if (exportedBytes[0] > ImageUploadPolicy.MAX_SYNC_EXPORT_BYTES - read) {
+				throw new BadRequestException("Synchronous export exceeds the 500 MB limit");
+			}
+			exportedBytes[0] += read;
+			outputStream.write(buffer, 0, read);
+		}
 	}
 
 	private Event requireAvailableEvent(UUID eventId) {
@@ -226,6 +262,9 @@ public class EventService {
 	}
 
 	private String hashGalleryPassword(String password) {
+		if (password != null && password.length() > 72) {
+			throw new BadRequestException("Gallery password must not exceed 72 characters");
+		}
 		if (password == null || password.isBlank()) {
 			return null;
 		}

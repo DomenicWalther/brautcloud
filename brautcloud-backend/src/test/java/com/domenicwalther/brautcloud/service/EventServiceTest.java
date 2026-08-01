@@ -316,6 +316,50 @@ class EventServiceTest {
 	}
 
 	@Test
+	void streamEventImagesAsZipRejectsMoreThanOneHundredImages() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		List<Image> images = java.util.stream.IntStream.range(0, 101).mapToObj(index -> {
+			Image image = new Image();
+			image.setId(UUID.randomUUID());
+			image.setImageKey("photo-" + index + ".jpg");
+			image.setSizeBytes(1L);
+			return image;
+		}).toList();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(images);
+
+		assertThatThrownBy(() -> eventService.streamEventImagesAsZip(user.getEmail(), eventId))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
+			.hasMessage("Synchronous export is limited to 100 images");
+		verify(s3Service, never()).getObject(org.mockito.ArgumentMatchers.anyString());
+	}
+
+	@Test
+	void streamEventImagesAsZipRejectsExportsOverFiveHundredMegabytes() {
+		User user = TestFixtures.user("owner@example.com");
+		UUID eventId = UUID.randomUUID();
+		Event event = TestFixtures.event(user, "Wedding");
+		event.setId(eventId);
+		List<Image> images = java.util.stream.IntStream.range(0, 51).mapToObj(index -> {
+			Image image = new Image();
+			image.setId(UUID.randomUUID());
+			image.setImageKey("photo-" + index + ".jpg");
+			image.setSizeBytes(ImageUploadPolicy.MAX_IMAGE_BYTES);
+			return image;
+		}).toList();
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		when(imageRepository.findByEventIdAndIsUploadedTrue(eventId)).thenReturn(images);
+
+		assertThatThrownBy(() -> eventService.streamEventImagesAsZip(user.getEmail(), eventId))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
+			.hasMessage("Synchronous export exceeds the 500 MB limit");
+		verify(s3Service, never()).getObject(org.mockito.ArgumentMatchers.anyString());
+	}
+
+	@Test
 	void streamEventImagesAsZipReturnsNullForEmptyGallery() {
 		User user = TestFixtures.user("owner@example.com");
 		UUID eventId = UUID.randomUUID();

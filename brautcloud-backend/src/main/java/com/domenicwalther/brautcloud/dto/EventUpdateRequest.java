@@ -15,5 +15,6 @@ public record EventUpdateRequest(
 				message = "Second couple name must not exceed 255 characters") String firstNameCoupleTwo,
 		@NotBlank(message = "Location is required") @Size(max = 255,
 				message = "Location must not exceed 255 characters") String location,
-		@NotNull(message = "Event date is required") LocalDateTime date, String password) {
+		@NotNull(message = "Event date is required") LocalDateTime date,
+		@Size(max = 72, message = "Password must not exceed 72 characters") String password) {
 }

@@ -7,10 +7,14 @@ import { EventImageDto } from '../core/models/event-image.dto';
 interface PresignedUrlRequest {
   eventId: string;
   fileNames: string[];
+  contentTypes: string[];
+  fileSizes: number[];
 }
 
 interface PublicPresignedUrlRequest {
   fileNames: string[];
+  contentTypes: string[];
+  fileSizes: number[];
 }
 
 export interface SelectedFile {
@@ -28,6 +32,9 @@ export interface UploadResult {
   success: boolean;
   error?: string;
 }
+
+export const MAX_FILES_PER_REQUEST = 100;
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 @Injectable({
   providedIn: 'root',
@@ -54,12 +61,16 @@ export class ImageService {
   }
 
   uploadImages(eventId: string, files: SelectedFile[]): Observable<UploadResult[]> {
-    const fileNames = files.map((f) => f.file.name);
+    const validationError = this.validateFiles(files);
+    if (validationError) {
+      return throwError(() => new Error(validationError));
+    }
+    const request = this.createUploadRequest(eventId, files);
 
     return this.uploadImagesWithEndpoints(
       `${this.API_URL}/image/presigned-url`,
       `${this.API_URL}/image/uploaded`,
-      { eventId, fileNames } as PresignedUrlRequest,
+      request,
       files,
       true,
     );
@@ -70,6 +81,10 @@ export class ImageService {
     files: SelectedFile[],
     galleryPassword?: string,
   ): Observable<UploadResult[]> {
+    const validationError = this.validateFiles(files);
+    if (validationError) {
+      return throwError(() => new Error(validationError));
+    }
     const headers: { [name: string]: string } = {};
     if (galleryPassword) {
       headers['X-Gallery-Password'] = galleryPassword;
@@ -78,7 +93,7 @@ export class ImageService {
     return this.uploadImagesWithEndpoints(
       `${this.API_URL}/events/${eventId}/public/images/presigned-url`,
       `${this.API_URL}/events/${eventId}/public/images/uploaded`,
-      { fileNames: files.map((f) => f.file.name) } as PublicPresignedUrlRequest,
+      this.createUploadRequestWithoutEvent(files),
       files,
       true,
       headers,
@@ -100,15 +115,19 @@ export class ImageService {
       })
       .pipe(
         switchMap((presignedUrls) => {
+          if (
+            presignedUrls.length > MAX_FILES_PER_REQUEST ||
+            presignedUrls.length !== files.length
+          ) {
+            return throwError(() => new Error('Upload batch exceeds the allowed file count'));
+          }
           const uploads = presignedUrls.map((presigned, index) => {
             const selectedFile = files[index];
             if (!selectedFile) {
               return of({ imageId: presigned.imageId, success: false, error: 'File not found' });
             }
             return this.uploadToS3(presigned.uploadUrl, selectedFile.file).pipe(
-              switchMap(() =>
-                this.notifyBackend(uploadedEndpoint, presigned.imageId, headers, withCredentials),
-              ),
+              map(() => ({ imageId: presigned.imageId, success: true })),
               catchError((error: unknown) => {
                 if (error instanceof HttpErrorResponse && error.status === 401) {
                   return throwError(() => error);
@@ -119,7 +138,38 @@ export class ImageService {
             );
           });
 
-          return forkJoin(uploads);
+          return forkJoin(uploads).pipe(
+            switchMap((results) => {
+              const uploadedIds = results
+                .filter((result) => result.success)
+                .map((result) => result.imageId);
+              if (uploadedIds.length === 0) {
+                return of(results);
+              }
+              return this.notifyBackend(
+                uploadedEndpoint,
+                uploadedIds,
+                headers,
+                withCredentials,
+              ).pipe(
+                map(() => results),
+                catchError((error: unknown) => {
+                  if (error instanceof HttpErrorResponse && error.status === 401) {
+                    return throwError(() => error);
+                  }
+                  const message =
+                    error instanceof Error ? error.message : 'Upload confirmation failed';
+                  return of(
+                    results.map((result) =>
+                      uploadedIds.includes(result.imageId)
+                        ? { ...result, success: false, error: message }
+                        : result,
+                    ),
+                  );
+                }),
+              );
+            }),
+          );
         }),
       );
   }
@@ -148,13 +198,43 @@ export class ImageService {
 
   private notifyBackend(
     uploadedEndpoint: string,
-    imageId: string,
+    imageIds: string[],
     headers: { [name: string]: string },
     withCredentials: boolean,
-  ): Observable<UploadResult> {
-    return this.http
-      .post<void>(uploadedEndpoint, [imageId], { headers, withCredentials })
-      .pipe(map(() => ({ imageId, success: true })));
+  ): Observable<void> {
+    return this.http.post<void>(uploadedEndpoint, imageIds, { headers, withCredentials });
+  }
+
+  private createUploadRequest(eventId: string, files: SelectedFile[]): PresignedUrlRequest {
+    return { eventId, ...this.createUploadMetadata(files) };
+  }
+
+  private createUploadRequestWithoutEvent(files: SelectedFile[]): PublicPresignedUrlRequest {
+    return this.createUploadMetadata(files);
+  }
+
+  private createUploadMetadata(files: SelectedFile[]): Omit<PresignedUrlRequest, 'eventId'> {
+    return {
+      fileNames: files.map(({ file }) => file.name),
+      contentTypes: files.map(({ file }) => file.type),
+      fileSizes: files.map(({ file }) => file.size),
+    };
+  }
+
+  private validateFiles(files: SelectedFile[]): string | null {
+    if (files.length === 0) {
+      return 'Select at least one image.';
+    }
+    if (files.length > MAX_FILES_PER_REQUEST) {
+      return `You can upload at most ${MAX_FILES_PER_REQUEST} images at once.`;
+    }
+    if (files.some(({ file }) => file.size <= 0 || file.size > MAX_IMAGE_BYTES)) {
+      return 'Each image must be 10 MB or smaller.';
+    }
+    if (files.some(({ file }) => file.name.length > 255)) {
+      return 'File names must be 255 characters or shorter.';
+    }
+    return null;
   }
 
   deleteImage(imageId: string): Observable<void> {

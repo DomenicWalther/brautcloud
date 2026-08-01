@@ -192,6 +192,9 @@ public class ImageService {
 	}
 
 	private List<UploadSpec> validateUploadRequest(ImageUploadRequest request) {
+		if (request == null) {
+			throw new BadRequestException("Event and file names are required");
+		}
 		List<String> fileNames = request.getFileNames();
 		if (fileNames == null || fileNames.isEmpty() || fileNames.size() > ImageUploadPolicy.MAX_FILES_PER_REQUEST) {
 			throw new BadRequestException("At least one valid file name is required");
@@ -290,6 +293,9 @@ public class ImageService {
 	}
 
 	private void validateImageIds(List<UUID> imageIds) {
+		if (imageIds != null && imageIds.size() > ImageUploadPolicy.MAX_FILES_PER_REQUEST) {
+			throw new BadRequestException("At most 100 image IDs may be confirmed at once");
+		}
 		if (imageIds == null || imageIds.isEmpty() || imageIds.stream().anyMatch(id -> id == null)
 				|| imageIds.stream().distinct().count() != imageIds.size()) {
 			throw new ResourceNotFoundException("Image not found");
