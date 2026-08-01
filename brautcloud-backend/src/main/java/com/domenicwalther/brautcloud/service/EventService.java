@@ -259,7 +259,7 @@ public class EventService {
 
 	private Event requireAvailableEvent(UUID eventId) {
 		Event event = findEvent(eventId);
-		if (event.isDeletionRequested()) {
+		if (event.isDeletionStarted()) {
 			throw new ResourceNotFoundException("Event not found");
 		}
 		return event;

@@ -1,6 +1,8 @@
 package com.domenicwalther.brautcloud.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -8,7 +10,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Entity
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "images")
 public class Image {
 
@@ -40,8 +44,34 @@ public class Image {
 	@Column(name = "deletion_requested", nullable = false)
 	private boolean deletionRequested;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "lifecycle_state", nullable = false, length = 32)
+	@Builder.Default
+	private ImageLifecycleState lifecycleState = ImageLifecycleState.PENDING;
+
 	@Column(insertable = false, updatable = false)
 	private LocalDateTime createdAt;
+
+	public void markAvailable() {
+		isUploaded = true;
+		isVisible = true;
+		lifecycleState = ImageLifecycleState.AVAILABLE;
+	}
+
+	public void requestDeletion() {
+		deletionRequested = true;
+		lifecycleState = ImageLifecycleState.DELETE_REQUESTED;
+	}
+
+	public void markDeletionRetrying() {
+		deletionRequested = true;
+		lifecycleState = ImageLifecycleState.DELETE_RETRYING;
+	}
+
+	public boolean isDeletionStarted() {
+		return deletionRequested || lifecycleState == ImageLifecycleState.DELETE_REQUESTED
+				|| lifecycleState == ImageLifecycleState.DELETE_RETRYING;
+	}
 
 	public UUID getId() {
 		return id;
@@ -113,6 +143,14 @@ public class Image {
 
 	public void setDeletionRequested(boolean deletionRequested) {
 		this.deletionRequested = deletionRequested;
+	}
+
+	public ImageLifecycleState getLifecycleState() {
+		return lifecycleState;
+	}
+
+	public void setLifecycleState(ImageLifecycleState lifecycleState) {
+		this.lifecycleState = lifecycleState;
 	}
 
 	public LocalDateTime getCreatedAt() {
