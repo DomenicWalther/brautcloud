@@ -76,6 +76,26 @@ class PersistenceIntegrationTest extends PostgresIntegrationTest {
 	}
 
 	@Test
+	void entityStringMethodsDoNotInitializeLazyRelationships() {
+		User user = userRepository.saveAndFlush(TestFixtures.user("owner@example.com"));
+		Event event = eventRepository.saveAndFlush(TestFixtures.event(user, "Wedding"));
+		imageRepository.saveAndFlush(TestFixtures.image(event, "photo.jpg", true));
+		entityManager.clear();
+
+		User persistedUser = entityManager.find(User.class, user.getId());
+		Event persistedEvent = entityManager.find(Event.class, event.getId());
+		var persistenceUnitUtil = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
+		assertThat(persistenceUnitUtil.isLoaded(persistedUser, "events")).isFalse();
+		assertThat(persistenceUnitUtil.isLoaded(persistedEvent, "images")).isFalse();
+
+		persistedUser.toString();
+		persistedEvent.toString();
+
+		assertThat(persistenceUnitUtil.isLoaded(persistedUser, "events")).isFalse();
+		assertThat(persistenceUnitUtil.isLoaded(persistedEvent, "images")).isFalse();
+	}
+
+	@Test
 	void postgresUniqueConstraintRejectsDuplicateEmail() {
 		userRepository.saveAndFlush(TestFixtures.user("duplicate@example.com"));
 

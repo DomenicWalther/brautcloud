@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
@@ -67,7 +68,8 @@ class StorageDeletionConcurrencyIntegrationTest extends FullStackIntegrationTest
 		eventRepository.deleteAll();
 		userRepository.deleteAll();
 		reset(s3Service);
-		when(s3Service.getPresignedPutUrl(anyString())).thenReturn("https://uploads.test/photo");
+		when(s3Service.getPresignedPutUrl(anyString(), anyString(), anyLong()))
+			.thenReturn("https://uploads.test/photo");
 	}
 
 	@Test

@@ -72,6 +72,54 @@ describe('ImageUpload', () => {
     expect(root.querySelector('label[for="file-input"]')).toBeTruthy();
   });
 
+  it('revokes previews rejected because selection is full', () => {
+    const fixture = TestBed.createComponent(ImageUpload);
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    const createObjectURL = vi.fn().mockReturnValue('blob:overflow');
+    const revokeObjectURL = vi.fn();
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    fixture.componentInstance.selectedFiles.set(
+      Array.from({ length: fixture.componentInstance.MAX_FILES }, (_, index) => ({
+        file: new File(['photo'], `selected-${index}.jpg`, { type: 'image/jpeg' }),
+        preview: `blob:selected-${index}`,
+      })),
+    );
+
+    fixture.componentInstance.onFilesSelected({
+      target: {
+        files: [new File(['photo'], 'overflow.jpg', { type: 'image/jpeg' })],
+        value: '',
+      },
+    } as unknown as Event);
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:overflow');
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    fixture.destroy();
+  });
+
+  it('releases selected and uploaded previews when destroyed', () => {
+    const fixture = TestBed.createComponent(ImageUpload);
+    const originalRevoke = URL.revokeObjectURL;
+    const revokeObjectURL = vi.fn();
+    URL.revokeObjectURL = revokeObjectURL;
+    fixture.componentInstance.selectedFiles.set([
+      {
+        file: new File(['photo'], 'selected.jpg', { type: 'image/jpeg' }),
+        preview: 'blob:selected',
+      },
+    ]);
+    fixture.componentInstance.uploadedImages.set([{ id: 'image-1', url: 'blob:uploaded' }]);
+
+    fixture.destroy();
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:selected');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:uploaded');
+    URL.revokeObjectURL = originalRevoke;
+  });
+
   it('shows completion feedback after uploading photographs', () => {
     imageService.uploadImages.mockReturnValue(of([{ success: true, imageId: 'image-1' }]));
     const fixture = TestBed.createComponent(ImageUpload);

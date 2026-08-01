@@ -8,10 +8,14 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
+
+	private static final List<String> EXPECTED_MIGRATION_VERSIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9",
+			"10", "11", "12", "13");
 
 	@Autowired
 	private ApplicationContext applicationContext;
@@ -26,7 +30,14 @@ class ApplicationStartupIntegrationTest extends FullStackIntegrationTest {
 	void applicationStartsWithEveryMigrationAppliedToPostgres() {
 		assertThat(applicationContext.getBean(BrautcloudApplication.class)).isNotNull();
 		assertThat(Arrays.stream(flyway.info().applied()).map(info -> info.getVersion().getVersion()))
-			.containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+			.containsExactlyElementsOf(EXPECTED_MIGRATION_VERSIONS);
+	}
+
+	@Test
+	void migrationVersionsRemainOrderedAndFullyApplied() {
+		assertThat(Arrays.stream(flyway.info().all()).map(info -> info.getVersion().getVersion()))
+			.containsExactlyElementsOf(EXPECTED_MIGRATION_VERSIONS);
+		assertThat(flyway.info().pending()).isEmpty();
 	}
 
 	@Test

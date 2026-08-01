@@ -1,5 +1,7 @@
+// Production builds replace this file with environment.production.generated.ts.
+// Keep fallback values empty so localhost cannot enter a production artifact.
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:8080/api', // TODO: change to production url
-  appUrl: 'http://localhost:4200',
+  apiUrl: '',
+  appUrl: '',
 };
