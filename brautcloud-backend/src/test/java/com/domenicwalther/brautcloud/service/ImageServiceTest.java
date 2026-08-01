@@ -62,8 +62,8 @@ class ImageServiceTest {
 	void setUp() {
 		ResourceOwnershipService resourceOwnershipService = new ResourceOwnershipService(eventRepository,
 				imageRepository);
-		imageService = new ImageService(imageRepository, resourceOwnershipService, eventService,
-				storageDeletionService);
+		imageService = new ImageService(imageRepository, resourceOwnershipService, eventService, storageDeletionService,
+				new UploadRequestPlanner());
 		ReflectionTestUtils.setField(imageService, "s3Service", s3Service);
 	}
 

@@ -37,6 +37,9 @@ build/
 application-local.properties
 application-dev.properties
 .env
+.env.*
+!.env.example
+.local/
 *.pem
 
 

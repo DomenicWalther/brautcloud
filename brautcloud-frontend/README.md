@@ -48,6 +48,17 @@ The test suite covers authentication, session lifecycle, and onboarding flows:
 - **Gallery**: empty state handling (no event, no images, image loading errors) and populated gallery rendering.
 - **Home**: defensive rendering without event data, explicit loading and error states.
 
+## Release and runtime boundaries
+
+Frontend package identity is `1.0.0`, matching repository `VERSION` and backend
+Maven metadata. The release is planned, not shipped; see [`../RELEASE.md`](../RELEASE.md).
+
+Development uses localhost values from `src/environments/environment.development.ts`.
+A production build must receive approved HTTPS API and app origins through the
+release/deployment configuration. Never ship localhost URLs, HTTP API URLs, or
+backend/storage credentials in the browser bundle. The selected deployment target
+and its static-artifact configuration remain outside this repository until approved.
+
 ## Angular CLI
 
 For Angular CLI usage and command references, see the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli).
