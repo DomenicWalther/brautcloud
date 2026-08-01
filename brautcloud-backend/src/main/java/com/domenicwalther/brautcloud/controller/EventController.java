@@ -75,11 +75,8 @@ public class EventController {
 			response.header(HttpHeaders.SET_COOKIE, guestSessionService.createCookie(sessionToken).toString());
 		}
 		String clientAddress = servletRequest.getRemoteAddr() == null ? "unknown" : servletRequest.getRemoteAddr();
-		List<ImageUploadResponse> uploads = request.getContentTypes() == null && request.getFileSizes() == null
-				? imageService.generatePublicPresignedUploadUrls(eventID, galleryPassword, request.getFileNames(),
-						sessionToken, clientAddress)
-				: imageService.generatePublicPresignedUploadUrlsWithMetadata(eventID, galleryPassword, request,
-						sessionToken, clientAddress);
+		List<ImageUploadResponse> uploads = imageService.generatePublicPresignedUploadUrlsWithMetadata(eventID,
+				galleryPassword, request, sessionToken, clientAddress);
 		return response.body(uploads);
 	}
 

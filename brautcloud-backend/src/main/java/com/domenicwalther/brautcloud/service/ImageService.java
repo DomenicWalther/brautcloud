@@ -4,6 +4,7 @@ import com.domenicwalther.brautcloud.dto.ImageUploadRequest;
 import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.exception.BadRequestException;
 import com.domenicwalther.brautcloud.exception.ResourceNotFoundException;
+import com.domenicwalther.brautcloud.exception.StorageLifecycleException;
 import com.domenicwalther.brautcloud.exception.TooManyRequestsException;
 import com.domenicwalther.brautcloud.model.Event;
 import com.domenicwalther.brautcloud.model.Image;
@@ -69,6 +70,10 @@ public class ImageService {
 		return generatePresignedUploadUrls(event, request, null, email, false);
 	}
 
+	/**
+	 * Legacy entry point retained to return validation errors for callers that omit byte
+	 * lengths. All presign requests must use the metadata-bearing command.
+	 */
 	public List<ImageUploadResponse> generatePublicPresignedUploadUrls(UUID eventID, String galleryPassword,
 			List<String> fileNames, String guestSessionToken) {
 		return generatePublicPresignedUploadUrls(eventID, galleryPassword, fileNames, guestSessionToken, null);
@@ -78,7 +83,7 @@ public class ImageService {
 	public List<ImageUploadResponse> generatePublicPresignedUploadUrls(UUID eventID, String galleryPassword,
 			List<String> fileNames, String guestSessionToken, String clientAddress) {
 		return generatePublicPresignedUploadUrlsWithMetadata(eventID, galleryPassword,
-				new ImageUploadRequest(eventID, fileNames), guestSessionToken, clientAddress);
+				new ImageUploadRequest(eventID, fileNames, null, null), guestSessionToken, clientAddress);
 	}
 
 	@Transactional
@@ -107,9 +112,8 @@ public class ImageService {
 		try {
 			return specifications.stream().map(specification -> {
 				String key = UUID.randomUUID() + "-" + sanitizeFileName(specification.fileName());
-				String uploadUrl = request.getContentTypes() == null && request.getFileSizes() == null
-						? s3Service.getPresignedPutUrl(key)
-						: s3Service.getPresignedPutUrl(key, specification.contentType(), specification.sizeBytes());
+				String uploadUrl = s3Service.getPresignedPutUrl(key, specification.contentType(),
+						specification.sizeBytes());
 				if (uploadUrl == null || uploadUrl.isBlank()) {
 					throw new IllegalStateException("Could not create upload URL");
 				}
@@ -166,10 +170,19 @@ public class ImageService {
 			throw new ResourceNotFoundException("Image not found");
 		}
 		List<Image> pendingImages = images.stream().filter(image -> !image.isUploaded()).toList();
-		List<Image> invalidImages = pendingImages.stream()
-			.filter(image -> !s3Service.verifyUploadedImage(image.getImageKey(), image.getContentType(),
-					image.getSizeBytes()))
-			.toList();
+		List<Image> invalidImages = new ArrayList<>();
+		for (Image image : pendingImages) {
+			ImageVerificationResult result = s3Service.verifyUploadedImage(image.getImageKey(), image.getContentType(),
+					image.getSizeBytes());
+			if (result == ImageVerificationResult.TRANSIENT_FAILURE || result == null) {
+				// Keep row and object reference. Scheduled pending-upload cleanup can
+				// enqueue durable deletion after storage recovers.
+				throw new StorageLifecycleException("Uploaded image verification is pending object storage", null);
+			}
+			if (result == ImageVerificationResult.INVALID || result == ImageVerificationResult.MISSING) {
+				invalidImages.add(image);
+			}
+		}
 		if (!invalidImages.isEmpty()) {
 			discardUnverifiedImages(invalidImages);
 			throw new BadRequestException("Uploaded image is missing or invalid");
@@ -199,8 +212,8 @@ public class ImageService {
 		if (request.getContentTypes() != null && request.getContentTypes().size() != fileNames.size()) {
 			throw new BadRequestException("File metadata does not match file names");
 		}
-		if (request.getFileSizes() != null && request.getFileSizes().size() != fileNames.size()) {
-			throw new BadRequestException("File metadata does not match file names");
+		if (request.getFileSizes() == null || request.getFileSizes().size() != fileNames.size()) {
+			throw new BadRequestException("File sizes are required for every upload");
 		}
 
 		Set<String> normalizedNames = new HashSet<>();
@@ -220,8 +233,8 @@ public class ImageService {
 					throw new BadRequestException("File content type does not match its name");
 				}
 			}
-			Long sizeBytes = request.getFileSizes() == null ? null : request.getFileSizes().get(index);
-			if (sizeBytes != null && (sizeBytes <= 0 || sizeBytes > ImageUploadPolicy.MAX_IMAGE_BYTES)) {
+			Long sizeBytes = request.getFileSizes().get(index);
+			if (sizeBytes == null || sizeBytes <= 0 || sizeBytes > ImageUploadPolicy.MAX_IMAGE_BYTES) {
 				throw new BadRequestException("Image size exceeds the allowed limit");
 			}
 			specifications.add(new UploadSpec(fileName, contentType, sizeBytes));

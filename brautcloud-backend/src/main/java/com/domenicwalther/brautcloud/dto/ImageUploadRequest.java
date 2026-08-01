@@ -12,13 +12,10 @@ public class ImageUploadRequest {
 
 	private List<String> fileNames;
 
-	/**
-	 * Optional client metadata. It is treated as untrusted and checked again after
-	 * upload.
-	 */
+	/** Client metadata is untrusted and checked again after upload. */
 	private List<String> contentTypes;
 
-	/** Optional expected byte lengths used to bind presigned PUT requests. */
+	/** Required expected byte lengths used to bind presigned PUT requests. */
 	private List<Long> fileSizes;
 
 	public ImageUploadRequest() {

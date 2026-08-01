@@ -46,7 +46,11 @@ describe('ImageService public uploads', () => {
       'http://api.test/api/events/event-1/public/images/presigned-url',
     );
     expect(presign.request.method).toBe('POST');
-    expect(presign.request.body).toEqual({ fileNames: ['guest.jpg'] });
+    expect(presign.request.body).toEqual({
+      fileNames: ['guest.jpg'],
+      contentTypes: ['image/jpeg'],
+      fileSizes: [5],
+    });
     expect(presign.request.headers.get('X-Gallery-Password')).toBe('guest-secret');
     expect(presign.request.withCredentials).toBe(true);
     presign.flush([{ imageId: 'image-1', uploadUrl: 'https://s3.test/guest' }]);
