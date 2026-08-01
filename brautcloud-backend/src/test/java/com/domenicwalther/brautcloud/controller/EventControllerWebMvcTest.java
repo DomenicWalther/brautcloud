@@ -121,15 +121,18 @@ class EventControllerWebMvcTest {
 		when(guestSessionService.createToken()).thenReturn("guest-session-token");
 		when(guestSessionService.createCookie("guest-session-token"))
 			.thenReturn(ResponseCookie.from("brautcloud-guest-session", "guest-session-token").build());
-		when(imageService.generatePublicPresignedUploadUrls(eq(eventId), eq("secret"),
-				argThat(fileNames -> fileNames.equals(List.of("guest.jpg"))), eq("guest-session-token"), anyString()))
+		when(imageService.generatePublicPresignedUploadUrlsWithMetadata(eq(eventId), eq("secret"),
+				argThat(request -> request.getFileNames().equals(List.of("guest.jpg"))
+						&& request.getFileSizes().equals(List.of(5L))),
+				eq("guest-session-token"), anyString()))
 			.thenReturn(List.of(new ImageUploadResponse(imageId, "https://uploads.test/guest")));
 
-		mockMvc
-			.perform(post("/api/events/{eventId}/public/images/presigned-url", eventId)
-				.header("X-Gallery-Password", "secret")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"]}".formatted(UUID.randomUUID())))
+		mockMvc.perform(post("/api/events/{eventId}/public/images/presigned-url", eventId)
+			.header("X-Gallery-Password", "secret")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(
+					"{\"eventId\":\"%s\",\"fileNames\":[\"guest.jpg\"],\"contentTypes\":[\"image/jpeg\"],\"fileSizes\":[5]}"
+						.formatted(UUID.randomUUID())))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].imageId").value(imageId.toString()));
 

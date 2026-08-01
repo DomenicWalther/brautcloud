@@ -225,7 +225,7 @@ The method deletes existing tokens and inserts a replacement, but initial concur
 
 ## R-09 — Legacy and dead surfaces increase maintenance and attack surface
 
-Examples include `src/main/resources/static/upload.html`, unused `ImageRequest`/`ImageResponse`, stale Bruno requests, an apparently unused `EventService.getEvents`, and static roadmap artifacts. Confirm external consumers, then remove or quarantine these surfaces.
+Resolved in the legacy-surface cleanup: repository-wide reference searches found no application, test, build, CI, frontend, or documentation consumers for `src/main/resources/static/upload.html`, `ImageRequest`, `ImageResponse`, `EventService.getEvents`, the `src/bruno` collection, or `brautcloud-roadmap.html`. The upload page targeted removed `/upload`; Bruno requests used obsolete routes, payloads, numeric IDs, a machine-local file path, and an expired bearer token. Recent history traces these files to the initial monorepo import, while current controller and integration-test mappings cover the supported upload and event flows. These files and method were removed; retain this inventory check when adding replacement tooling or API examples.
 
 # 3. Architecture and module concerns
 

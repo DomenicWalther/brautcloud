@@ -102,7 +102,7 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(credentials()))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error").value("Bad Request"))
-			.andExpect(jsonPath("$.message").value("Email already used!"));
+			.andExpect(jsonPath("$.message").value("Unable to complete registration"));
 
 		mockMvc
 			.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
@@ -213,6 +213,30 @@ class AuthenticationIntegrationTest extends FullStackIntegrationTest {
 			assertThat(requests.stream().map(future -> getStatus(future)).toList())
 				.containsExactlyInAnyOrder(HttpStatus.OK.value(), HttpStatus.UNAUTHORIZED.value());
 			assertThat(refreshTokenRepository.findByToken(originalCookie.getValue())).isEmpty();
+			assertThat(refreshTokenRepository.count()).isOne();
+		}
+		finally {
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	void concurrentLoginsKeepExactlyOneRefreshSession() throws Exception {
+		register();
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		try {
+			List<Future<MvcResult>> requests = List.of(1, 2).stream().map(ignored -> executor.submit(() -> {
+				ready.countDown();
+				start.await();
+				return login();
+			})).toList();
+			ready.await();
+			start.countDown();
+
+			assertThat(requests.stream().map(future -> getStatus(future)).toList())
+				.containsExactlyInAnyOrder(HttpStatus.OK.value(), HttpStatus.OK.value());
 			assertThat(refreshTokenRepository.count()).isOne();
 		}
 		finally {

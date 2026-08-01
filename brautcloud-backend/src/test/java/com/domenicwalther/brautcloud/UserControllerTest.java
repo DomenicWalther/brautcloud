@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 class UserControllerTest {
 
 	private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(PostgresTestSupport.IMAGE);
@@ -178,7 +180,7 @@ class UserControllerTest {
 			.contentType(ContentType.JSON)
 			.header(HttpHeaders.SET_COOKIE, nullValue())
 			.body("error", equalTo("Bad Request"))
-			.body("message", equalTo("Email already used!"));
+			.body("message", equalTo("Unable to complete registration"));
 
 		assertEquals(1, userRepository.count());
 	}
@@ -197,7 +199,7 @@ class UserControllerTest {
 			.contentType(ContentType.JSON)
 			.header(HttpHeaders.SET_COOKIE, nullValue())
 			.body("error", equalTo("Bad Request"))
-			.body("message", equalTo("Email already used!"));
+			.body("message", equalTo("Unable to complete registration"));
 
 		assertEquals(1, userRepository.count());
 	}

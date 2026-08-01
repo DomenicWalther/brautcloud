@@ -15,6 +15,7 @@ import com.domenicwalther.brautcloud.repository.EventGuestVisitRepository;
 import com.domenicwalther.brautcloud.repository.EventRepository;
 import com.domenicwalther.brautcloud.repository.ImageRepository;
 import com.domenicwalther.brautcloud.repository.UserRepository;
+import com.domenicwalther.brautcloud.validation.GalleryPasswordPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,9 +51,13 @@ public class EventService {
 
 	private final StorageDeletionService storageDeletionService;
 
+	private final GalleryAccessRateLimiter galleryAccessRateLimiter;
+
+	@Autowired
 	public EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
 			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
-			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService) {
+			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService,
+			GalleryAccessRateLimiter galleryAccessRateLimiter) {
 		this.eventRepository = eventRepository;
 		this.userRepository = userRepository;
 		this.imageRepository = imageRepository;
@@ -60,14 +65,14 @@ public class EventService {
 		this.eventGuestVisitRepository = eventGuestVisitRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.storageDeletionService = storageDeletionService;
+		this.galleryAccessRateLimiter = galleryAccessRateLimiter;
 	}
 
-	public List<EventResponse> getEvents() {
-		return eventRepository.findAll()
-			.stream()
-			.filter(event -> !event.isDeletionRequested())
-			.map(EventResponse::fromEvent)
-			.toList();
+	EventService(EventRepository eventRepository, UserRepository userRepository, ImageRepository imageRepository,
+			ResourceOwnershipService resourceOwnershipService, EventGuestVisitRepository eventGuestVisitRepository,
+			PasswordEncoder passwordEncoder, StorageDeletionService storageDeletionService) {
+		this(eventRepository, userRepository, imageRepository, resourceOwnershipService, eventGuestVisitRepository,
+				passwordEncoder, storageDeletionService, new GalleryAccessRateLimiter());
 	}
 
 	public List<EventResponse> getEventsByUserEmail(String email) {
@@ -75,7 +80,7 @@ public class EventService {
 			.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 		return eventRepository.findByUser(user)
 			.stream()
-			.filter(event -> !event.isDeletionRequested())
+			.filter(event -> !event.isDeletionStarted())
 			.map(this::toEventResponse)
 			.toList();
 	}
@@ -143,6 +148,7 @@ public class EventService {
 			event.setPassword(null);
 		}
 		else {
+			GalleryPasswordPolicy.validateOptional(request.password());
 			event.setPassword(passwordEncoder.encode(request.password()));
 		}
 		return toEventResponse(eventRepository.save(event));
@@ -160,10 +166,18 @@ public class EventService {
 	}
 
 	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword) {
+		return requirePublicGalleryAccess(eventID, galleryPassword, currentClientAddress());
+	}
+
+	public Event requirePublicGalleryAccess(UUID eventID, String galleryPassword, String clientAddress) {
 		Event event = requireAvailableEvent(eventID);
-		if (event.getPassword() != null && !event.getPassword().isBlank()
-				&& !matchesGalleryPassword(event, galleryPassword)) {
-			throw new GalleryPasswordRequiredException("Gallery password required");
+		if (event.getPassword() != null && !event.getPassword().isBlank()) {
+			galleryAccessRateLimiter.check(eventID, clientAddress);
+			if (!matchesGalleryPassword(event, galleryPassword)) {
+				galleryAccessRateLimiter.recordFailure(eventID, clientAddress);
+				throw new GalleryPasswordRequiredException("Gallery password required");
+			}
+			galleryAccessRateLimiter.recordSuccess(eventID, clientAddress);
 		}
 		return event;
 	}
@@ -173,7 +187,7 @@ public class EventService {
 	}
 
 	public List<EventImageDTO> getPublicEventImages(UUID eventID, String galleryPassword, String guestSessionToken) {
-		requirePublicGalleryAccess(eventID, galleryPassword);
+		requirePublicGalleryAccess(eventID, galleryPassword, currentClientAddress());
 		String guestSessionHash = GuestSessionService.isValidToken(guestSessionToken)
 				? GuestSessionService.hash(guestSessionToken) : null;
 		return getEventImages(eventID, false, guestSessionHash);
@@ -186,7 +200,7 @@ public class EventService {
 	private List<EventImageDTO> getEventImages(UUID eventID, boolean ownerView, String guestSessionHash) {
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID);
 
-		return images.stream().filter(image -> !image.isDeletionRequested()).map(image -> {
+		return images.stream().filter(image -> !image.isDeletionStarted()).map(image -> {
 			String url = s3Service.getPresignedUrl(image.getImageKey());
 			boolean canDelete = ownerView
 					|| guestSessionHash != null && guestSessionHash.equals(image.getGuestSessionHash());
@@ -198,7 +212,7 @@ public class EventService {
 		resourceOwnershipService.requireOwnedEvent(email, eventID);
 		List<Image> images = imageRepository.findByEventIdAndIsUploadedTrue(eventID)
 			.stream()
-			.filter(image -> !image.isDeletionRequested())
+			.filter(image -> !image.isDeletionStarted())
 			.toList();
 		if (images.isEmpty()) {
 			return null;
@@ -219,13 +233,14 @@ public class EventService {
 
 	private Event requireAvailableEvent(UUID eventId) {
 		Event event = findEvent(eventId);
-		if (event.isDeletionRequested()) {
+		if (event.isDeletionStarted()) {
 			throw new ResourceNotFoundException("Event not found");
 		}
 		return event;
 	}
 
 	private String hashGalleryPassword(String password) {
+		GalleryPasswordPolicy.validateOptional(password);
 		if (password == null || password.isBlank()) {
 			return null;
 		}
@@ -281,6 +296,16 @@ public class EventService {
 
 	private User findUserByEmail(String email) {
 		return userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	}
+
+	private String currentClientAddress() {
+		org.springframework.web.context.request.RequestAttributes attributes = org.springframework.web.context.request.RequestContextHolder
+			.getRequestAttributes();
+		if (attributes instanceof org.springframework.web.context.request.ServletRequestAttributes servletAttributes) {
+			String remoteAddress = servletAttributes.getRequest().getRemoteAddr();
+			return remoteAddress == null ? "unknown" : remoteAddress;
+		}
+		return "unknown";
 	}
 
 }
