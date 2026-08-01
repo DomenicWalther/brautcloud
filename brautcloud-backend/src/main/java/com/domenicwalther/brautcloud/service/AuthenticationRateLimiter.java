@@ -58,6 +58,13 @@ public class AuthenticationRateLimiter {
 		clearBackoff("login:account:" + normalize(email));
 	}
 
+	public void recordRegistrationSuccess(String clientAddress, String email) {
+		clearBackoff("registration:client:" + normalize(clientAddress));
+		clearBackoff("registration:account:" + normalize(email));
+		clearBackoff("login:client:" + normalize(clientAddress));
+		clearBackoff("login:account:" + normalize(email));
+	}
+
 	public void checkRegistration(String clientAddress, String email) {
 		checkAndRecord("registration:client:" + normalize(clientAddress), registrationMaxAttempts);
 		checkAndRecord("registration:account:" + normalize(email), registrationMaxAttempts);
@@ -98,6 +105,7 @@ public class AuthenticationRateLimiter {
 			return;
 		}
 		synchronized (state) {
+			state.requests.clear();
 			state.consecutiveFailures = 0;
 			state.blockedUntil = null;
 		}

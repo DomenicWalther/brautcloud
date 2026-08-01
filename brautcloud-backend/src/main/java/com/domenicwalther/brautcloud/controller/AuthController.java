@@ -93,6 +93,7 @@ public class AuthController {
 			throw new BadRequestException("Unable to complete registration");
 		}
 
+		authenticationRateLimiter.recordRegistrationSuccess(clientAddress(servletRequest), submittedEmail);
 		return ResponseEntity.ok(authSessionService.issue(user, response));
 	}
 
