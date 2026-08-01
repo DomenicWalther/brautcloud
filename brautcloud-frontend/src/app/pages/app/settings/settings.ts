@@ -52,6 +52,18 @@ export class Settings {
     required(schema.firstNameCoupleTwo, { message: 'Please enter the second name' });
     required(schema.date, { message: 'Please enter the event date' });
     required(schema.location, { message: 'Please enter a location' });
+    for (const field of [
+      schema.eventName,
+      schema.firstNameCoupleOne,
+      schema.firstNameCoupleTwo,
+      schema.location,
+    ]) {
+      validate(field, ({ value }) =>
+        value().length <= 255
+          ? null
+          : { kind: 'fieldTooLong', message: 'This field must be 255 characters or shorter' },
+      );
+    }
     validate(schema.date, ({ value }) => {
       if (!value() || /^\d{4}-\d{2}-\d{2}$/.test(value())) {
         return null;
@@ -112,6 +124,12 @@ export class Settings {
     event.preventDefault();
     const activeEvent = this.event();
     if (!activeEvent || this.savingPassword()) {
+      return;
+    }
+    if (this.passwordValue().length > 72) {
+      const message = 'Gallery password must be 72 characters or shorter.';
+      this.savePasswordError.set(message);
+      this.toastService.show(message, 'warning');
       return;
     }
 

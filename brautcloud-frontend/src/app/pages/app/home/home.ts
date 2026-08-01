@@ -22,6 +22,8 @@ import { HomeStats } from './home-stats/home-stats';
 import { ToastService } from '../../../services/toast-service';
 
 const GALLERY_PREVIEW_SLOTS = 3;
+const MAX_SYNC_EXPORT_IMAGES = 100;
+const MAX_SYNC_EXPORT_BYTES = 500 * 1024 * 1024;
 const VIEWED_EVENT_SESSION_KEY_PREFIX = 'brautcloud-event-viewed-';
 
 @Component({
@@ -166,6 +168,13 @@ export class Home {
     }
 
     this.downloadAllPhotosError.set(null);
+    if (this.allImages().length > MAX_SYNC_EXPORT_IMAGES) {
+      const message =
+        'This gallery is too large for a direct download. Download fewer than 100 photos at once.';
+      this.downloadAllPhotosError.set(message);
+      this.toastService.show(message, 'warning');
+      return;
+    }
     this.downloadingAllPhotos.set(true);
 
     this.eventService
@@ -176,6 +185,13 @@ export class Home {
           this.downloadingAllPhotos.set(false);
           if (response.status === 204 || !response.body) {
             const message = 'No photos to download yet.';
+            this.downloadAllPhotosError.set(message);
+            this.toastService.show(message, 'warning');
+            return;
+          }
+
+          if (response.body.size > MAX_SYNC_EXPORT_BYTES) {
+            const message = 'This export exceeds the 500 MB download limit.';
             this.downloadAllPhotosError.set(message);
             this.toastService.show(message, 'warning');
             return;

@@ -10,6 +10,10 @@ public final class ImageUploadPolicy {
 
 	public static final int MAX_FILES_PER_REQUEST = 100;
 
+	public static final int MAX_SYNC_EXPORT_IMAGES = 100;
+
+	public static final long MAX_SYNC_EXPORT_BYTES = 500L * 1024 * 1024;
+
 	public static final long MAX_IMAGES_PER_EVENT = 1_000;
 
 	public static final long MAX_IMAGES_PER_GUEST_SESSION = 100;

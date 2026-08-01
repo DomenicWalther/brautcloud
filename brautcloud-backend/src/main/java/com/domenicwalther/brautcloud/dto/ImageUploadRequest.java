@@ -1,5 +1,7 @@
 package com.domenicwalther.brautcloud.dto;
 
+import com.domenicwalther.brautcloud.service.ImageUploadPolicy;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -10,12 +12,15 @@ public class ImageUploadRequest {
 
 	private UUID eventId;
 
-	private List<String> fileNames;
+	@Size(min = 1, max = ImageUploadPolicy.MAX_FILES_PER_REQUEST, message = "At most 100 files may be uploaded at once")
+	private List<@Size(max = 255, message = "File name must not exceed 255 characters") String> fileNames;
 
 	/** Client metadata is untrusted and checked again after upload. */
-	private List<String> contentTypes;
+	@Size(max = ImageUploadPolicy.MAX_FILES_PER_REQUEST, message = "Too many content types")
+	private List<@Size(max = 100, message = "Content type must not exceed 100 characters") String> contentTypes;
 
 	/** Required expected byte lengths used to bind presigned PUT requests. */
+	@Size(max = ImageUploadPolicy.MAX_FILES_PER_REQUEST, message = "Too many file sizes")
 	private List<Long> fileSizes;
 
 	public ImageUploadRequest() {

@@ -374,6 +374,33 @@ class ImageServiceTest {
 	}
 
 	@Test
+	void confirmationRejectsMoreThanOneHundredImageIdsBeforeRepositoryAccess() {
+		User owner = TestFixtures.user("owner@example.com");
+		List<UUID> imageIds = java.util.stream.IntStream.range(0, 101).mapToObj(ignored -> UUID.randomUUID()).toList();
+
+		assertThatThrownBy(() -> imageService.markImagesAsUploaded(owner.getEmail(), imageIds))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class)
+			.hasMessage("At most 100 image IDs may be confirmed at once");
+		verify(imageRepository, never()).findAllById(any());
+	}
+
+	@Test
+	void uploadRejectsMoreThanOneHundredFilesBeforePresigning() {
+		UUID eventId = UUID.randomUUID();
+		User owner = TestFixtures.user("owner@example.com");
+		Event event = TestFixtures.event(owner, "Wedding");
+		event.setId(eventId);
+		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+		ImageUploadRequest request = new ImageUploadRequest(eventId,
+				java.util.stream.IntStream.range(0, 101).mapToObj(index -> "photo-" + index + ".jpg").toList());
+
+		assertThatThrownBy(() -> imageService.generatePresignedUploadUrls(owner.getEmail(), request))
+			.isInstanceOf(com.domenicwalther.brautcloud.exception.BadRequestException.class);
+		verify(s3Service, never()).getPresignedPutUrl(anyString(), anyString(), anyLong());
+		verify(imageRepository, never()).save(any());
+	}
+
+	@Test
 	void deletingImageRemovesMetadataAndObject() {
 		UUID imageId = UUID.randomUUID();
 		User owner = TestFixtures.user("owner@example.com");

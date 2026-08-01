@@ -309,8 +309,10 @@ public class ImageService {
 	}
 
 	private void validateImageIds(List<UUID> imageIds) {
-		if (imageIds == null || imageIds.isEmpty() || imageIds.stream().anyMatch(id -> id == null)
-				|| imageIds.stream().distinct().count() != imageIds.size()) {
+		if (imageIds == null || imageIds.isEmpty() || imageIds.size() > ImageUploadPolicy.MAX_FILES_PER_REQUEST) {
+			throw new BadRequestException("At most 100 image IDs may be confirmed at once");
+		}
+		if (imageIds.stream().anyMatch(id -> id == null) || imageIds.stream().distinct().count() != imageIds.size()) {
 			throw new ResourceNotFoundException("Image not found");
 		}
 	}

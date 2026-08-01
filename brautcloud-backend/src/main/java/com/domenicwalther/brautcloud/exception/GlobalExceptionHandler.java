@@ -1,6 +1,7 @@
 package com.domenicwalther.brautcloud.exception;
 
 import org.springframework.http.HttpStatus;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -14,6 +15,27 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	@ExceptionHandler(PayloadTooLargeException.class)
+	public ResponseEntity<Map<String, String>> handlePayloadTooLarge(PayloadTooLargeException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Payload Too Large");
+		error.put("message", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity<Map<String, String>> handleConstraintViolation(ConstraintViolationException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", "Validation failed");
+		error.put("message",
+				ex.getConstraintViolations()
+					.stream()
+					.findFirst()
+					.map(violation -> violation.getMessage())
+					.orElse("Request contains invalid values"));
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+	}
 
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ResponseEntity<Map<String, String>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {

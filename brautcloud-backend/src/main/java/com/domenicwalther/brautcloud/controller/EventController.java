@@ -12,14 +12,17 @@ import com.domenicwalther.brautcloud.dto.ImageUploadResponse;
 import com.domenicwalther.brautcloud.service.EventService;
 import com.domenicwalther.brautcloud.service.ImageService;
 import com.domenicwalther.brautcloud.service.GuestSessionService;
+import com.domenicwalther.brautcloud.service.ImageUploadPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -28,6 +31,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events")
+@Validated
 public class EventController {
 
 	private final EventService eventService;
@@ -64,7 +68,7 @@ public class EventController {
 	public ResponseEntity<List<ImageUploadResponse>> getPublicImagePresignedUrls(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
 			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
-			HttpServletRequest servletRequest, @RequestBody ImageUploadRequest request) {
+			HttpServletRequest servletRequest, @Valid @RequestBody ImageUploadRequest request) {
 		if (request == null) {
 			throw new BadRequestException("Event and file names are required");
 		}
@@ -84,7 +88,8 @@ public class EventController {
 	public ResponseEntity<Void> markPublicImagesAsUploaded(@PathVariable UUID eventID,
 			@RequestHeader(name = "X-Gallery-Password", required = false) String galleryPassword,
 			@CookieValue(name = GuestSessionService.COOKIE_NAME, required = false) String guestSessionToken,
-			@RequestBody List<UUID> imageIds) {
+			@Valid @RequestBody @Size(max = ImageUploadPolicy.MAX_FILES_PER_REQUEST,
+					message = "At most 100 image IDs may be confirmed at once") List<UUID> imageIds) {
 		imageService.markPublicImagesAsUploaded(eventID, galleryPassword, imageIds, guestSessionToken);
 		return ResponseEntity.noContent().build();
 	}
