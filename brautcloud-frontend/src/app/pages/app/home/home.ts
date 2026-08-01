@@ -1,6 +1,16 @@
-import { Component, computed, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { QrCodeComponent } from 'ng-qrcode';
+import { ObjectUrlRegistry } from '../../../core/object-url-registry';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { APP_URL } from '../../../core/tokens';
 import { AppShell } from '../../../components/app-shell/app-shell';
@@ -28,6 +38,8 @@ export class Home {
   private readonly imageService = inject(ImageService);
   private readonly APP_URL = inject(APP_URL);
   private readonly toastService = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly objectUrls = new ObjectUrlRegistry();
 
   readonly user = this.userService.user;
   readonly loading = this.userService.loading;
@@ -44,6 +56,8 @@ export class Home {
   private readonly eventId = computed(() => this.event()?.id);
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.objectUrls.revokeAll());
+
     toObservable(this.eventId)
       .pipe(
         tap(() => this.imagesLoading.set(true)),
@@ -74,7 +88,10 @@ export class Home {
       }
 
       sessionStorage.setItem(sessionKey, 'true');
-      this.eventService.registerView(eventId).subscribe();
+      this.eventService
+        .registerView(eventId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({ error: () => undefined });
     });
   }
 
@@ -151,31 +168,37 @@ export class Home {
     this.downloadAllPhotosError.set(null);
     this.downloadingAllPhotos.set(true);
 
-    this.eventService.downloadEventImages(activeEvent.id).subscribe({
-      next: (response) => {
-        this.downloadingAllPhotos.set(false);
-        if (response.status === 204 || !response.body) {
-          const message = 'No photos to download yet.';
-          this.downloadAllPhotosError.set(message);
-          this.toastService.show(message, 'warning');
-          return;
-        }
+    this.eventService
+      .downloadEventImages(activeEvent.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.downloadingAllPhotos.set(false);
+          if (response.status === 204 || !response.body) {
+            const message = 'No photos to download yet.';
+            this.downloadAllPhotosError.set(message);
+            this.toastService.show(message, 'warning');
+            return;
+          }
 
-        const downloadUrl = URL.createObjectURL(response.body);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `${this.slugify(activeEvent.eventName)}-photos.zip`;
-        link.click();
-        URL.revokeObjectURL(downloadUrl);
-        this.toastService.show('Photos downloaded successfully.', 'success');
-      },
-      error: () => {
-        this.downloadingAllPhotos.set(false);
-        const message = 'We could not download your photos. Please try again.';
-        this.downloadAllPhotosError.set(message);
-        this.toastService.show(message, 'error');
-      },
-    });
+          const downloadUrl = this.objectUrls.create(response.body);
+          try {
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `${this.slugify(activeEvent.eventName)}-photos.zip`;
+            link.click();
+          } finally {
+            this.objectUrls.revoke(downloadUrl);
+          }
+          this.toastService.show('Photos downloaded successfully.', 'success');
+        },
+        error: () => {
+          this.downloadingAllPhotos.set(false);
+          const message = 'We could not download your photos. Please try again.';
+          this.downloadAllPhotosError.set(message);
+          this.toastService.show(message, 'error');
+        },
+      });
   }
 
   private async copyToClipboard(value: string): Promise<void> {

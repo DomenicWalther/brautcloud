@@ -205,14 +205,14 @@ class EventServiceTest {
 	void eventCreationHashesGalleryPasswordBeforePersistence() {
 		User user = TestFixtures.user("owner@example.com");
 		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
-		when(passwordEncoder.encode("guest-secret")).thenReturn("$2a$hashed-gallery-password");
+		when(passwordEncoder.encode("Guest-secret123!")).thenReturn("$2a$hashed-gallery-password");
 
 		eventService.addEvent(user.getEmail(), request(UUID.randomUUID()));
 
 		ArgumentCaptor<Event> event = ArgumentCaptor.forClass(Event.class);
 		verify(eventRepository).save(event.capture());
 		assertThat(event.getValue().getPassword()).isEqualTo("$2a$hashed-gallery-password");
-		assertThat(event.getValue().getPassword()).isNotEqualTo("guest-secret");
+		assertThat(event.getValue().getPassword()).isNotEqualTo("Guest-secret123!");
 	}
 
 	@Test
@@ -350,16 +350,16 @@ class EventServiceTest {
 		UUID eventId = UUID.randomUUID();
 		event.setId(eventId);
 		when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-		when(passwordEncoder.encode("new-secret")).thenReturn("$2a$hashed");
+		when(passwordEncoder.encode("New-secret123!")).thenReturn("$2a$hashed");
 		when(eventRepository.save(event)).thenReturn(event);
 		when(eventGuestVisitRepository.countByEventId(eventId)).thenReturn(0L);
 
 		EventUpdateRequest request = new EventUpdateRequest("Wedding", "Alex", "Sam", "Berlin",
-				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "new-secret");
+				java.time.LocalDateTime.of(2030, 6, 15, 14, 0), "New-secret123!");
 		eventService.updateEvent(user.getEmail(), eventId, request);
 
 		assertThat(event.getPassword()).isEqualTo("$2a$hashed");
-		verify(passwordEncoder).encode("new-secret");
+		verify(passwordEncoder).encode("New-secret123!");
 	}
 
 	@Test
@@ -444,7 +444,7 @@ class EventServiceTest {
 		request.setFirstNameCoupleTwo("Sam");
 		request.setLocation("Berlin");
 		request.setDate(LocalDateTime.of(2030, 6, 15, 14, 0));
-		request.setPassword("guest-secret");
+		request.setPassword("Guest-secret123!");
 		request.setQrCode("qr-code");
 		return request;
 	}
