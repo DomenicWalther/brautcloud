@@ -21,14 +21,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 @Service
 public class ImageService {
@@ -50,14 +46,18 @@ public class ImageService {
 
 	private final StorageDeletionService storageDeletionService;
 
+	private final UploadRequestPlanner uploadRequestPlanner;
+
 	private final ConcurrentMap<String, Deque<Instant>> presignAttempts = new ConcurrentHashMap<>();
 
 	public ImageService(ImageRepository imageRepository, ResourceOwnershipService resourceOwnershipService,
-			EventService eventService, StorageDeletionService storageDeletionService) {
+			EventService eventService, StorageDeletionService storageDeletionService,
+			UploadRequestPlanner uploadRequestPlanner) {
 		this.imageRepository = imageRepository;
 		this.resourceOwnershipService = resourceOwnershipService;
 		this.eventService = eventService;
 		this.storageDeletionService = storageDeletionService;
+		this.uploadRequestPlanner = uploadRequestPlanner;
 	}
 
 	@Transactional
@@ -88,7 +88,7 @@ public class ImageService {
 		ImageUploadRequest scopedRequest = new ImageUploadRequest(eventID,
 				request == null ? null : request.getFileNames(), request == null ? null : request.getContentTypes(),
 				request == null ? null : request.getFileSizes());
-		validateUploadRequest(scopedRequest);
+		uploadRequestPlanner.plan(scopedRequest);
 		String guestSessionHash = requireGuestSessionHash(guestSessionToken);
 		return generatePresignedUploadUrls(event, scopedRequest, guestSessionHash,
 				"public:" + eventID + ":" + clientAddress, true);
@@ -96,36 +96,32 @@ public class ImageService {
 
 	private List<ImageUploadResponse> generatePresignedUploadUrls(Event event, ImageUploadRequest request,
 			String guestSessionHash, String rateLimitKey, boolean publicUpload) {
-		List<UploadSpec> specifications = validateUploadRequest(request);
+		UploadRequestPlanner.UploadPlan plan = uploadRequestPlanner.plan(request);
 		enforceRateLimit(rateLimitKey);
-		enforceQuota(event, specifications, guestSessionHash, publicUpload);
+		enforceQuota(event, plan.specifications(), guestSessionHash, publicUpload);
+		ensureEventAcceptsUploads(event);
+		return createPendingUploads(event, plan, guestSessionHash);
+	}
 
+	private void ensureEventAcceptsUploads(Event event) {
 		if (event.isDeletionRequested()) {
 			throw new ResourceNotFoundException("Event not found");
 		}
+	}
+
+	private List<ImageUploadResponse> createPendingUploads(Event event, UploadRequestPlanner.UploadPlan plan,
+			String guestSessionHash) {
+		List<ImageUploadResponse> responses = new ArrayList<>();
 		List<Image> savedImages = new ArrayList<>();
 		try {
-			return specifications.stream().map(specification -> {
-				String key = UUID.randomUUID() + "-" + sanitizeFileName(specification.fileName());
-				String uploadUrl = request.getContentTypes() == null && request.getFileSizes() == null
-						? s3Service.getPresignedPutUrl(key)
-						: s3Service.getPresignedPutUrl(key, specification.contentType(), specification.sizeBytes());
-				if (uploadUrl == null || uploadUrl.isBlank()) {
-					throw new IllegalStateException("Could not create upload URL");
-				}
-
-				Image image = new Image();
-				image.setEvent(event);
-				image.setImageKey(key);
-				image.setContentType(specification.contentType());
-				image.setSizeBytes(specification.sizeBytes());
-				image.setGuestSessionHash(guestSessionHash);
-				image.setVisible(true);
-				image.setUploaded(false);
-				Image saved = imageRepository.save(image);
+			for (UploadRequestPlanner.UploadSpec specification : plan.specifications()) {
+				PresignedUpload presignedUpload = presignUpload(specification, plan.metadataBound());
+				Image saved = persistPendingUpload(event, guestSessionHash, specification, presignedUpload.key());
 				savedImages.add(saved);
-				return new ImageUploadResponse(saved.getId(), uploadUrl, specification.contentType());
-			}).collect(Collectors.toList());
+				responses
+					.add(new ImageUploadResponse(saved.getId(), presignedUpload.url(), specification.contentType()));
+			}
+			return responses;
 		}
 		catch (RuntimeException exception) {
 			// Presigning happens before each row is saved. Roll back manually for callers
@@ -135,6 +131,30 @@ public class ImageService {
 			}
 			throw exception;
 		}
+	}
+
+	private PresignedUpload presignUpload(UploadRequestPlanner.UploadSpec specification, boolean metadataBound) {
+		String key = UUID.randomUUID() + "-" + specification.sanitizedFileName();
+		String uploadUrl = metadataBound
+				? s3Service.getPresignedPutUrl(key, specification.contentType(), specification.sizeBytes())
+				: s3Service.getPresignedPutUrl(key);
+		if (uploadUrl == null || uploadUrl.isBlank()) {
+			throw new IllegalStateException("Could not create upload URL");
+		}
+		return new PresignedUpload(key, uploadUrl);
+	}
+
+	private Image persistPendingUpload(Event event, String guestSessionHash,
+			UploadRequestPlanner.UploadSpec specification, String key) {
+		Image image = new Image();
+		image.setEvent(event);
+		image.setImageKey(key);
+		image.setContentType(specification.contentType());
+		image.setSizeBytes(specification.sizeBytes());
+		image.setGuestSessionHash(guestSessionHash);
+		image.setVisible(true);
+		image.setUploaded(false);
+		return imageRepository.save(image);
 	}
 
 	@Transactional(noRollbackFor = BadRequestException.class)
@@ -162,18 +182,30 @@ public class ImageService {
 	}
 
 	private void markImagesAsUploaded(List<Image> images) {
-		if (images.stream().anyMatch(Image::isDeletionRequested)) {
-			throw new ResourceNotFoundException("Image not found");
-		}
-		List<Image> pendingImages = images.stream().filter(image -> !image.isUploaded()).toList();
-		List<Image> invalidImages = pendingImages.stream()
-			.filter(image -> !s3Service.verifyUploadedImage(image.getImageKey(), image.getContentType(),
-					image.getSizeBytes()))
-			.toList();
+		ensureImagesCanTransitionToUploaded(images);
+		List<Image> invalidImages = verifyPendingImages(images);
 		if (!invalidImages.isEmpty()) {
 			discardUnverifiedImages(invalidImages);
 			throw new BadRequestException("Uploaded image is missing or invalid");
 		}
+		publishImages(images);
+	}
+
+	private void ensureImagesCanTransitionToUploaded(List<Image> images) {
+		if (images.stream().anyMatch(Image::isDeletionRequested)) {
+			throw new ResourceNotFoundException("Image not found");
+		}
+	}
+
+	private List<Image> verifyPendingImages(List<Image> images) {
+		return images.stream()
+			.filter(image -> !image.isUploaded())
+			.filter(image -> !s3Service.verifyUploadedImage(image.getImageKey(), image.getContentType(),
+					image.getSizeBytes()))
+			.toList();
+	}
+
+	private void publishImages(List<Image> images) {
 		images.forEach(image -> image.setUploaded(true));
 		imageRepository.saveAll(images);
 	}
@@ -191,52 +223,14 @@ public class ImageService {
 		imageRepository.deleteAll(images);
 	}
 
-	private List<UploadSpec> validateUploadRequest(ImageUploadRequest request) {
-		List<String> fileNames = request.getFileNames();
-		if (fileNames == null || fileNames.isEmpty() || fileNames.size() > ImageUploadPolicy.MAX_FILES_PER_REQUEST) {
-			throw new BadRequestException("At least one valid file name is required");
-		}
-		if (request.getContentTypes() != null && request.getContentTypes().size() != fileNames.size()) {
-			throw new BadRequestException("File metadata does not match file names");
-		}
-		if (request.getFileSizes() != null && request.getFileSizes().size() != fileNames.size()) {
-			throw new BadRequestException("File metadata does not match file names");
-		}
-
-		Set<String> normalizedNames = new HashSet<>();
-		List<UploadSpec> specifications = new ArrayList<>();
-		for (int index = 0; index < fileNames.size(); index++) {
-			String fileName = fileNames.get(index);
-			if (!isSafeFileName(fileName) || !normalizedNames.add(fileName.toLowerCase(Locale.ROOT))) {
-				throw new BadRequestException("At least one valid file name is required");
-			}
-			String contentType = ImageUploadPolicy.contentTypeForFileName(fileName);
-			if (contentType == null) {
-				throw new BadRequestException("Only supported image file types are allowed");
-			}
-			if (request.getContentTypes() != null) {
-				String requestedType = ImageUploadPolicy.normalizeContentType(request.getContentTypes().get(index));
-				if (!contentType.equals(requestedType) || !ImageUploadPolicy.isAllowedContentType(requestedType)) {
-					throw new BadRequestException("File content type does not match its name");
-				}
-			}
-			Long sizeBytes = request.getFileSizes() == null ? null : request.getFileSizes().get(index);
-			if (sizeBytes != null && (sizeBytes <= 0 || sizeBytes > ImageUploadPolicy.MAX_IMAGE_BYTES)) {
-				throw new BadRequestException("Image size exceeds the allowed limit");
-			}
-			specifications.add(new UploadSpec(fileName, contentType, sizeBytes));
-		}
-		return specifications;
-	}
-
-	private void enforceQuota(Event event, List<UploadSpec> specifications, String guestSessionHash,
-			boolean publicUpload) {
+	private void enforceQuota(Event event, List<UploadRequestPlanner.UploadSpec> specifications,
+			String guestSessionHash, boolean publicUpload) {
 		long eventCount = imageRepository.countByEventId(event.getId());
 		if (eventCount + specifications.size() > ImageUploadPolicy.MAX_IMAGES_PER_EVENT) {
 			throw new BadRequestException("Gallery image limit reached");
 		}
 		long requestedBytes = specifications.stream()
-			.map(UploadSpec::sizeBytes)
+			.map(UploadRequestPlanner.UploadSpec::sizeBytes)
 			.filter(size -> size != null)
 			.mapToLong(Long::longValue)
 			.sum();
@@ -268,18 +262,6 @@ public class ImageService {
 			}
 			attempts.addLast(now);
 		}
-	}
-
-	private boolean isSafeFileName(String fileName) {
-		if (fileName == null || fileName.isBlank() || fileName.length() > 255 || fileName.equals(".")
-				|| fileName.equals("..") || fileName.contains("/") || fileName.contains("\\")) {
-			return false;
-		}
-		return fileName.chars().noneMatch(character -> character == 0 || Character.isISOControl(character));
-	}
-
-	private String sanitizeFileName(String fileName) {
-		return fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
 	}
 
 	private String requireGuestSessionHash(String guestSessionToken) {
@@ -336,7 +318,7 @@ public class ImageService {
 			});
 	}
 
-	private record UploadSpec(String fileName, String contentType, Long sizeBytes) {
+	private record PresignedUpload(String key, String url) {
 	}
 
 }
