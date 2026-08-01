@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+logging:
+  level:
+    org.springframework.security: TRACE
+    org.flywaydb: DEBUG
